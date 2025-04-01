@@ -12,8 +12,7 @@ We are thrilled that you want to help improve the project. To make your contribu
    - This creates a copy of the repository under your GitHub account.
    - Example:  
      If the repository URL is `https://github.com/OmdenaAI/GibdetColombiaChapter_UrbanTreeObservatory`, after forking it, the URL will become `https://github.com/YOUR-USERNAME/GibdetColombiaChapter_UrbanTreeObservatory`.
-     **Image Example**
-     ![Fork Image](images\Forkimage.png.png)
+     
 
    
 ### 2. **Clone Your Fork**  
@@ -77,8 +76,6 @@ We are thrilled that you want to help improve the project. To make your contribu
    - Open a pull request against the `main` branch of the original repository.
    - In your PR description, clearly describe what you've done, why it's necessary, and include any relevant issue number (e.g., `Fixes #123`).\
    
-   **Image Example**:  
-   ![Create PR](images\image.png)
 
 ### 8. **Get a Review**  
    - A project maintainer or task lead will review your PR.
