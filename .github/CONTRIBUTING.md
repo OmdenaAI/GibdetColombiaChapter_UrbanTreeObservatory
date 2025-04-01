@@ -12,11 +12,10 @@ We are thrilled that you want to help improve the project. To make your contribu
    - This creates a copy of the repository under your GitHub account.
    - Example:  
      If the repository URL is `https://github.com/OmdenaAI/GibdetColombiaChapter_UrbanTreeObservatory`, after forking it, the URL will become `https://github.com/YOUR-USERNAME/GibdetColombiaChapter_UrbanTreeObservatory`.
+     **Image Example**
+     ![Fork Image](images\Forkimage.png.png)
 
-   **Image Example**:  
-      ![Fork Button](![alt text](image-1.png))
-
-
+   
 ### 2. **Clone Your Fork**  
    - Once you've forked the repo, clone it to your local machine:
      ```bash
@@ -76,10 +75,10 @@ We are thrilled that you want to help improve the project. To make your contribu
      git push origin feature-your-feature-name
      ```
    - Open a pull request against the `main` branch of the original repository.
-   - In your PR description, clearly describe what you've done, why it's necessary, and include any relevant issue number (e.g., `Fixes #123`).
-
+   - In your PR description, clearly describe what you've done, why it's necessary, and include any relevant issue number (e.g., `Fixes #123`).\
+   
    **Image Example**:  
-   ![Create PR](![alt text](image-2.png))
+   ![Create PR](images\image.png)
 
 ### 8. **Get a Review**  
    - A project maintainer or task lead will review your PR.
@@ -105,16 +104,19 @@ We are thrilled that you want to help improve the project. To make your contribu
 - This ensures that everyone using the project will know how to use the new feature and that the code remains maintainable.
 
 ### **First-Time Contributor Guide**
--If this is your first time contributing to this project, follow the steps below to get started:
--Fork the Repository (as explained above).
--Set up the Project Locally: Follow the instructions in the README.md for setting up the project     environment.
--Read the Documentation: Before starting to code, ensure you understand the project's goals and functionality.
--Start with a Small Task: Begin with a small feature or bug fix. Check the good first issue label for easier tasks.
--Ask Questions: If you need help, ask! Open an issue or reach out to a maintainer.
--Submit Your First PR: When you're ready, submit a PR and follow the review process.
+-If this is your first time contributing to this project, follow the steps below to get started:␠␠
+-Fork the Repository (as explained above).␠␠
+-Set up the Project Locally: Follow the instructions in the README.md for setting up the project environment.␠␠
+-Read the Documentation: Before starting to code, ensure you understand the project's goals and functionality.␠␠
+-Start with a Small Task: Begin with a small feature or bug fix. Check the good first issue label for easier tasks.␠␠
+-Ask Questions: If you need help, ask! Open an issue or reach out to a maintainer.␠␠
+-Submit Your First PR: When you're ready, submit a PR and follow the review process.␠␠
 ### **Code of Conduct**
-This project and everyone participating in it is governed by the OmdenaAI/GibdetColombiaChapter_UrbanTreeObservatory Code of Conduct.
-By participating, you are expected to uphold this code. Please report unacceptable behavior to <>.
+This project and everyone participating in it is governed by the OmdenaAI/GibdetColombiaChapter_UrbanTreeObservatory Code of Conduct.  
+By participating, you are expected to uphold this code.
+
+**Reporting Unacceptable Behavior**:  
+Please report concerns to the ``Project lead``. Contributors may use Slack, direct messages (DMs), or other agreed-upon communication channels.  
 
 Thank you for contributing to the project! 🎉
 
