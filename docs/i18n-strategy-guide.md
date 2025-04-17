@@ -55,7 +55,7 @@ Correct approach for TextChoices:
 
 ```python
 # WRONG - Mixed Spanish/English and no translations
-class EstablishmentMeans(models.TextChoices):
+class Origin(models.TextChoices):
     NATIVA = "Nativa", "Native"
     CULTIVADA = "Cultivada", "Cultivated"
     # ...
@@ -63,7 +63,7 @@ class EstablishmentMeans(models.TextChoices):
 # CORRECT - English constants, neutral codes, translatable strings
 from django.utils.translation import gettext_lazy as _
 
-class EstablishmentMeans(models.TextChoices):
+class Origin(models.TextChoices):
     NATIVE = "NA", _("native")
     CULTIVATED = "CU", _("cultivated") 
     NOT_IDENTIFIED = "NI", _("not identified")

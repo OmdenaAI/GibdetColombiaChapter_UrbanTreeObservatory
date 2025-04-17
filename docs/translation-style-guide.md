@@ -25,10 +25,16 @@ name = models.CharField(_("species name"), max_length=100)
 date_recorded = models.DateField(_("recording date"), null=True)
 
 # Choice options
-class Origin(models.TextChoices):
-    NATIVE = "NA", _("native")
-    EXOTIC = "EX", _("exotic")
-    UNKNOWN = "UN", _("unknown")
+class IUCNStatus(models.TextChoices):
+    DATA_DEFICIENT = "DD", _("data deficient")
+    LEAST_CONCERN = "LC", _("least concern")
+    NEAR_THREATENED = "NT", _("near threatened")
+    VULNERABLE = "VU", _("vulnerable")
+    ENDANGERED = "EN", _("endangered")
+    CRITICALLY_ENDANGERED = "CR", _("critically endangered")
+    EXTINCT_IN_WILD = "EW", _("extinct in the wild")
+    EXTINCT = "EX", _("extinct")
+    NOT_EVALUATED = "NE", _("not evaluated")
 
 # Meta information
 class Meta:
