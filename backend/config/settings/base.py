@@ -210,9 +210,9 @@ ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_EMAIL_VERIFICATION = "optional"
 
 # GeoDjango-specific settings
-GDAL_LIBRARY_PATH = env(
-    "GDAL_LIBRARY_PATH", default="/opt/homebrew/opt/gdal/lib/libgdal.dylib"
-)
-GEOS_LIBRARY_PATH = env(
-    "GEOS_LIBRARY_PATH", default="/opt/homebrew/opt/geos/lib/libgeos_c.dylib"
-)
+# GDAL_LIBRARY_PATH = env(
+#     "GDAL_LIBRARY_PATH", default="/opt/homebrew/opt/gdal/lib/libgdal.dylib"
+# )
+# GEOS_LIBRARY_PATH = env(
+#     "GEOS_LIBRARY_PATH", default="/opt/homebrew/opt/geos/lib/libgeos_c.dylib"
+# )

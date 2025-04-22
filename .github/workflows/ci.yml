@@ -2,12 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master, develop ]
     paths:
       - 'backend/**'
       - '.github/workflows/ci.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, master, develop ]
     paths:
       - 'backend/**'
       - '.github/workflows/ci.yml'
@@ -36,6 +36,8 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+
+    # For GitHub Actions
     services:
       postgres:
         image: postgis/postgis:latest
@@ -54,70 +56,99 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up Python
+    # For GitHub Actions, we use setup-python
+    # For act, we directly install Python
+    - name: Set up Python (GitHub Actions)
+      if: ${{ !env.ACT }}
       uses: actions/setup-python@v4
       with:
         python-version: '3.12'
         cache: 'pip'
 
+    # This step only runs when using act
+    - name: Set up Python (act)
+      if: ${{ env.ACT }}
+      run: |
+        apt-get update
+        apt-get install -y python3 python3-pip python3-venv
+
+    # Install dependencies for both environments
     - name: Install system dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y binutils libproj-dev gdal-bin libgdal-dev python3-gdal
+        if [ "$ACT" = "true" ]; then
+          # For act
+          apt-get update
+          apt-get install -y binutils libproj-dev gdal-bin libgdal-dev python3-gdal postgresql-client
+        else
+          # For GitHub Actions
+          sudo apt-get update
+          sudo apt-get install -y binutils libproj-dev gdal-bin libgdal-dev python3-gdal postgresql-client
+        fi
 
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r backend/requirements.txt
 
-    - name: Set up GDAL environment variables
-      run: |
-        export CPLUS_INCLUDE_PATH=/usr/include/gdal
-        export C_INCLUDE_PATH=/usr/include/gdal
-        export GDAL_LIBRARY_PATH=$(gdal-config --libs | grep -o '\-L[^ ]*' | sed 's/-L//g')/libgdal.so
-        export GEOS_LIBRARY_PATH=$(find /usr/lib -name "libgeos_c.so*" | head -n 1)
-
-        echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
-        echo "C_INCLUDE_PATH=$C_INCLUDE_PATH" >> $GITHUB_ENV
-        echo "GDAL_LIBRARY_PATH=$GDAL_LIBRARY_PATH" >> $GITHUB_ENV
-        echo "GEOS_LIBRARY_PATH=$GEOS_LIBRARY_PATH" >> $GITHUB_ENV
-
-        # Print environment information for debugging
-        gdal-config --version
-        python -c "import gdal; print(f'GDAL Python binding version: {gdal.__version__}')"
-
     - name: Verify PostGIS setup
       run: |
-        PGPASSWORD=postgres psql -h localhost -U postgres -d urban_tree_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
-        PGPASSWORD=postgres psql -h localhost -U postgres -d urban_tree_db -c "SELECT PostGIS_version();"
+        if [ "$ACT" = "true" ]; then
+          # For act - try localhost first, then default Docker IP if that fails
+          PGPASSWORD=postgres psql -h localhost -U postgres -d urban_tree_db -c "CREATE EXTENSION IF NOT EXISTS postgis;" || \
+          PGPASSWORD=postgres psql -h host.docker.internal -U postgres -d urban_tree_db -c "CREATE EXTENSION IF NOT EXISTS postgis;" || \
+          echo "Could not connect to PostgreSQL database. Continuing anyway..."
+
+          PGPASSWORD=postgres psql -h localhost -U postgres -d urban_tree_db -c "SELECT PostGIS_version();" || \
+          PGPASSWORD=postgres psql -h host.docker.internal -U postgres -d urban_tree_db -c "SELECT PostGIS_version();" || \
+          echo "Could not verify PostGIS version. Continuing anyway..."
+        else
+          # For GitHub Actions - using localhost
+          PGPASSWORD=postgres psql -h localhost -U postgres -d urban_tree_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d urban_tree_db -c "SELECT PostGIS_version();"
+        fi
 
     - name: Run Django check
       working-directory: ./backend
       env:
         DJANGO_SETTINGS_MODULE: config.settings.dev
-        DATABASE_URL: postgis://postgres:postgres@localhost:5432/urban_tree_db
         SECRET_KEY: github-actions-test-key
       run: |
+        if [ "$ACT" = "true" ]; then
+          # For act - try localhost first
+          export DATABASE_URL=postgis://postgres:postgres@localhost:5432/urban_tree_db
+        else
+          # For GitHub Actions - using localhost
+          export DATABASE_URL=postgis://postgres:postgres@localhost:5432/urban_tree_db
+        fi
         python manage.py check
 
     - name: Run migrations
       working-directory: ./backend
       env:
         DJANGO_SETTINGS_MODULE: config.settings.dev
-        DATABASE_URL: postgis://postgres:postgres@localhost:5432/urban_tree_db
         SECRET_KEY: github-actions-test-key
       run: |
+        if [ "$ACT" = "true" ]; then
+          # For act - using localhost
+          export DATABASE_URL=postgis://postgres:postgres@localhost:5432/urban_tree_db
+        else
+          # For GitHub Actions - using localhost
+          export DATABASE_URL=postgis://postgres:postgres@localhost:5432/urban_tree_db
+        fi
         python manage.py migrate
 
     - name: Run tests
       working-directory: ./backend
       env:
         DJANGO_SETTINGS_MODULE: config.settings.dev
-        DATABASE_URL: postgis://postgres:postgres@localhost:5432/urban_tree_db
         SECRET_KEY: github-actions-test-key
-        # Make sure GDAL and GEOS paths are explicitly set for the tests
-        GDAL_LIBRARY_PATH: ${{ env.GDAL_LIBRARY_PATH }}
-        GEOS_LIBRARY_PATH: ${{ env.GEOS_LIBRARY_PATH }}
       run: |
-        # First try pytest, fall back to Django's test runner if needed
-        python -m pytest || python manage.py test
+        if [ "$ACT" = "true" ]; then
+          # For act - using localhost
+          export DATABASE_URL=postgis://postgres:postgres@localhost:5432/urban_tree_db
+        else
+          # For GitHub Actions - using localhost
+          export DATABASE_URL=postgis://postgres:postgres@localhost:5432/urban_tree_db
+        fi
+        # First try django test runner
+        python manage.py test || exit 1
