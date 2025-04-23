@@ -857,27 +857,11 @@ class Command(BaseCommand):
             missing = required_columns - file_columns
             raise CommandError(f"Missing required columns in climate.csv: {missing}")
 
-        # Import stations first (only 4 unique stations)
-        # Use a temporary DataFrame to get unique stations - we need all records to properly handle coordinates
+        # Import stations first (only a few unique stations)
         station_df = pd.read_csv(
             csv_path,
             usecols=["stationcode", "stationname", "latitude", "longitude"],
         )
-
-        # Normalize coordinates for BATALLON ROOKE station (handle two equivalent coordinate formats)
-        # Map the alternate coordinates to the majority format
-        batallon_rooke_code = 21215180
-        batallon_rooke_main_lat = 4.418388889
-        batallon_rooke_main_lon = -75.24866667
-
-        station_df.loc[
-            (station_df["stationcode"] == batallon_rooke_code)
-            & (station_df["latitude"] == 4.4180556)
-            & (station_df["longitude"] == -75.248055556),
-            ["latitude", "longitude"],
-        ] = [batallon_rooke_main_lat, batallon_rooke_main_lon]
-
-        # Now get unique stations after normalization
         unique_stations = station_df.drop_duplicates(subset=["stationcode"]).copy()
 
         # Create stations
@@ -912,47 +896,24 @@ class Command(BaseCommand):
         # Count total rows for tqdm
         total_rows = sum(1 for _ in open(csv_path)) - 1  # subtract header
 
-        # Create a station code mapping for the normalizing the alternate coordinates
-        # This ensures we use the same station when processing climate data
-        coord_to_station_map = {
-            # Map the alternate coords to the same station (BATALLON ROOKE)
-            (4.4180556, -75.248055556): station_map[batallon_rooke_code]
-        }
-
         reader = pd.read_csv(csv_path, chunksize=chunksize)
 
         total_records = 0
-
-        sensor_map = {
-            "Temp Aire 2 m": Climate.SensorDescription.AIR_TEMP_2m,
-            "TEMPERATURA DEL AIRE A 2 m": Climate.SensorDescription.AIR_TEMP_2m,
-        }
 
         with tqdm(total=total_rows, desc="Importing climate data") as pbar:
             for chunk in reader:
                 batch_climate = []
 
                 for row in chunk.itertuples(index=False):
-                    measurement_date = self.parse_date(row.datetime)
-                    sensor = sensor_map.get(row.sensordescription)
-                    measure_unit = row.measureunit
-
-                    # First try to get the station by code
                     station = station_map.get(row.stationcode)
-
-                    # If station code matches but the coordinates are the alternate format,
-                    # use the mapped station to ensure we're consistent
-                    coords = (row.latitude, row.longitude)
-                    if coords in coord_to_station_map:
-                        station = coord_to_station_map[coords]
 
                     climate_record = Climate(
                         municipality=self.ibague,
                         station=station,
-                        date=measurement_date,
-                        sensor=sensor,
+                        date=self.parse_date(row.datetime),
+                        sensor=row.sensordescription,
                         value=row.value,
-                        measure_unit=measure_unit,
+                        measure_unit=row.measureunit,
                     )
                     batch_climate.append(climate_record)
 

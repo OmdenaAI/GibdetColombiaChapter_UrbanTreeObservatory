@@ -71,11 +71,12 @@ docker compose exec backend python manage.py import_initial_data
 # Using custom URLs
 docker compose exec backend python manage.py import_initial_data \
   --taxonomy-url=https://example.com/taxonomy.csv \
-  --place-url=https://example.com/places.csv \
+  --places-url=https://example.com/places.csv \
   --biodiversity-url=https://example.com/biodiversity.csv \
   --measurements-url=https://example.com/measurements.csv \
   --observations-url=https://example.com/observations.csv \
-  --traits-url=https://example.com/traits.csv
+  --traits-url=https://example.com/traits.csv \
+  --climate-url=https://example.com/climate.csv
 
 # Using local files in a directory mounted to the container
 docker compose exec backend python manage.py import_initial_data --local-dir=/path/to/data
@@ -140,10 +141,10 @@ pre-commit run --all-files
 
 ```bash
 # Backend tests
-docker-compose exec backend python manage.py test
+docker compose exec backend python manage.py test
 
 # Frontend tests
-docker-compose exec frontend ng test
+docker compose exec frontend ng test
 ```
 
 ## API Documentation
