@@ -1,14 +1,14 @@
 from django.contrib import admin
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 
-from .models import Family, Genus, Species, FunctionalGroup, Trait
+from .models import Family, Genus, Species, FunctionalGroup, Trait, TraitValue
 
 
 @admin.register(Family)
 class FamilyAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = ("id", "created_at", "updated_at", "uuid")
     list_per_page = 100
 
 
@@ -17,22 +17,33 @@ class GenusAdmin(admin.ModelAdmin):
     list_display = ("name", "family")
     list_filter = ("family",)
     search_fields = ("name", "family__name")
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = ("species_list", "id", "created_at", "updated_at", "uuid")
     list_per_page = 100
 
+    @admin.display(description="Species in Genus")
+    def species_list(self, obj):
+        species = obj.species.all()
+        if not species:
+            return "-"
+        return format_html_join(
+            " | ",
+            '<a href="{}">{}</a>',
+            ((s.get_admin_url(), s.scientific_name) for s in species),
+        )
 
-class SpeciesInline(admin.TabularInline):
-    model = Species
+
+class TraitValueInline(admin.TabularInline):
+    model = TraitValue
     extra = 0
-    fields = ("name", "genus")
+    fields = ("trait", "min_value", "max_value")
 
 
 @admin.register(FunctionalGroup)
 class FunctionalGroupAdmin(admin.ModelAdmin):
-    list_display = ("group_str", "trait_count", "created_at")
+    list_display = ("group_str", "species_count", "trait_count", "created_at")
     search_fields = ("group_id",)
-    readonly_fields = ("id", "created_at", "updated_at")
-    inlines = [SpeciesInline]
+    readonly_fields = ("id", "created_at", "updated_at", "species_list", "uuid")
+    inlines = [TraitValueInline]
 
     @admin.display(description="Group")
     def group_str(self, obj):
@@ -42,12 +53,27 @@ class FunctionalGroupAdmin(admin.ModelAdmin):
     def trait_count(self, obj):
         return obj.traits.count()
 
+    @admin.display(description="Number of Species")
+    def species_count(self, obj):
+        return obj.species.count()
+
+    @admin.display(description="Species in Group")
+    def species_list(self, obj):
+        species = obj.species.all()
+        if not species:
+            return "-"
+        return format_html_join(
+            " | ",
+            '<a href="{}">{}</a>',
+            ((s.get_admin_url(), s.scientific_name) for s in species),
+        )
+
 
 @admin.register(Trait)
 class TraitAdmin(admin.ModelAdmin):
     list_display = ("type",)
     search_fields = ("type",)
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = ("id", "created_at", "updated_at", "uuid")
 
 
 @admin.register(Species)
@@ -91,7 +117,7 @@ class SpeciesAdmin(admin.ModelAdmin):
             {"fields": ("gbif_id", "gbif_url_link", "tropical_plants_url_link")},
         ),
         ("Identification", {"fields": ("identified_by", "date")}),
-        ("Metadata", {"fields": ("id", "created_at", "updated_at")}),
+        ("Metadata", {"fields": ("id", "created_at", "updated_at", "uuid")}),
     )
 
     @admin.display(description="Life Form")
