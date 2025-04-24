@@ -29,6 +29,19 @@ Options:
     --observations-url URL  URL for the observations details CSV file
     --traits-url URL        URL for the functional groups traits CSV file
 
+Settings:
+    IMPORT_MEASUREMENTS_CHUNK_SIZE
+        Number of rows to process at a time when importing measurements.
+        Default: 50000. Adjust based on available memory.
+
+    IMPORT_CLIMATE_CHUNK_SIZE
+        Number of rows to process at a time when importing climate data.
+        Default: 50000. Adjust based on available memory.
+
+    These can be set as environment variables, e.g.:
+        export IMPORT_MEASUREMENTS_CHUNK_SIZE=25000
+        export IMPORT_CLIMATE_CHUNK_SIZE=10000
+
 By default, the command fetches data from Hugging Face URLs.
 
 Example:
@@ -41,6 +54,7 @@ from pathlib import Path
 from tqdm import tqdm
 import pandas as pd
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction, connection
 
@@ -631,7 +645,7 @@ class Command(BaseCommand):
 
         # Read measurements.csv
         # We'll process this in chunks due to the large number of rows
-        chunksize = 50000  # Adjust based on available memory
+        chunksize = settings.IMPORT_MEASUREMENTS_CHUNK_SIZE
 
         if self.use_local:
             csv_path = self.data_dir / "measurements.csv"
@@ -828,7 +842,7 @@ class Command(BaseCommand):
 
         # Read climate.csv
         # We'll process this in chunks due to the large number of rows
-        chunksize = 50000  # Adjust based on available memory
+        chunksize = settings.IMPORT_CLIMATE_CHUNK_SIZE
 
         if self.use_local:
             csv_path = self.data_dir / "climate.csv"

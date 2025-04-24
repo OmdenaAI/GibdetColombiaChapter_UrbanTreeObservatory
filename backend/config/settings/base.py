@@ -217,3 +217,11 @@ SITE_ID = 1
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_EMAIL_VERIFICATION = "optional"
+
+
+# Settings for `import_initial_data` management command
+# Adjust based on available memory
+IMPORT_MEASUREMENTS_CHUNK_SIZE = env.int(
+    "IMPORT_MEASUREMENTS_CHUNK_SIZE", default=50000
+)
+IMPORT_CLIMATE_CHUNK_SIZE = env.int("IMPORT_CLIMATE_CHUNK_SIZE", default=50000)
