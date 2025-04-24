@@ -105,7 +105,7 @@ class ClimateFilter(django_filters.FilterSet):
 class ClimateViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for Climate model."""
 
-    queryset = Climate.objects.select_related("station__municipality")
+    queryset = Climate.objects.select_related("station", "station__municipality")
     serializer_class = ClimateSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
