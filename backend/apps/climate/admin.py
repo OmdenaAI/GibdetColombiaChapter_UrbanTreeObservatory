@@ -20,8 +20,7 @@ class ClimateAdmin(admin.ModelAdmin):
         "station_municipality",
         "date",
         "sensor_display",
-        "value",
-        "measure_unit_display",
+        "measurement",
     )
     list_filter = ("station", "station__municipality", "sensor", "measure_unit", "date")
     search_fields = ("station__name", "station__code")
@@ -38,6 +37,6 @@ class ClimateAdmin(admin.ModelAdmin):
     def sensor_display(self, obj):
         return obj.get_sensor_display()
 
-    @admin.display(description="Unit")
-    def measure_unit_display(self, obj):
-        return obj.get_measure_unit_display()
+    @admin.display(description="Value")
+    def measurement(self, obj):
+        return f"{obj.value} {obj.measure_unit}"

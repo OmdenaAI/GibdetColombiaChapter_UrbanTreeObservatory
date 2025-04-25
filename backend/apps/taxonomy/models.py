@@ -15,6 +15,7 @@ Key database constraints and model design notes:
 """
 
 from django.db import models
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 
@@ -287,6 +288,12 @@ class Species(BaseModel):
 
     def __str__(self):
         return self.scientific_name
+
+    def get_admin_url(self):
+        return reverse(
+            f"admin:{self._meta.app_label}_{self._meta.model_name}_change",
+            args=[self.pk],
+        )
 
     @property
     def gbif_url(self):
