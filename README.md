@@ -62,25 +62,15 @@ docker compose exec backend python manage.py createsuperuser
 
 ### Initial Data Import
 
-To import initial data into the database, run the following command:
+To import initial data into the database:
 
-```bash
-# Using the default Hugging Face URLs
-docker compose exec backend python manage.py import_initial_data
+1. Download the latest version of the CSV files from the project's shared Google Drive (ask the project lead or the team lead for the link).
+2. Save the files to `backend/data/csv` (*this directory is already git-ignored and the files will be instantly available inside the container at `/app/data/csv`*).
+3. Run the import command:
 
-# Using custom URLs
-docker compose exec backend python manage.py import_initial_data \
-  --taxonomy-url=https://example.com/taxonomy.csv \
-  --places-url=https://example.com/places.csv \
-  --biodiversity-url=https://example.com/biodiversity.csv \
-  --measurements-url=https://example.com/measurements.csv \
-  --observations-url=https://example.com/observations.csv \
-  --traits-url=https://example.com/traits.csv \
-  --climate-url=https://example.com/climate.csv
-
-# Using local files in a directory mounted to the container
-docker compose exec backend python manage.py import_initial_data --local-dir=/path/to/data
-```
+   ```bash
+   docker compose exec backend python manage.py import_initial_data --local-dir=data/csv
+   ```
 
 ## Project Structure
 
