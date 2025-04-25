@@ -1,55 +1,27 @@
-# Angular specific
-.angular
-.angular-cache
-coverage
-dist
-tmp
-out-tsc
-*.ngfactory.ts
-*.ngsummary.json
-*.tsbuildinfo
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Node.js
-node_modules
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
-# IDEs and editors
-.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-*.sublime-project
-.vscode/
-*.code-workspace
+# env files
+.env*
 
-# System files
-.DS_Store
-Thumbs.db
-*.swp
-*.lock
-*.log
-*.pid
-*.seed
-*.pid.lock
+# vercel
+.vercel
 
-# Compiled files
-*.exe
-*.dll
-*.so
-*.dylib
-
-# Environment files
-.env
-.env.*.local
-
-# Miscellaneous
-*.bak
-*.tmp
-*.temp
-*.old
-*.orig
+# typescript
+*.tsbuildinfo
+next-env.d.ts

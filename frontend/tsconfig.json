@@ -1,19 +1,27 @@
 {
-  "compileOnSave": false,
   "compilerOptions": {
-    "baseUrl": "./",
-    "outDir": "./dist/out-tsc",
-    "sourceMap": true,
-    "declaration": false,
-    "downlevelIteration": true,
-    "experimentalDecorators": true,
-    "moduleResolution": "node",
-    "importHelpers": true,
-    "target": "es2015",
-    "module": "es2020",
-    "lib": [
-      "es2018",
-      "dom"
-    ]
-  }
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "target": "ES6",
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }
