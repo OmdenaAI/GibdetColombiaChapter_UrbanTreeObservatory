@@ -1,0 +1,25 @@
+[run]
+source = .
+omit =
+    */migrations/*
+    */tests/*
+    */admin.py
+    config/*
+    manage.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def __str__
+    raise NotImplementedError
+    if self.debug:
+    if settings.DEBUG
+    raise ImportError
+    if 0:
+    if __name__ == .__main__.:
+    pass
+    raise NotImplementedError
+
+[html]
+directory = htmlcov

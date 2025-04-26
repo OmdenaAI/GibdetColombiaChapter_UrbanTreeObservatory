@@ -132,7 +132,10 @@ pre-commit run --all-files
 
 ```bash
 # Backend tests
-docker compose exec backend python manage.py test
+docker compose exec backend pytest
+
+# Backend tests with coverage
+docker compose exec backend pytest --cov=. --cov-config=.coveragerc
 
 # Frontend tests
 docker compose exec frontend ng test

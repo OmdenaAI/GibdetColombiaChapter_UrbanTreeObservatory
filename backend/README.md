@@ -95,18 +95,58 @@ docker compose exec backend python manage.py shell_plus
 
 ### Testing
 
-To run tests:
+#### Using Django's test runner
+
+To run tests with Django's built-in test runner:
 
 ```bash
 docker compose exec backend python manage.py test
 ```
 
+#### Using pytest (recommended)
+
+To run tests with pytest:
+
+```bash
+docker compose exec backend pytest
+```
+
+To run tests with verbose output:
+
+```bash
+docker compose exec backend pytest -v
+```
+
+#### Coverage
+
 To run tests with coverage:
 
 ```bash
-docker compose exec backend coverage run --source='.' manage.py test
-docker compose exec backend coverage report
+docker compose exec backend pytest --cov=. --cov-config=.coveragerc
 ```
+
+For a detailed coverage report:
+
+```bash
+docker compose exec backend pytest --cov=. --cov-config=.coveragerc --cov-report=term-missing
+```
+
+To generate and view an HTML coverage report:
+
+```bash
+docker compose exec backend pytest --cov=. --cov-config=.coveragerc --cov-report=html
+open backend/htmlcov/index.html
+```
+
+The project includes a `.coveragerc` file that excludes migrations, tests, admin files, and other boilerplate code from coverage reports.
+
+Or serve the report directly from the container:
+
+```bash
+docker compose exec backend python -m http.server -d htmlcov 9000
+```
+
+Then visit <http://localhost:9000> in your browser.
 
 ### Code Quality
 

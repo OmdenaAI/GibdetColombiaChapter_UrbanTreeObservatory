@@ -1,2 +1,6 @@
 # Data import files
 data/csv/
+
+# Coverage files
+.coverage
+htmlcov/
