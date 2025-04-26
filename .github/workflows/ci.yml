@@ -90,12 +90,12 @@ jobs:
 
     - name: Run tests with coverage
       working-directory: ./backend
-      run: python -m pytest --cov=src --cov-report=xml --cov-report=term-missing
+      run: python -m pytest --cov=apps --cov-report=xml --cov-report=term-missing
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:
-        files: app/coverage.xml
+        files: ./backend/coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: true
