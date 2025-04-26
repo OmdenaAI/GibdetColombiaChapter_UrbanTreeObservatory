@@ -1,6 +1,7 @@
 # Urban Tree Observatory Project
 
 ![CI](https://github.com/OmdenaAI/GibdetColombiaChapter_UrbanTreeObservatory/workflows/CI/badge.svg)
+[![codecov](https://codecov.io/gh/OmdenaAI/GibdetColombiaChapter_UrbanTreeObservatory/branch/main/graph/badge.svg)](https://app.codecov.io/gh/OmdenaAI/GibdetColombiaChapter_UrbanTreeObservatory)
 
 ## Project Overview
 
