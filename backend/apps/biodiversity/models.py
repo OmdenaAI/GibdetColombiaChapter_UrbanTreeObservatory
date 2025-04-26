@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import BaseModel
-from apps.places.models import Place
+from apps.places.models import Place, Neighborhood
 from apps.taxonomy.models import Species
 
 
@@ -20,6 +20,12 @@ class BiodiversityRecord(BaseModel):
         on_delete=models.PROTECT,
         related_name="biodiversity_records",
         verbose_name=_("species"),
+    )
+    neighborhood = models.ForeignKey(
+        Neighborhood,
+        on_delete=models.PROTECT,
+        related_name="biodiversity_records",
+        verbose_name=_("neighborhood"),
     )
     place = models.ForeignKey(
         Place,
