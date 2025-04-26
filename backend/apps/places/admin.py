@@ -28,8 +28,8 @@ class MunicipalityAdmin(admin.ModelAdmin):
 
 @admin.register(Place)
 class PlaceAdmin(admin.ModelAdmin):
-    list_display = ("site", "populated_center", "zone", "subzone", "municipality")
-    list_filter = ("municipality", "zone", "subzone")
-    search_fields = ("site", "populated_center", "municipality__name")
+    list_display = ("name", "populated_center", "zone", "subzone", "locality")
+    list_filter = ("locality", "zone", "subzone")
+    search_fields = ("site", "populated_center", "locality__name")
     readonly_fields = ("id", "created_at", "updated_at")
     list_per_page = 25
