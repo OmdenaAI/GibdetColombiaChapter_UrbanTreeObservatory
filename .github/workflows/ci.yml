@@ -94,3 +94,9 @@ jobs:
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
+      with:
+        files: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        verbose: true
