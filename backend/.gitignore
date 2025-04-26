@@ -1,5 +1,6 @@
 # Data import files
 data/csv/
+data/json/
 
 # Coverage files
 .coverage
