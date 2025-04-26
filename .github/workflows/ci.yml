@@ -97,6 +97,6 @@ jobs:
       with:
         files: ./backend/coverage.xml
         flags: unittests
-        name: codecov-umbrella
+        name: codecov-urban-tree
         fail_ci_if_error: true
         verbose: true
