@@ -61,8 +61,12 @@ The API is organized around the following main resources:
 - `GET /api/v1/places/departments/{id}/` - Retrieve a specific department
 - `GET /api/v1/places/municipalities/` - List all municipalities
 - `GET /api/v1/places/municipalities/{id}/` - Retrieve a specific municipality
-- `GET /api/v1/places/places/` - List all places
-- `GET /api/v1/places/places/{id}/` - Retrieve a specific place
+- `GET /api/v1/places/localities/` - List all localities
+- `GET /api/v1/places/localities/{id}/` - Retrieve a specific locality
+- `GET /api/v1/places/neighborhoods/` - List all neighborhoods
+- `GET /api/v1/places/neighborhoods/{id}/` - Retrieve a specific neighborhood
+- `GET /api/v1/places/sites/` - List all sites
+- `GET /api/v1/places/sites/{id}/` - Retrieve a specific site
 
 ### Biodiversity Records
 
@@ -70,6 +74,9 @@ The API is organized around the following main resources:
 - `GET /api/v1/biodiversity/records/{id}/` - Retrieve a specific biodiversity record
 - `GET /api/v1/biodiversity/records/near/` - List records near a specific point
 - `GET /api/v1/biodiversity/records/bbox/` - List records within a bounding box
+- `GET /api/v1/biodiversity/records/by_neighborhood/` - List records in a specific neighborhood
+- `GET /api/v1/biodiversity/records/by_locality/` - List records in a specific locality
+- `POST /api/v1/biodiversity/records/by_polygon/` - List records within a custom polygon
 
 ### Reports
 
@@ -94,6 +101,7 @@ Most list endpoints support the following query parameters:
 - `ordering`: Order results by specific fields (prefix with `-` for descending order)
 - `page`: Page number for pagination
 - `page_size`: Number of results per page (default: 20, max: 100)
+- `format`: Response format (e.g., `json`, `geojson` for geographic data)
 
 ### Example Queries
 
@@ -113,6 +121,24 @@ GET /api/v1/biodiversity/records/?search=acacia
 
 ```http
 GET /api/v1/biodiversity/records/near/?lat=4.4378&lon=-75.2012&radius=500
+```
+
+#### Get trees in a specific neighborhood
+
+```http
+GET /api/v1/biodiversity/records/by_neighborhood/?id=1&format=geojson
+```
+
+#### Filter trees by neighborhood and species
+
+```http
+GET /api/v1/biodiversity/records/?neighborhood=1&species=5
+```
+
+#### Filter trees by locality and date range
+
+```http
+GET /api/v1/biodiversity/records/?neighborhood__locality=2&date_from=2023-01-01&date_to=2023-12-31
 ```
 
 #### Filter measurements by type and value range
@@ -139,14 +165,46 @@ GET /api/v1/climate/data/?station=1&date_from=2023-01-01&date_to=2023-01-31
 GET /api/v1/climate/data/?sensor=t2m&value_min=20&value_max=30
 ```
 
+#### Find trees within a custom polygon
+
+```http
+POST /api/v1/biodiversity/records/by_polygon/
+Content-Type: application/json
+
+{
+  "polygon": [
+    [-75.2157, 4.4401],
+    [-75.2078, 4.4405],
+    [-75.2082, 4.4353],
+    [-75.2149, 4.4348],
+    [-75.2157, 4.4401]
+  ],
+  "limit": 500
+}
+```
+
 ## GeoJSON Support
 
-The following endpoints support GeoJSON format:
+The following endpoints support GeoJSON format by adding `?format=geojson` parameter:
+
+### Places GeoJSON
+
+```http
+GET /api/v1/places/countries/?format=geojson
+GET /api/v1/places/departments/?format=geojson
+GET /api/v1/places/municipalities/?format=geojson
+GET /api/v1/places/localities/?format=geojson
+GET /api/v1/places/neighborhoods/?format=geojson
+```
 
 ### Biodiversity Records GeoJSON
 
 ```http
 GET /api/v1/biodiversity/records/?format=geojson
+GET /api/v1/biodiversity/records/near/?lat=4.4378&lon=-75.2012&radius=500&format=geojson
+GET /api/v1/biodiversity/records/bbox/?min_lon=-75.25&min_lat=4.40&max_lon=-75.19&max_lat=4.45&format=geojson
+GET /api/v1/biodiversity/records/by_neighborhood/?id=1&format=geojson
+GET /api/v1/biodiversity/records/by_locality/?id=1&format=geojson
 ```
 
 ### Weather Stations GeoJSON
@@ -154,6 +212,46 @@ GET /api/v1/biodiversity/records/?format=geojson
 ```http
 GET /api/v1/climate/stations/?format=geojson
 ```
+
+## Spatial Filtering
+
+The API provides several methods for spatial filtering of biodiversity records:
+
+### 1. Point-radius search
+```http
+GET /api/v1/biodiversity/records/near/?lat=4.4378&lon=-75.2012&radius=500
+```
+
+### 2. Bounding box search
+```http
+GET /api/v1/biodiversity/records/bbox/?min_lon=-75.25&min_lat=4.40&max_lon=-75.19&max_lat=4.45
+```
+
+### 3. Administrative boundary search
+```http
+GET /api/v1/biodiversity/records/by_neighborhood/?id=1
+GET /api/v1/biodiversity/records/by_locality/?id=2
+GET /api/v1/biodiversity/records/?neighborhood=3
+GET /api/v1/biodiversity/records/?neighborhood__locality=2
+```
+
+### 4. Custom polygon search
+```http
+POST /api/v1/biodiversity/records/by_polygon/
+Content-Type: application/json
+
+{
+  "polygon": [
+    [longitude1, latitude1],
+    [longitude2, latitude2],
+    ...
+    [longitudeN, latitudeN],
+    [longitude1, latitude1]  /* The polygon must be closed */
+  ]
+}
+```
+
+> **Note**: This endpoint uses POST instead of GET because polygon coordinates can become quite lengthy and complex, potentially exceeding URL length limits. Using POST allows sending polygon data in the request body as JSON, providing better support for polygons with many vertices while maintaining a clean, readable data structure.
 
 ## Pagination
 
@@ -218,3 +316,9 @@ To optimize performance:
 2. Limit result sets using pagination
 3. Use date ranges for time-series data
 4. Request only the data you need
+5. For map-based applications:
+   - Use GeoJSON format where available
+   - Prefer the dedicated spatial endpoints (near, bbox, by_neighborhood, by_locality, by_polygon)
+   - Set appropriate limits on the number of records returned
+   - Consider using clustering on the frontend for large datasets
+   - Request detailed information only when needed (e.g., after a user selects a specific feature)
