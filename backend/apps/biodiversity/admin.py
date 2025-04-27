@@ -6,15 +6,24 @@ from .models import BiodiversityRecord
 
 @admin.register(BiodiversityRecord)
 class BiodiversityRecordAdmin(GISModelAdmin):
-    list_display = ("id", "common_name", "species_name", "place_name", "date")
+    list_display = (
+        "id",
+        "common_name",
+        "species_name",
+        "site_name",
+        "neighborhood_name",
+        "date",
+    )
     list_filter = ("date", "species__life_form", "neighborhood__locality")
     search_fields = (
         "common_name",
         "species__name",
         "species__genus__name",
-        "place__name",
+        "site__name",
+        "neighborhood__name",
+        "neighborhood__locality__name",
     )
-    raw_id_fields = ("species", "place")
+    raw_id_fields = ("species", "site", "neighborhood")
     readonly_fields = ("id", "created_at", "updated_at", "uuid")
     date_hierarchy = "date"
     list_per_page = 25
@@ -24,5 +33,9 @@ class BiodiversityRecordAdmin(GISModelAdmin):
         return f"{obj.species.genus.name} {obj.species.name}"
 
     @admin.display(description="Site")
-    def place_name(self, obj):
-        return obj.place.name
+    def site_name(self, obj):
+        return obj.site.name
+
+    @admin.display(description="Neighborhood")
+    def neighborhood_name(self, obj):
+        return obj.neighborhood.name
