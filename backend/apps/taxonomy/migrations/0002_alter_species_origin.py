@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('taxonomy', '0002_remove_traitvalue_min_value_less_than_max_value'),
+        ('taxonomy', '0001_initial'),
     ]
 
     operations = [

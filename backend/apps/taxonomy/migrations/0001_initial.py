@@ -124,7 +124,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='traitvalue',
-            constraint=models.CheckConstraint(condition=models.Q(('min_value__isnull', True), ('max_value__isnull', True), ('min_value__lte', models.F('max_value')), _connector='OR'), name='min_value_less_than_max_value'),
+            constraint=models.UniqueConstraint(fields=('trait', 'functional_group'), name='unique_trait_per_functional_group'),
         ),
         migrations.AddConstraint(
             model_name='traitvalue',
