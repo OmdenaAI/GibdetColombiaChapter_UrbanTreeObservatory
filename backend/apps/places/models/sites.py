@@ -5,7 +5,7 @@ from apps.core.models import BaseModel
 from .spatial import Locality
 
 
-class Place(BaseModel):
+class Site(BaseModel):
     """Represents a general location of biodiversity records."""
 
     name = models.CharField(_("site name"), max_length=50)

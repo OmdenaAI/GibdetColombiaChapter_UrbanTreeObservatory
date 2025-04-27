@@ -1,5 +1,5 @@
 from .spatial import Country, Department, Municipality, Locality, Neighborhood
-from .sites import Place
+from .sites import Site
 
 
 __all__ = [
@@ -8,5 +8,5 @@ __all__ = [
     "Municipality",
     "Locality",
     "Neighborhood",
-    "Place",
+    "Site",
 ]
