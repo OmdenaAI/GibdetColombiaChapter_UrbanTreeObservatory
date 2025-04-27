@@ -3,14 +3,14 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
 from .models import BiodiversityRecord
 from apps.taxonomy.serializers import SpeciesLightSerializer
-from apps.places.serializers import PlaceLightSerializer
+from apps.places.serializers import SiteLightSerializer
 
 
 class BiodiversityRecordSerializer(serializers.ModelSerializer):
     """Standard serializer for BiodiversityRecord model."""
 
     species = SpeciesLightSerializer(read_only=True)
-    place = PlaceLightSerializer(read_only=True)
+    site = SiteLightSerializer(read_only=True)
     longitude = serializers.FloatField(read_only=True)
     latitude = serializers.FloatField(read_only=True)
 
@@ -21,7 +21,7 @@ class BiodiversityRecordSerializer(serializers.ModelSerializer):
             "uuid",
             "common_name",
             "species",
-            "place",
+            "site",
             "location",
             "longitude",
             "latitude",
@@ -38,7 +38,7 @@ class BiodiversityRecordGeoSerializer(GeoFeatureModelSerializer):
     """GeoJSON serializer for BiodiversityRecord model."""
 
     species = SpeciesLightSerializer(read_only=True)
-    place = PlaceLightSerializer(read_only=True)
+    site = SiteLightSerializer(read_only=True)
     longitude = serializers.FloatField(read_only=True)
     latitude = serializers.FloatField(read_only=True)
 
@@ -50,7 +50,7 @@ class BiodiversityRecordGeoSerializer(GeoFeatureModelSerializer):
             "uuid",
             "common_name",
             "species",
-            "place",
+            "site",
             "longitude",
             "latitude",
             "elevation_m",
@@ -68,8 +68,8 @@ class BiodiversityRecordLightSerializer(serializers.ModelSerializer):
     species_name = serializers.CharField(
         source="species.scientific_name", read_only=True
     )
-    place_name = serializers.CharField(source="place.site", read_only=True)
+    site_name = serializers.CharField(source="site.name", read_only=True)
 
     class Meta:
         model = BiodiversityRecord
-        fields = ["id", "uuid", "common_name", "species_name", "place_name", "date"]
+        fields = ["id", "uuid", "common_name", "species_name", "site_name", "date"]

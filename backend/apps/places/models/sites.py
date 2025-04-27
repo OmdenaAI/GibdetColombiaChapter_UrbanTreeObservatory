@@ -15,7 +15,6 @@ class Site(BaseModel):
         related_name="sites",
         verbose_name=_("locality"),
     )
-    populated_center = models.CharField(_("populated center"), max_length=50)
     zone = models.PositiveSmallIntegerField(_("zone"), null=True, blank=True)
     subzone = models.PositiveSmallIntegerField(_("subzone"), null=True, blank=True)
 
