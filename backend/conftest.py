@@ -14,7 +14,6 @@ from apps.taxonomy.factories import (
     GenusFactory,
     SpeciesFactory,
     FunctionalGroupFactory,
-    TraitFactory,
 )
 from apps.biodiversity.factories import BiodiversityRecordFactory
 from apps.reports.factories import MeasurementFactory, ObservationFactory
@@ -131,6 +130,8 @@ def genus(family):
 @pytest.fixture
 def traits():
     """Create all four trait types."""
+    from apps.taxonomy.models import Trait
+
     traits = []
     for trait_type in [
         "CS",  # Carbon sequestration
@@ -138,7 +139,7 @@ def traits():
         "CY",  # Canopy diameter
         "HX",  # Max height
     ]:
-        trait, _ = TraitFactory.get_or_create(type=trait_type)
+        trait, _ = Trait.objects.get_or_create(type=trait_type)
         traits.append(trait)
     return traits
 
