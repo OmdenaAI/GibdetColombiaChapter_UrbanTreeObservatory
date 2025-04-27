@@ -2,11 +2,18 @@ from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from .models import Country, Department, Municipality, Site
+from .models import Country, Department, Municipality, Locality, Neighborhood, Site
 from .serializers import (
     CountrySerializer,
+    CountryGeoSerializer,
     DepartmentSerializer,
+    DepartmentGeoSerializer,
     MunicipalitySerializer,
+    MunicipalityGeoSerializer,
+    LocalitySerializer,
+    LocalityGeoSerializer,
+    NeighborhoodSerializer,
+    NeighborhoodGeoSerializer,
     SiteSerializer,
 )
 
@@ -21,6 +28,13 @@ class CountryViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["name"]
     ordering_fields = ["name"]
     ordering = ["name"]
+
+    def get_serializer_class(self):
+        """Return appropriate serializer class."""
+        format_param = self.request.query_params.get("format")
+        if format_param == "geojson":
+            return CountryGeoSerializer
+        return CountrySerializer
 
 
 class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
@@ -38,6 +52,13 @@ class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["country"]
     ordering_fields = ["name", "country__name"]
     ordering = ["name"]
+
+    def get_serializer_class(self):
+        """Return appropriate serializer class."""
+        format_param = self.request.query_params.get("format")
+        if format_param == "geojson":
+            return DepartmentGeoSerializer
+        return DepartmentSerializer
 
 
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
@@ -59,11 +80,90 @@ class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["name", "department__name"]
     ordering = ["name"]
 
+    def get_serializer_class(self):
+        """Return appropriate serializer class."""
+        format_param = self.request.query_params.get("format")
+        if format_param == "geojson":
+            return MunicipalityGeoSerializer
+        return MunicipalitySerializer
+
+
+class LocalityViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for Locality model."""
+
+    queryset = Locality.objects.select_related(
+        "municipality", "municipality__department", "municipality__department__country"
+    )
+    serializer_class = LocalitySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [
+        filters.SearchFilter,
+        filters.OrderingFilter,
+        DjangoFilterBackend,
+    ]
+    search_fields = ["name"]
+    filterset_fields = {
+        "municipality": ["exact"],
+        "municipality__department": ["exact"],
+        "municipality__department__country": ["exact"],
+    }
+    ordering_fields = [
+        "name",
+        "municipality__name",
+        "municipality__department__name",
+        "calculated_area_m2",
+        "population_2019",
+    ]
+    ordering = ["name"]
+
+    def get_serializer_class(self):
+        """Return appropriate serializer class."""
+        format_param = self.request.query_params.get("format")
+        if format_param == "geojson":
+            return LocalityGeoSerializer
+        return LocalitySerializer
+
+
+class NeighborhoodViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for Neighborhood model."""
+
+    queryset = Neighborhood.objects.select_related(
+        "locality", "locality__municipality", "locality__municipality__department"
+    )
+    serializer_class = NeighborhoodSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [
+        filters.SearchFilter,
+        filters.OrderingFilter,
+        DjangoFilterBackend,
+    ]
+    search_fields = ["name"]
+    filterset_fields = {
+        "locality": ["exact"],
+        "locality__municipality": ["exact"],
+        "locality__municipality__department": ["exact"],
+        "locality__municipality__department__country": ["exact"],
+    }
+    ordering_fields = ["name", "locality__name", "locality__municipality__name"]
+    ordering = ["name"]
+
+    def get_serializer_class(self):
+        """Return appropriate serializer class."""
+        format_param = self.request.query_params.get("format")
+        if format_param == "geojson":
+            return NeighborhoodGeoSerializer
+        return NeighborhoodSerializer
+
 
 class SiteViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for Site model."""
 
-    queryset = Site.objects.all()
+    queryset = Site.objects.select_related(
+        "locality",
+        "locality__municipality",
+        "locality__municipality__department",
+        "locality__municipality__department__country",
+    )
     serializer_class = SiteSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [
@@ -71,7 +171,7 @@ class SiteViewSet(viewsets.ReadOnlyModelViewSet):
         filters.OrderingFilter,
         DjangoFilterBackend,
     ]
-    search_fields = ["name", "populated_center"]
+    search_fields = ["name"]  # Remove legacy populated_center
     filterset_fields = {
         "locality": ["exact"],
         "locality__municipality": ["exact"],

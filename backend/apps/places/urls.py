@@ -5,6 +5,8 @@ from .views import (
     CountryViewSet,
     DepartmentViewSet,
     MunicipalityViewSet,
+    LocalityViewSet,
+    NeighborhoodViewSet,
     SiteViewSet,
 )
 
@@ -14,6 +16,8 @@ router = DefaultRouter()
 router.register(r"countries", CountryViewSet, basename="country")
 router.register(r"departments", DepartmentViewSet, basename="department")
 router.register(r"municipalities", MunicipalityViewSet, basename="municipality")
+router.register(r"localities", LocalityViewSet, basename="locality")
+router.register(r"neighborhoods", NeighborhoodViewSet, basename="neighborhood")
 router.register(r"sites", SiteViewSet, basename="site")
 
 urlpatterns = [
