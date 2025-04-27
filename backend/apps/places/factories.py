@@ -1,6 +1,6 @@
 import factory
 from factory.django import DjangoModelFactory
-from django.contrib.gis.geos import MultiPolygon
+from django.contrib.gis.geos import MultiPolygon, Polygon
 from .models import Country, Department, Municipality, Locality, Neighborhood, Site
 from apps.core.factories import BaseFactory
 
@@ -18,15 +18,15 @@ class CountryFactory(DjangoModelFactory):
     boundary = factory.LazyFunction(
         lambda: MultiPolygon(
             [
-                (
+                Polygon(
                     (
                         (-79.0, -4.5),
                         (-66.0, -4.5),
                         (-66.0, 13.0),
                         (-79.0, 13.0),
                         (-79.0, -4.5),
-                    ),
-                ),
+                    )
+                )
             ]
         )
     )
@@ -44,15 +44,15 @@ class DepartmentFactory(DjangoModelFactory):
     boundary = factory.LazyFunction(
         lambda: MultiPolygon(
             [
-                (
+                Polygon(
                     (
                         (-79.0, -4.5),
                         (-66.0, -4.5),
                         (-66.0, 13.0),
                         (-79.0, 13.0),
                         (-79.0, -4.5),
-                    ),
-                ),
+                    )
+                )
             ]
         )
     )
@@ -70,15 +70,15 @@ class MunicipalityFactory(DjangoModelFactory):
     boundary = factory.LazyFunction(
         lambda: MultiPolygon(
             [
-                (
+                Polygon(
                     (
                         (-79.0, -4.5),
                         (-66.0, -4.5),
                         (-66.0, 13.0),
                         (-79.0, 13.0),
                         (-79.0, -4.5),
-                    ),
-                ),
+                    )
+                )
             ]
         )
     )
@@ -96,34 +96,22 @@ class LocalityFactory(DjangoModelFactory):
     boundary = factory.LazyFunction(
         lambda: MultiPolygon(
             [
-                (
+                Polygon(
                     (
                         (-79.0, -4.5),
                         (-66.0, -4.5),
                         (-66.0, 13.0),
                         (-79.0, 13.0),
                         (-79.0, -4.5),
-                    ),
-                ),
+                    )
+                )
             ]
         )
     )
 
-    # Optional fields
-    calculated_area_m2 = factory.Maybe(
-        "with_area",
-        factory.Faker("pyfloat", min_value=0, max_value=10000),
-        None,
-    )
-    population_2019 = factory.Maybe(
-        "with_population",
-        factory.Faker("random_int", min=10000, max=100000),
-        None,
-    )
-
-    # By default, include area and population
-    with_area = True
-    with_population = True
+    # Optional fields with default values
+    calculated_area_m2 = factory.Faker("pyfloat", min_value=0, max_value=10000)
+    population_2019 = factory.Faker("random_int", min=10000, max=100000)
 
 
 class NeighborhoodFactory(DjangoModelFactory):
@@ -138,15 +126,15 @@ class NeighborhoodFactory(DjangoModelFactory):
     boundary = factory.LazyFunction(
         lambda: MultiPolygon(
             [
-                (
+                Polygon(
                     (
                         (-79.0, -4.5),
                         (-66.0, -4.5),
                         (-66.0, 13.0),
                         (-79.0, 13.0),
                         (-79.0, -4.5),
-                    ),
-                ),
+                    )
+                )
             ]
         )
     )
