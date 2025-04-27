@@ -117,7 +117,7 @@ class SpeciesAdmin(admin.ModelAdmin):
             {"fields": ("gbif_id", "gbif_url_link", "tropical_plants_url_link")},
         ),
         ("Identification", {"fields": ("identified_by", "date")}),
-        ("Metadata", {"fields": ("id", "created_at", "updated_at", "uuid")}),
+        ("Metadata", {"fields": ("id", "created_at", "updated_at")}),
     )
 
     @admin.display(description="Life Form")
