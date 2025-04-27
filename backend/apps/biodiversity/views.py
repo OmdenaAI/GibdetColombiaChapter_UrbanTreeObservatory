@@ -49,7 +49,7 @@ class BiodiversityRecordFilter(django_filters.FilterSet):
         """Custom search filter across multiple fields."""
         return queryset.filter(
             Q(common_name__icontains=value)
-            | Q(species__scientific_name__icontains=value)
+            | Q(species__name__icontains=value)
             | Q(species__genus__name__icontains=value)
             | Q(site__name__icontains=value)
             | Q(neighborhood__name__icontains=value)
@@ -74,7 +74,7 @@ class BiodiversityRecordViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_class = BiodiversityRecordFilter
     ordering_fields = [
         "species__genus__name",
-        "species__scientific_name",
+        "species__name",
         "site__name",
         "neighborhood__name",
         "date",
@@ -218,7 +218,9 @@ class BiodiversityRecordViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = BiodiversityRecordGeoSerializer(records, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=["post"])
+    @action(
+        detail=False, methods=["post"], permission_classes=[IsAuthenticatedOrReadOnly]
+    )
     def by_polygon(self, request):
         """Filter records within a custom polygon.
 
