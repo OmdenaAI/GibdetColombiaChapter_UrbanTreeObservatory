@@ -218,16 +218,19 @@ GET /api/v1/climate/stations/?format=geojson
 The API provides several methods for spatial filtering of biodiversity records:
 
 ### 1. Point-radius search
+
 ```http
 GET /api/v1/biodiversity/records/near/?lat=4.4378&lon=-75.2012&radius=500
 ```
 
 ### 2. Bounding box search
+
 ```http
 GET /api/v1/biodiversity/records/bbox/?min_lon=-75.25&min_lat=4.40&max_lon=-75.19&max_lat=4.45
 ```
 
 ### 3. Administrative boundary search
+
 ```http
 GET /api/v1/biodiversity/records/by_neighborhood/?id=1
 GET /api/v1/biodiversity/records/by_locality/?id=2
@@ -236,6 +239,7 @@ GET /api/v1/biodiversity/records/?neighborhood__locality=2
 ```
 
 ### 4. Custom polygon search
+
 ```http
 POST /api/v1/biodiversity/records/by_polygon/
 Content-Type: application/json
