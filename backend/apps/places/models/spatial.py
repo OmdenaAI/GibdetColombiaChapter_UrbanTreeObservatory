@@ -170,6 +170,11 @@ class Neighborhood(BaseModel):
         null=True,
         blank=True,
     )
+    calculated_area_m2 = models.FloatField(
+        _("calculated area (m²)"),
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["name"]
@@ -187,43 +192,6 @@ class Neighborhood(BaseModel):
         locality, municipality, and country.
 
         Example: "La Pola, Ibagué, Tolima, Colombia"
-        """
-        components = [
-            self.name,
-            self.locality.municipality.name,
-            self.locality.municipality.department.name,
-            self.locality.municipality.department.country.name,
-        ]
-        return ", ".join(filter(None, components))
-
-
-class Site(BaseModel):
-    """Represents a general location of biodiversity records."""
-
-    name = models.CharField(_("site name"), max_length=50)
-    locality = models.ForeignKey(
-        Locality,
-        on_delete=models.CASCADE,
-        related_name="sites",
-        verbose_name=_("locality"),
-    )
-    zone = models.PositiveSmallIntegerField(_("zone"), null=True, blank=True)
-    subzone = models.PositiveSmallIntegerField(_("subzone"), null=True, blank=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["locality", "name"],
-                name="unique_place",
-            )
-        ]
-        ordering = ["name"]
-
-    def __str__(self):
-        """Returns a string representation of the place, including the site,
-        municipality, department, and country.
-
-        Example: "Parque Centenario, Ibagué, Tolima, Colombia"
         """
         components = [
             self.name,

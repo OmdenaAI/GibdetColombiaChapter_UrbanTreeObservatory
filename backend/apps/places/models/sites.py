@@ -1,0 +1,42 @@
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+from apps.core.models import BaseModel
+from .spatial import Locality
+
+
+class Site(BaseModel):
+    """Represents a general location of biodiversity records."""
+
+    name = models.CharField(_("site name"), max_length=50)
+    locality = models.ForeignKey(
+        Locality,
+        on_delete=models.CASCADE,
+        related_name="sites",
+        verbose_name=_("locality"),
+    )
+    zone = models.PositiveSmallIntegerField(_("zone"), null=True, blank=True)
+    subzone = models.PositiveSmallIntegerField(_("subzone"), null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["locality", "name"],
+                name="unique_place",
+            )
+        ]
+        ordering = ["name"]
+
+    def __str__(self):
+        """Returns a string representation of the place, including the site,
+        municipality, department, and country.
+
+        Example: "Parque Centenario, Ibagué, Tolima, Colombia"
+        """
+        components = [
+            self.name,
+            self.locality.municipality.name,
+            self.locality.municipality.department.name,
+            self.locality.municipality.department.country.name,
+        ]
+        return ", ".join(filter(None, components))
