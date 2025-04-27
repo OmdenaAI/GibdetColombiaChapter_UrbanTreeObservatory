@@ -248,7 +248,6 @@ Tests are run automatically in our CI pipeline:
 
 1. On every pull request to the main branch
 2. On every push to the main branch
-3. Nightly builds to catch regressions
 
 Test failures in the CI pipeline block merging of pull requests to ensure code quality.
 
