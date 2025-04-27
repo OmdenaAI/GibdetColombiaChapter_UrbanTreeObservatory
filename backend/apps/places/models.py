@@ -22,6 +22,7 @@ class Country(models.Model):
         verbose_name_plural = _("countries")
 
     def __str__(self):
+        """Returns a string representation of the country."""
         return self.name
 
 
@@ -54,6 +55,11 @@ class Department(models.Model):
         ]
 
     def __str__(self):
+        """Returns a string representation of the department, including the
+        country.
+
+        Example: "Tolima, Colombia"
+        """
         return f"{self.name}, {self.country.name}"
 
 
@@ -86,7 +92,13 @@ class Municipality(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.name}, {self.department.name}"
+        """Returns a string representation of the municipality, including the
+        department and country.
+
+        Example: "Ibagué, Tolima, Colombia"
+        """
+        components = [self.name, self.department.name, self.department.country.name]
+        return ", ".join(filter(None, components))
 
 
 class Locality(BaseModel):
@@ -128,7 +140,18 @@ class Locality(BaseModel):
         ]
 
     def __str__(self):
-        return f"{self.name}, {self.municipality.name}"
+        """Returns a string representation of the locality, including the
+        municipality, department, and country.
+
+        Example: "Comuna 1, Ibagué, Tolima, Colombia"
+        """
+        components = [
+            self.name,
+            self.municipality.name,
+            self.municipality.department.name,
+            self.municipality.department.country.name,
+        ]
+        return ", ".join(filter(None, components))
 
 
 class Neighborhood(BaseModel):
@@ -160,9 +183,18 @@ class Neighborhood(BaseModel):
         ]
 
     def __str__(self):
-        locality = self.locality
-        municipality = locality.municipality
-        return f"{self.name}, {locality.name}, {municipality.name}"
+        """Returns a string representation of the neighborhood, including the
+        locality, municipality, and country.
+
+        Example: "La Pola, Ibagué, Tolima, Colombia"
+        """
+        components = [
+            self.name,
+            self.locality.municipality.name,
+            self.locality.municipality.department.name,
+            self.locality.municipality.department.country.name,
+        ]
+        return ", ".join(filter(None, components))
 
 
 class Site(BaseModel):
@@ -193,8 +225,10 @@ class Site(BaseModel):
 
         Example: "Parque Centenario, Ibagué, Tolima, Colombia"
         """
-        municipality = self.locality.municipality
-        department = municipality.department
-        country = department.country
-        components = [self.name, municipality.name, department.name, country.name]
+        components = [
+            self.name,
+            self.locality.municipality.name,
+            self.locality.municipality.department.name,
+            self.locality.municipality.department.country.name,
+        ]
         return ", ".join(filter(None, components))
