@@ -3,7 +3,7 @@ import random
 from django.contrib.gis.geos import Point
 from apps.biodiversity.models import BiodiversityRecord
 from apps.core.factories import BaseFactory
-from apps.places.factories import PlaceFactory
+from apps.places.factories import SiteFactory, NeighborhoodFactory
 from apps.taxonomy.factories import SpeciesFactory
 
 
@@ -13,7 +13,8 @@ class BiodiversityRecordFactory(BaseFactory):
 
     common_name = factory.Faker("word")
     species = factory.SubFactory(SpeciesFactory)
-    place = factory.SubFactory(PlaceFactory)
+    site = factory.SubFactory(SiteFactory)
+    neighborhood = factory.SubFactory(NeighborhoodFactory)
 
     # Generate a random point in Colombia (roughly)
     # Colombia bounds: ~(66°W to 79°W) and (~-4°S to 13°N)
@@ -35,37 +36,3 @@ class BiodiversityRecordFactory(BaseFactory):
 
     # By default, include elevation
     with_elevation = True
-
-    @factory.post_generation
-    def set_location_for_specific_municipalities(self, create, extracted, **kwargs):
-        """Set location coordinates appropriate for the place's municipality if needed.
-
-        This is a hook for tests to ensure geographic consistency when required.
-        """
-        if not create:
-            return
-
-        # Municipality locations can be added when specific tests need them
-        municipality_bounds = {
-            "Ibagué": {
-                "lon_min": -75.3,
-                "lon_max": -75.1,
-                "lat_min": 4.35,
-                "lat_max": 4.5,
-            }
-            # Add other municipalities as needed for tests
-        }
-
-        # Use municipality name from kwargs if provided, otherwise check the place
-        municipality_name = kwargs.get("municipality_name", None)
-        if municipality_name is None and self.place and self.place.municipality:
-            municipality_name = self.place.municipality.name
-
-        if municipality_name in municipality_bounds:
-            bounds = municipality_bounds[municipality_name]
-            self.location = Point(
-                random.uniform(bounds["lon_min"], bounds["lon_max"]),
-                random.uniform(bounds["lat_min"], bounds["lat_max"]),
-                srid=4326,
-            )
-            self.save()
