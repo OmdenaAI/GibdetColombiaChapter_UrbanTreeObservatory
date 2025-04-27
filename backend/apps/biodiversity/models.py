@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import BaseModel
-from apps.places.models import Place, Neighborhood
+from apps.places.models import Site, Neighborhood
 from apps.taxonomy.models import Species
 
 
@@ -27,11 +27,11 @@ class BiodiversityRecord(BaseModel):
         related_name="biodiversity_records",
         verbose_name=_("neighborhood"),
     )
-    place = models.ForeignKey(
-        Place,
+    site = models.ForeignKey(
+        Site,
         on_delete=models.PROTECT,
         related_name="biodiversity_records",
-        verbose_name=_("place"),
+        verbose_name=_("site"),
     )
     location = gis_models.PointField(_("location"), srid=4326, geography=True)
     elevation_m = models.FloatField(_("elevation (m)"), null=True, blank=True)
@@ -46,8 +46,13 @@ class BiodiversityRecord(BaseModel):
         ordering = ["species", "location"]
 
     def __str__(self):
+        """Return a string representation of the biodiversity record.
+
+        Example:
+            "Ocobo (Tabebuia rosea) at Parque Centenario"
+        """
         common_name = self.common_name if self.common_name else "Unknown"
-        return f"{common_name} ({self.species.scientific_name}) at {self.place.site}"
+        return f"{common_name} ({self.species.scientific_name}) at {self.site.name}"
 
     def get_admin_url(self):
         return reverse(

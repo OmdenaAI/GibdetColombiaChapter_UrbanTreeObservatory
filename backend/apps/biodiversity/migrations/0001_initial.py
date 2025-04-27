@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('elevation_m', models.FloatField(blank=True, null=True, verbose_name='elevation (m)')),
                 ('recorded_by', models.CharField(blank=True, default='Cortolima', max_length=50, verbose_name='recorded by')),
                 ('date', models.DateField(blank=True, null=True, verbose_name='recorded date')),
-                ('place', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='biodiversity_records', to='places.place', verbose_name='place')),
+                ('site', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='biodiversity_records', to='places.site', verbose_name='site')),
                 ('species', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='biodiversity_records', to='taxonomy.species', verbose_name='species')),
             ],
             options={
