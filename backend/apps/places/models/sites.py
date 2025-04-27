@@ -12,7 +12,7 @@ class Site(BaseModel):
     locality = models.ForeignKey(
         Locality,
         on_delete=models.CASCADE,
-        related_name="places",
+        related_name="sites",
         verbose_name=_("locality"),
     )
     populated_center = models.CharField(_("populated center"), max_length=50)

@@ -12,9 +12,9 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name='place',
+            model_name='site',
             name='locality',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='places', to='places.locality', verbose_name='locality'),
+            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='sites', to='places.locality', verbose_name='locality'),
             preserve_default=False,
         ),
     ]
