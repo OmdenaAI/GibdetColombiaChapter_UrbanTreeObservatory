@@ -94,6 +94,7 @@ class SpeciesAdmin(admin.ModelAdmin):
         "scientific_name",
         "gbif_url_link",
         "tropical_plants_url_link",
+        "uuid",
     )
     fieldsets = (
         (
@@ -117,7 +118,7 @@ class SpeciesAdmin(admin.ModelAdmin):
             {"fields": ("gbif_id", "gbif_url_link", "tropical_plants_url_link")},
         ),
         ("Identification", {"fields": ("identified_by", "date")}),
-        ("Metadata", {"fields": ("id", "created_at", "updated_at")}),
+        ("Metadata", {"fields": ("id", "created_at", "updated_at", "uuid")}),
     )
 
     @admin.display(description="Life Form")
