@@ -27,12 +27,7 @@ class BiodiversityRecordFactory(BaseFactory):
         )
     )
 
-    # Sometimes null to test both cases
-    elevation_m = factory.Maybe(
-        "with_elevation", factory.Faker("pyfloat", min_value=0, max_value=4000), None
-    )
+    # Default values
+    elevation_m = factory.Faker("pyfloat", min_value=0, max_value=4000)
     recorded_by = factory.Faker("name")
     date = factory.Faker("date_this_decade")
-
-    # By default, include elevation
-    with_elevation = True
