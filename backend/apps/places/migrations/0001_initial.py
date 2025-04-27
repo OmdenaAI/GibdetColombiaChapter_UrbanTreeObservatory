@@ -48,21 +48,21 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='Place',
+            name='Site',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('uuid', models.UUIDField(default=uuid.uuid4, editable=False, verbose_name='UUID')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='created at')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='updated at')),
-                ('site', models.CharField(max_length=50, verbose_name='site')),
+                ('name', models.CharField(max_length=50, verbose_name='name')),
                 ('populated_center', models.CharField(max_length=50, verbose_name='populated center')),
                 ('zone', models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='zone')),
                 ('subzone', models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='subzone')),
                 ('municipality', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='places', to='places.municipality', verbose_name='municipality')),
             ],
             options={
-                'ordering': ['municipality', 'site'],
-                'constraints': [models.UniqueConstraint(fields=('municipality', 'site'), name='unique_place')],
+                'ordering': ['municipality', 'name'],
+                'constraints': [models.UniqueConstraint(fields=('municipality', 'name'), name='unique_place')],
             },
         ),
     ]
