@@ -26,9 +26,9 @@ class Country(models.Model):
 
 
 class Department(models.Model):
-    """Represents a department within a country."""
+    """Represents a department (state, province) within a country."""
 
-    name = models.CharField(_("department"), max_length=50, unique=True)
+    name = models.CharField(_("department"), max_length=50)
     country = models.ForeignKey(
         Country,
         on_delete=models.CASCADE,
@@ -46,6 +46,12 @@ class Department(models.Model):
         ordering = ["name"]
         verbose_name = _("department")
         verbose_name_plural = _("departments")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name", "country"],
+                name="unique_department_per_country",
+            )
+        ]
 
     def __str__(self):
         return f"{self.name}, {self.country.name}"
@@ -54,7 +60,7 @@ class Department(models.Model):
 class Municipality(models.Model):
     """Represents a municipality within a department."""
 
-    name = models.CharField(_("municipality"), max_length=50, unique=True)
+    name = models.CharField(_("municipality"), max_length=50)
     department = models.ForeignKey(
         Department,
         on_delete=models.CASCADE,
@@ -72,6 +78,12 @@ class Municipality(models.Model):
         ordering = ["name"]
         verbose_name = _("municipality")
         verbose_name_plural = _("municipalities")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name", "department"],
+                name="unique_municipality_per_department",
+            )
+        ]
 
     def __str__(self):
         return f"{self.name}, {self.department.name}"
@@ -80,7 +92,7 @@ class Municipality(models.Model):
 class Locality(BaseModel):
     """Represents a locality within a municipality."""
 
-    name = models.CharField(_("locality"), max_length=50, unique=True)
+    name = models.CharField(_("locality"), max_length=50)
     municipality = models.ForeignKey(
         Municipality,
         on_delete=models.CASCADE,
@@ -108,6 +120,12 @@ class Locality(BaseModel):
         ordering = ["name"]
         verbose_name = _("locality")
         verbose_name_plural = _("localities")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name", "municipality"],
+                name="unique_locality_per_municipality",
+            )
+        ]
 
     def __str__(self):
         return f"{self.name}, {self.municipality.name}"
@@ -116,7 +134,7 @@ class Locality(BaseModel):
 class Neighborhood(BaseModel):
     """Represents a neighborhood within a locality."""
 
-    name = models.CharField(_("neighborhood"), max_length=50, unique=True)
+    name = models.CharField(_("neighborhood"), max_length=50)
     locality = models.ForeignKey(
         Locality,
         on_delete=models.CASCADE,
@@ -134,6 +152,49 @@ class Neighborhood(BaseModel):
         ordering = ["name"]
         verbose_name = _("neighborhood")
         verbose_name_plural = _("neighborhoods")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name", "locality"],
+                name="unique_neighborhood_per_locality",
+            )
+        ]
 
     def __str__(self):
-        return f"{self.name}, {self.locality.name}, {self.locality.municipality.name}"
+        locality = self.locality
+        municipality = locality.municipality
+        return f"{self.name}, {locality.name}, {municipality.name}"
+
+
+class Site(BaseModel):
+    """Represents a general location of biodiversity records."""
+
+    name = models.CharField(_("site name"), max_length=50)
+    locality = models.ForeignKey(
+        Locality,
+        on_delete=models.CASCADE,
+        related_name="sites",
+        verbose_name=_("locality"),
+    )
+    zone = models.PositiveSmallIntegerField(_("zone"), null=True, blank=True)
+    subzone = models.PositiveSmallIntegerField(_("subzone"), null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["locality", "name"],
+                name="unique_place",
+            )
+        ]
+        ordering = ["name"]
+
+    def __str__(self):
+        """Returns a string representation of the place, including the site,
+        municipality, department, and country.
+
+        Example: "Parque Centenario, Ibagué, Tolima, Colombia"
+        """
+        municipality = self.locality.municipality
+        department = municipality.department
+        country = department.country
+        components = [self.name, municipality.name, department.name, country.name]
+        return ", ".join(filter(None, components))
