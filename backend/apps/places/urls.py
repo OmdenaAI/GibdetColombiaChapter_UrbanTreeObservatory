@@ -5,7 +5,7 @@ from .views import (
     CountryViewSet,
     DepartmentViewSet,
     MunicipalityViewSet,
-    PlaceViewSet,
+    SiteViewSet,
 )
 
 app_name = "places"
@@ -14,7 +14,7 @@ router = DefaultRouter()
 router.register(r"countries", CountryViewSet, basename="country")
 router.register(r"departments", DepartmentViewSet, basename="department")
 router.register(r"municipalities", MunicipalityViewSet, basename="municipality")
-router.register(r"places", PlaceViewSet, basename="place")
+router.register(r"sites", SiteViewSet, basename="site")
 
 urlpatterns = [
     path("", include(router.urls)),

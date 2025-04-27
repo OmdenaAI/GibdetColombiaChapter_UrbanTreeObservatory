@@ -36,7 +36,7 @@ class BiodiversityRecordFilter(django_filters.FilterSet):
         model = BiodiversityRecord
         fields = {
             "species": ["exact"],
-            "place": ["exact"],
+            "site": ["exact"],
             "recorded_by": ["exact", "icontains"],
         }
 
@@ -46,7 +46,7 @@ class BiodiversityRecordFilter(django_filters.FilterSet):
             Q(common_name__icontains=value)
             | Q(species__name__icontains=value)
             | Q(species__genus__name__icontains=value)
-            | Q(place__site__icontains=value)
+            | Q(site__name__icontains=value)
         )
 
 
@@ -57,10 +57,8 @@ class BiodiversityRecordViewSet(viewsets.ReadOnlyModelViewSet):
         "species",
         "species__genus",
         "species__genus__family",
-        "place",
-        "place__municipality",
-        "place__municipality__department",
-        "place__municipality__department__country",
+        "site",
+        "neighborhood",
     )
     serializer_class = BiodiversityRecordSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
@@ -69,7 +67,7 @@ class BiodiversityRecordViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = [
         "species__genus__name",
         "species__name",
-        "place__site",
+        "site__name",
         "date",
         "created_at",
     ]

@@ -2,12 +2,12 @@ from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from .models import Country, Department, Municipality, Place
+from .models import Country, Department, Municipality, Site
 from .serializers import (
     CountrySerializer,
     DepartmentSerializer,
     MunicipalitySerializer,
-    PlaceSerializer,
+    SiteSerializer,
 )
 
 
@@ -60,30 +60,31 @@ class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["name"]
 
 
-class PlaceViewSet(viewsets.ReadOnlyModelViewSet):
-    """API endpoint for Place model."""
+class SiteViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for Site model."""
 
-    queryset = Place.objects.all()
-    serializer_class = PlaceSerializer
+    queryset = Site.objects.all()
+    serializer_class = SiteSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [
         filters.SearchFilter,
         filters.OrderingFilter,
         DjangoFilterBackend,
     ]
-    search_fields = ["site", "populated_center"]
+    search_fields = ["name", "populated_center"]
     filterset_fields = {
-        "municipality": ["exact"],
-        "municipality__department": ["exact"],
-        "municipality__department__country": ["exact"],
+        "locality": ["exact"],
+        "locality__municipality": ["exact"],
+        "locality__municipality__department": ["exact"],
+        "locality__municipality__department__country": ["exact"],
         "zone": ["exact"],
         "subzone": ["exact"],
     }
     ordering_fields = [
-        "site",
-        "municipality__name",
-        "municipality__department__name",
+        "name",
+        "locality__municipality__name",
+        "locality__municipality__department__name",
         "zone",
         "subzone",
     ]
-    ordering = ["site"]
+    ordering = ["name"]

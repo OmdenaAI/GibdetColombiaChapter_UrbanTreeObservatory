@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Country, Department, Municipality, Place
+from .models import Country, Department, Municipality, Site
 
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -36,23 +36,16 @@ class MunicipalitySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "department", "department_id"]
 
 
-class PlaceSerializer(serializers.ModelSerializer):
-    """Serializer for the Place model."""
-
-    municipality = MunicipalitySerializer(read_only=True)
-    municipality_id = serializers.PrimaryKeyRelatedField(
-        queryset=Municipality.objects.all(), source="municipality", write_only=True
-    )
+class SiteSerializer(serializers.ModelSerializer):
+    """Serializer for the Site model."""
 
     class Meta:
-        model = Place
+        model = Site
         fields = [
             "id",
             "uuid",
-            "municipality",
-            "municipality_id",
-            "site",
-            "populated_center",
+            "name",
+            "locality",
             "zone",
             "subzone",
             "created_at",
@@ -60,26 +53,13 @@ class PlaceSerializer(serializers.ModelSerializer):
         ]
 
 
-class PlaceLightSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for the Place model for nested usage."""
-
-    municipality_name = serializers.CharField(
-        source="municipality.name", read_only=True
-    )
-    department_name = serializers.CharField(
-        source="municipality.department.name", read_only=True
-    )
-    country_name = serializers.CharField(
-        source="municipality.department.country.name", read_only=True
-    )
+class SiteLightSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for the Site model for nested usage."""
 
     class Meta:
-        model = Place
+        model = Site
         fields = [
             "id",
             "uuid",
-            "site",
-            "municipality_name",
-            "department_name",
-            "country_name",
+            "name",
         ]
