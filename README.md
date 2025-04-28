@@ -65,12 +65,12 @@ docker compose exec backend python manage.py createsuperuser
 
 To import initial data into the database:
 
-1. Download the latest version of the CSV files from the project's shared Google Drive (ask the project lead or the team lead for the link).
-2. Save the files to `backend/data/csv` (*this directory is already git-ignored and the files will be instantly available inside the container at `/app/data/csv`*).
+1. Download the latest version of the CSV snd JSON files from the project's shared Google Drive.
+2. Save the CSV files to `backend/data/csv` and the JSON files to `backend/data/json`.
 3. Run the import command:
 
    ```bash
-   docker compose exec backend python manage.py import_initial_data --local-dir=data/csv
+   docker compose exec backend python manage.py import_initial_data --local-dir=data
    ```
 
 ## Project Structure
@@ -82,6 +82,7 @@ To import initial data into the database:
   - `apps/` - Django apps
     - `core/` - Core functionality
     - `users/` - User management
+    - `places/` - Geographic locations and spatial data
     - `taxonomy/` - Family, genus, and species management
     - `biodiversity/` - Tree data management with GIS
     - `reports/` - Tree measurements and observations

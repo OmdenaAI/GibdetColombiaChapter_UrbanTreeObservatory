@@ -3,7 +3,7 @@ Import initial data from CSV files into the database.
 
 This Django management command imports data for an Urban Tree Observatory including:
 - Taxonomy (families, genera, species)
-- Places and locations
+- Sites, geographical locations, and spatial data
 - Functional groups and traits
 - Biodiversity records
 - Measurements and observations
@@ -16,18 +16,24 @@ Prerequisites:
 Assumptions:
 - All records are for the municipality of Ibagué, Tolima, Colombia.
 - The CSV files are structured correctly and contain all necessary data.
+- The JSON files contain valid GeoJSON data.
 
 Usage:
     python manage.py import_initial_data [options]
 
 Options:
-    --local-dir PATH        Path to directory containing the CSV files
+    --local-dir PATH        Path to directory containing the CSV and JSON files
+                              in subdirectories csv/ and json/
+
     --taxonomy-url URL      URL for the taxonomy details CSV file
-    --places-url URL        URL for the places CSV file
+    --sites-url URL         URL for the sites CSV file
     --biodiversity-url URL  URL for the biodiversity records CSV file
     --measurements-url URL  URL for the measurements CSV file
     --observations-url URL  URL for the observations details CSV file
     --traits-url URL        URL for the functional groups traits CSV file
+    --climate-url URL       URL for the climate data CSV file
+    --localities-url URL    URL for the localities JSON file
+    --hoods-url URL         URL for the neighborhoods JSON file
 
 Settings:
     IMPORT_MEASUREMENTS_CHUNK_SIZE
@@ -49,12 +55,14 @@ Example:
     python manage.py import_initial_data --local-dir /path/to/data  # Uses local files
 """
 
+import json
 from pathlib import Path
 
 from tqdm import tqdm
 import pandas as pd
 
 from django.conf import settings
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Point
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction, connection
 
@@ -66,14 +74,14 @@ from apps.taxonomy.models import (
     Trait,
     TraitValue,
 )
-from apps.places.models import Municipality, Place
+from apps.places.models import Locality, Municipality, Neighborhood, Site
 from apps.biodiversity.models import BiodiversityRecord
 from apps.reports.models import Measurement, Observation
 from apps.climate.models import Station, Climate
 
 
 class Command(BaseCommand):
-    help = "Import CSV data into the database"
+    help = "Import CSV and JSON data into the database"
 
     def add_arguments(self, parser):
         """Add command line arguments for the management command."""
@@ -84,9 +92,9 @@ class Command(BaseCommand):
             help="URL for the taxonomy details CSV file",
         )
         parser.add_argument(
-            "--places-url",
-            default="https://huggingface.co/datasets/juanpac96/urban_tree_census_data/places.csv",
-            help="URL for the places CSV file",
+            "--sites-url",
+            default="https://huggingface.co/datasets/juanpac96/urban_tree_census_data/sites.csv",
+            help="URL for the sites CSV file",
         )
         parser.add_argument(
             "--biodiversity-url",
@@ -114,12 +122,22 @@ class Command(BaseCommand):
             help="URL for the climate data CSV file",
         )
         parser.add_argument(
+            "--localities-url",
+            default="https://huggingface.co/datasets/juanpac96/urban_tree_census_data/localities.json",
+            help="URL for the localities JSON file",
+        )
+        parser.add_argument(
+            "--hoods-url",
+            default="https://huggingface.co/datasets/juanpac96/urban_tree_census_data/hoods.json",
+            help="URL for the neighborhoods JSON file",
+        )
+        parser.add_argument(
             "--local-dir",
-            help="Local directory containing CSV files with the same names as Hugging Face URLs",
+            help="Local directory containing CSV and JSON files with the same names as Hugging Face URLs",
         )
 
     def parse_date(self, date_string):
-        """Convert a date-time string from CSV to a date object for Django DateField.
+        """Convert a date-time string to a date object for Django DateField.
 
         Args:
             date_string: String in format 'YYYY-MM-DD HH:MM:SS' or None/NaN
@@ -149,15 +167,15 @@ class Command(BaseCommand):
             )
         else:
             self.taxonomy_url = options["taxonomy_url"]
-            self.places_url = options["places_url"]
+            self.sites_url = options["sites_url"]
             self.biodiversity_url = options["biodiversity_url"]
             self.measurements_url = options["measurements_url"]
             self.observations_url = options["observations_url"]
             self.traits_url = options["traits_url"]
             self.climate_url = options["climate_url"]
-            self.stdout.write(
-                self.style.SUCCESS("Starting import from Hugging Face URLs")
-            )
+            self.localities_url = options["localities_url"]
+            self.hoods_url = options["hoods_url"]
+            self.stdout.write(self.style.SUCCESS("Starting import from URLs"))
 
         # Check that required migrations have run
         self.check_required_data()
@@ -171,8 +189,10 @@ class Command(BaseCommand):
         try:
             with transaction.atomic():
                 # Call import methods in order of dependencies
+                self.import_localities()
+                self.import_neighborhoods()
+                self.import_sites()
                 self.import_taxonomy()
-                self.import_places()
                 self.import_functional_groups()
                 self.import_biodiversity_records()
                 self.import_measurements()
@@ -214,30 +234,32 @@ class Command(BaseCommand):
 
         if self.use_local:
             # Check if all required files exist in the local directory
-            required_files = [
+            required_csv_files = [
                 "taxonomy.csv",
-                "places.csv",
+                "sites.csv",
                 "biodiversity.csv",
                 "measurements.csv",
                 "observations.csv",
                 "traits.csv",
                 "climate.csv",
             ]
+            required_json_files = ["localities.json", "hoods.json"]
 
-            for filename in required_files:
-                file_path = self.data_dir / filename
-                if not file_path.exists():
-                    missing_files.append(str(file_path))
+            self._check_required_files("csv", required_csv_files, missing_files)
+            self._check_required_files("json", required_json_files, missing_files)
+
         else:
             # Check if all remote URLs are accessible
             urls = [
                 ("taxonomy", self.taxonomy_url),
-                ("places", self.places_url),
+                ("sites", self.sites_url),
                 ("biodiversity", self.biodiversity_url),
                 ("measurements", self.measurements_url),
                 ("observations", self.observations_url),
                 ("traits", self.traits_url),
                 ("climate", self.climate_url),
+                ("localities", self.localities_url),
+                ("hoods", self.hoods_url),
             ]
 
             # For remote URLs, we'll just check if pandas can open them
@@ -258,13 +280,19 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("All required data files are accessible"))
 
+    def _check_required_files(self, subdir, filenames, missing_files):
+        for filename in filenames:
+            file_path = self.data_dir / subdir / filename
+            if not file_path.exists():
+                missing_files.append(str(file_path))
+
     def check_empty_tables(self):
         """Check that all tables to be populated are empty before import."""
         tables_to_check = [
             (Family, "Family"),
             (Genus, "Genus"),
             (Species, "Species"),
-            (Place, "Place"),
+            (Site, "Site"),
             (FunctionalGroup, "FunctionalGroup"),
             (Trait, "Trait"),
             (TraitValue, "TraitValue"),
@@ -273,6 +301,8 @@ class Command(BaseCommand):
             (Observation, "Observation"),
             (Station, "Station"),
             (Climate, "Climate"),
+            (Locality, "Locality"),
+            (Neighborhood, "Neighborhood"),
         ]
 
         non_empty_tables = []
@@ -292,12 +322,254 @@ class Command(BaseCommand):
             self.style.SUCCESS("All required tables are empty - ready to import")
         )
 
+    def import_localities(self):
+        self.stdout.write("Importing locality data...")
+
+        # Read localities.json
+        if self.use_local:
+            json_path = self.data_dir / "json" / "localities.json"
+        else:
+            json_path = self.localities_url
+
+        with open(json_path, "r") as f:
+            data = json.load(f)
+
+        # Validate top-level structure
+        if not isinstance(data, dict) or "localities" not in data:
+            raise CommandError(
+                "localities.json must be a JSON object with a 'localities' key."
+            )
+
+        localities_list = data["localities"]
+        if not isinstance(localities_list, list):
+            raise CommandError("'localities' key must contain a list.")
+
+        # Validate required keys (for non-nullable model fields) in each locality
+        required_keys = {"id", "name"}
+        for idx, loc in enumerate(localities_list):
+            missing = required_keys - set(loc)
+            if missing:
+                raise CommandError(
+                    f"Missing required keys in localities.json at index {idx}: {missing}"
+                )
+
+        # Convert to DataFrame for further processing
+        localities_data = pd.DataFrame(localities_list)
+
+        # Create localities using municipality_id
+        localities_batch = []
+        for idx, row in enumerate(
+            tqdm(localities_data.itertuples(index=False), desc="Preparing localities")
+        ):
+            # Get the boundary GeoJSON dict from the original list (not DataFrame, to avoid dtype issues)
+            boundary_geojson = localities_list[idx].get("boundary")
+            boundary_geom = None
+            if boundary_geojson:
+                try:
+                    # Convert dict to string for GEOSGeometry
+                    boundary_geom = self._parse_geometry(boundary_geojson)
+                except Exception as e:
+                    raise CommandError(
+                        f"Invalid boundary geometry for locality id={row.id}: {e}"
+                    )
+
+            locality = Locality(
+                id=row.id,  # Primary key
+                name=row.name,
+                municipality=self.ibague,  # Using the stored reference
+                calculated_area_m2=row.calculated_area_m2
+                if pd.notna(row.calculated_area_m2)
+                else None,
+                population_2019=row.population_2019
+                if pd.notna(row.population_2019)
+                else None,
+                boundary=boundary_geom,
+            )
+            localities_batch.append(locality)
+
+        # Bulk create localities
+        created_localities = Locality.objects.bulk_create(localities_batch)
+
+        # Create mapping for use in neighborhoods
+        self.localities_by_id = {loc.id: loc for loc in created_localities}
+
+        # Create the unknown locality if needed
+        self._create_unknown_locality()
+
+        self.stdout.write(
+            self.style.SUCCESS(f"Imported {len(localities_batch)} localities")
+        )
+
+    def _create_unknown_locality(self):
+        """Create the unknown locality with id=14 if it does not exist."""
+        unknown_id = 14
+        if Locality.objects.filter(id=unknown_id).exists():
+            raise CommandError(
+                "A locality with id=14 already exists. Cannot create the unknown locality."
+            )
+        unknown_locality = Locality.objects.create(
+            id=unknown_id,
+            name="Desconocida",
+            municipality=self.ibague,
+            boundary=None,
+            calculated_area_m2=None,
+            population_2019=None,
+        )
+        self.localities_by_id[unknown_id] = unknown_locality
+
+    def import_neighborhoods(self):
+        self.stdout.write("Importing neighborhood data...")
+
+        # Read hoods.json
+        if self.use_local:
+            json_path = self.data_dir / "json" / "hoods.json"
+        else:
+            json_path = self.hoods_url
+
+        with open(json_path, "r") as f:
+            data = json.load(f)
+
+        # Validate top-level structure
+        if not isinstance(data, dict) or "hoods" not in data:
+            raise CommandError("hoods.json must be a JSON object with a 'hoods' key.")
+
+        neighborhoods_list = data["hoods"]
+        if not isinstance(neighborhoods_list, list):
+            raise CommandError("'hoods' key must contain a list.")
+
+        # Validate required keys (for non-nullable model fields) in each neighborhood
+        required_keys = {"id", "name", "locality_id"}
+        for idx, hood in enumerate(neighborhoods_list):
+            missing = required_keys - set(hood)
+            if missing:
+                raise CommandError(
+                    f"Missing required keys in hoods.json at index {idx}: {missing}"
+                )
+
+        # Convert to DataFrame for further processing
+        neighborhoods_data = pd.DataFrame(neighborhoods_list)
+
+        # Create neighborhoods using locality_id
+        neighborhoods_batch = []
+        for idx, row in enumerate(
+            tqdm(
+                neighborhoods_data.itertuples(index=False),
+                desc="Preparing neighborhoods",
+            )
+        ):
+            # Get the boundary GeoJSON dict from the original list (not DataFrame, to avoid dtype issues)
+            boundary_geojson = neighborhoods_list[idx].get("boundary")
+            boundary_geom = None
+            if boundary_geojson:
+                try:
+                    # Convert dict to string for GEOSGeometry
+                    boundary_geom = self._parse_geometry(boundary_geojson)
+                except Exception as e:
+                    raise CommandError(
+                        f"Invalid boundary geometry for neighborhood id={row.id}: {e}"
+                    )
+
+            neighborhood = Neighborhood(
+                id=row.id,  # Primary key
+                name=row.name,
+                locality=self.localities_by_id[
+                    row.locality_id
+                ],  # Using the mapping from localities
+                calculated_area_m2=row.calculated_area_m2
+                if pd.notna(row.calculated_area_m2)
+                else None,
+                boundary=boundary_geom,
+            )
+            neighborhoods_batch.append(neighborhood)
+
+        # Bulk create neighborhoods
+        created_hoods = Neighborhood.objects.bulk_create(
+            neighborhoods_batch, batch_size=100
+        )
+
+        # Create mapping for use in biodiversity records
+        self.neighborhoods_by_id = {hood.id: hood for hood in created_hoods}
+
+        # Create the unknown neighborhood if needed
+        self._create_unknown_neighborhood()
+
+        self.stdout.write(
+            self.style.SUCCESS(f"Imported {len(neighborhoods_batch)} neighborhoods")
+        )
+
+    def _create_unknown_neighborhood(self):
+        """Create the unknown neighborhood with id=688 if it does not exist."""
+        unknown_id = 688
+        if Neighborhood.objects.filter(id=unknown_id).exists():
+            raise CommandError(
+                "A neighborhood with id=688 already exists. Cannot create the unknown neighborhood."
+            )
+        unknown_neighborhood = Neighborhood.objects.create(
+            id=unknown_id,
+            name="Desconocido",
+            locality=self.localities_by_id[14],  # Use the unknown locality
+            calculated_area_m2=None,
+            boundary=None,
+        )
+        self.neighborhoods_by_id[unknown_id] = unknown_neighborhood
+
+    def _parse_geometry(self, geojson):
+        """Parses GeoJSON dict into a GEOSGeometry MultiPolygon"""
+        geom = GEOSGeometry(json.dumps(geojson), srid=4326)
+        if geom.geom_type == "Polygon":
+            geom = MultiPolygon(geom)
+        elif geom.geom_type != "MultiPolygon":
+            raise CommandError(f"Unsupported geometry type: {geom.geom_type}")
+        return geom
+
+    def import_sites(self):
+        self.stdout.write("Importing site data...")
+
+        # Read sites.csv
+        if self.use_local:
+            csv_path = self.data_dir / "csv" / "sites.csv"
+        else:
+            csv_path = self.sites_url
+
+        df = pd.read_csv(csv_path)
+
+        # Validate headers
+        required_columns = {"id", "name", "zone", "subzone"}
+        if not required_columns.issubset(df.columns):
+            missing = required_columns - set(df.columns)
+            raise CommandError(f"Missing required columns in sites.csv: {missing}")
+
+        # Create sites
+        sites_batch = []
+        for row in tqdm(
+            df.itertuples(index=False), desc="Preparing sites", total=len(df)
+        ):
+            site = Site(
+                id=row.id,  # Primary key
+                name=row.name,
+                zone=row.zone if pd.notna(row.zone) else None,
+                subzone=row.subzone if pd.notna(row.subzone) else None,
+            )
+            sites_batch.append(site)
+
+        # Bulk create sites
+        created_sites = Site.objects.bulk_create(sites_batch, batch_size=100)
+
+        # Create mapping for use in biodiversity records
+        self.sites_by_id = {site.id: site for site in created_sites}
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Imported {len(sites_batch)} sites in Ibagué, Tolima, Colombia"
+            )
+        )
+
     def import_taxonomy(self):
         self.stdout.write("Importing taxonomy data...")
 
         # Read taxonomy.csv
         if self.use_local:
-            csv_path = self.data_dir / "taxonomy.csv"
+            csv_path = self.data_dir / "csv" / "taxonomy.csv"
         else:
             csv_path = self.taxonomy_url
 
@@ -381,56 +653,12 @@ class Command(BaseCommand):
             )
         )
 
-    def import_places(self):
-        self.stdout.write("Importing place data...")
-
-        # Read places.csv
-        if self.use_local:
-            csv_path = self.data_dir / "places.csv"
-        else:
-            csv_path = self.places_url
-
-        df = pd.read_csv(csv_path)
-
-        # Validate headers
-        required_columns = {"id_place", "site", "populated_center", "zone", "subzone"}
-        if not required_columns.issubset(df.columns):
-            missing = required_columns - set(df.columns)
-            raise CommandError(f"Missing required columns in places.csv: {missing}")
-
-        # Create places using the ibague reference we stored earlier
-        places_batch = []
-        for row in tqdm(
-            df.itertuples(index=False), desc="Preparing places", total=len(df)
-        ):
-            place = Place(
-                id=row.id_place,  # Primary key
-                municipality=self.ibague,  # Using the stored reference
-                site=row.site,
-                populated_center=row.populated_center,
-                zone=row.zone if pd.notna(row.zone) else None,
-                subzone=row.subzone if pd.notna(row.subzone) else None,
-            )
-            places_batch.append(place)
-
-        # Bulk create places
-        places = Place.objects.bulk_create(places_batch, batch_size=100)
-
-        # Create mapping for use in biodiversity records
-        self.places_by_id = {place.id: place for place in places}
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Imported {len(places)} places in Ibagué, Tolima, Colombia"
-            )
-        )
-
     def import_functional_groups(self):
         self.stdout.write("Importing functional groups and traits...")
 
         # Read traits.csv
         if self.use_local:
-            csv_path = self.data_dir / "traits.csv"
+            csv_path = self.data_dir / "csv" / "traits.csv"
         else:
             csv_path = self.traits_url
 
@@ -571,7 +799,7 @@ class Command(BaseCommand):
 
         # Read biodiversity.csv
         if self.use_local:
-            csv_path = self.data_dir / "biodiversity.csv"
+            csv_path = self.data_dir / "csv" / "biodiversity.csv"
         else:
             csv_path = self.biodiversity_url
 
@@ -581,13 +809,14 @@ class Command(BaseCommand):
         required_columns = {
             "code_record",
             "common_name",
-            "taxonomy_id",
-            "place_id",
             "longitude",
             "latitude",
             "elevation_m",
             "registered_by",
             "date_event",
+            "site_id",
+            "species_id",
+            "hood_id",
         }
         if not required_columns.issubset(df.columns):
             missing = required_columns - set(df.columns)
@@ -611,15 +840,13 @@ class Command(BaseCommand):
 
             batch_records = []
             for row in batch_df.itertuples(index=False):
-                # Create a Point geometry for the location
-                location = f"POINT({row.longitude} {row.latitude})"
-
                 bio_record = BiodiversityRecord(
                     id=row.code_record,  # Primary key
                     common_name=row.common_name,
-                    species=self.species_by_id[row.taxonomy_id],
-                    place=self.places_by_id[row.place_id],
-                    location=location,
+                    species=self.species_by_id[row.species_id],
+                    site=self.sites_by_id[row.site_id],
+                    neighborhood=self.neighborhoods_by_id[row.hood_id],
+                    location=Point(row.longitude, row.latitude, srid=4326),
                     elevation_m=row.elevation_m if pd.notna(row.elevation_m) else None,
                     recorded_by=row.registered_by,
                     date=self.parse_date(row.date_event)
@@ -648,7 +875,7 @@ class Command(BaseCommand):
         chunksize = settings.IMPORT_MEASUREMENTS_CHUNK_SIZE
 
         if self.use_local:
-            csv_path = self.data_dir / "measurements.csv"
+            csv_path = self.data_dir / "csv" / "measurements.csv"
         else:
             csv_path = self.measurements_url
 
@@ -709,7 +936,7 @@ class Command(BaseCommand):
 
         # Read observations.csv with specified data types to handle mixed types warning
         if self.use_local:
-            csv_path = self.data_dir / "observations.csv"
+            csv_path = self.data_dir / "csv" / "observations.csv"
         else:
             csv_path = self.observations_url
 
@@ -845,7 +1072,7 @@ class Command(BaseCommand):
         chunksize = settings.IMPORT_CLIMATE_CHUNK_SIZE
 
         if self.use_local:
-            csv_path = self.data_dir / "climate.csv"
+            csv_path = self.data_dir / "csv" / "climate.csv"
         else:
             csv_path = self.climate_url
 
@@ -941,6 +1168,50 @@ class Command(BaseCommand):
     def check_foreign_key_integrity(self):
         """Check that all foreign keys map to valid primary keys."""
 
+        self.stdout.write("Checking foreign key integrity...")
+
+        # Check Neighborhood.locality_id
+        hood_ids = set(
+            Neighborhood.objects.values_list("locality_id", flat=True).distinct()
+        )
+        valid_locality_ids = set(Locality.objects.values_list("id", flat=True))
+        invalid_locality_ids = hood_ids - valid_locality_ids
+        self.stdout.write(
+            f"Found {len(invalid_locality_ids)} invalid locality_id(s) in Neighborhood."
+        )
+
+        # Check BiodiversityRecord.site_id
+        bio_site_ids = set(
+            BiodiversityRecord.objects.values_list("site_id", flat=True).distinct()
+        )
+        valid_site_ids = set(Site.objects.values_list("id", flat=True))
+        invalid_site_ids = bio_site_ids - valid_site_ids
+        self.stdout.write(
+            f"Found {len(invalid_site_ids)} invalid site_id(s) in BiodiversityRecord."
+        )
+
+        # Check BiodiversityRecord.species_id
+        bio_species_ids = set(
+            BiodiversityRecord.objects.values_list("species_id", flat=True).distinct()
+        )
+        valid_species_ids = set(Species.objects.values_list("id", flat=True))
+        invalid_species_ids = bio_species_ids - valid_species_ids
+        self.stdout.write(
+            f"Found {len(invalid_species_ids)} invalid species_id(s) in BiodiversityRecord."
+        )
+
+        # Check BiodiversityRecord.neighborhood_id
+        bio_hood_ids = set(
+            BiodiversityRecord.objects.values_list(
+                "neighborhood_id", flat=True
+            ).distinct()
+        )
+        valid_hood_ids = set(Neighborhood.objects.values_list("id", flat=True))
+        invalid_hood_ids = bio_hood_ids - valid_hood_ids
+        self.stdout.write(
+            f"Found {len(invalid_hood_ids)} invalid neighborhood_id(s) in BiodiversityRecord."
+        )
+
         # Check Observation.biodiversity_record_id
         observation_ids = set(
             Observation.objects.values_list(
@@ -964,26 +1235,6 @@ class Command(BaseCommand):
             f"Found {len(invalid_meas_ids)} invalid biodiversity_record_id(s) in Measurement."
         )
 
-        # Check BiodiversityRecord.place_id
-        bio_place_ids = set(
-            BiodiversityRecord.objects.values_list("place_id", flat=True).distinct()
-        )
-        valid_place_ids = set(Place.objects.values_list("id", flat=True))
-        invalid_place_ids = bio_place_ids - valid_place_ids
-        self.stdout.write(
-            f"Found {len(invalid_place_ids)} invalid place_id(s) in BiodiversityRecord."
-        )
-
-        # Check BiodiversityRecord.species_id
-        bio_species_ids = set(
-            BiodiversityRecord.objects.values_list("species_id", flat=True).distinct()
-        )
-        valid_species_ids = set(Species.objects.values_list("id", flat=True))
-        invalid_species_ids = bio_species_ids - valid_species_ids
-        self.stdout.write(
-            f"Found {len(invalid_species_ids)} invalid species_id(s) in BiodiversityRecord."
-        )
-
     def reset_sequences(self):
         """Reset ID sequences after import for PostgreSQL."""
 
@@ -991,7 +1242,7 @@ class Command(BaseCommand):
             Family,
             Genus,
             Species,
-            Place,
+            Site,
             FunctionalGroup,
             Trait,
             TraitValue,
@@ -1000,6 +1251,8 @@ class Command(BaseCommand):
             Observation,
             Station,
             Climate,
+            Locality,
+            Neighborhood,
         ]
         with connection.cursor() as cursor:
             for model in models:
