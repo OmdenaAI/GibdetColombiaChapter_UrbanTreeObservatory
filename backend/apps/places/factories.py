@@ -145,6 +145,5 @@ class SiteFactory(BaseFactory):
         model = Site
 
     name = factory.Sequence(lambda n: f"Site {n}")
-    locality = factory.SubFactory(LocalityFactory)
     zone = factory.Faker("random_int", min=1, max=10)
     subzone = factory.Faker("random_int", min=1, max=5)

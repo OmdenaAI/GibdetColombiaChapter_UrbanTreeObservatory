@@ -158,12 +158,7 @@ class NeighborhoodViewSet(viewsets.ReadOnlyModelViewSet):
 class SiteViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for Site model."""
 
-    queryset = Site.objects.select_related(
-        "locality",
-        "locality__municipality",
-        "locality__municipality__department",
-        "locality__municipality__department__country",
-    )
+    queryset = Site.objects.all()
     serializer_class = SiteSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [
@@ -171,19 +166,13 @@ class SiteViewSet(viewsets.ReadOnlyModelViewSet):
         filters.OrderingFilter,
         DjangoFilterBackend,
     ]
-    search_fields = ["name"]  # Remove legacy populated_center
+    search_fields = ["name"]
     filterset_fields = {
-        "locality": ["exact"],
-        "locality__municipality": ["exact"],
-        "locality__municipality__department": ["exact"],
-        "locality__municipality__department__country": ["exact"],
         "zone": ["exact"],
         "subzone": ["exact"],
     }
     ordering_fields = [
         "name",
-        "locality__municipality__name",
-        "locality__municipality__department__name",
         "zone",
         "subzone",
     ]

@@ -228,16 +228,6 @@ class TestSiteEndpoints:
         assert response.data["name"] == site.name
         assert response.data["zone"] == 1
         assert response.data["subzone"] == 2
-        assert "locality" in response.data
-
-    def test_site_filter_by_locality(self, api_client, site):
-        """Test filtering sites by locality."""
-        url = reverse("places:site-list") + f"?locality={site.locality.id}"
-        response = api_client.get(url)
-
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["name"] == site.name
 
     def test_site_filter_by_zone(self, api_client, site):
         """Test filtering sites by zone."""

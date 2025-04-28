@@ -5,7 +5,7 @@ from django.contrib.gis.geos import Point
 @pytest.mark.django_db
 def test_biodiversity_record_str(biodiversity_record):
     """Test the string representation of the biodiversity record."""
-    expected = f"{biodiversity_record.common_name} ({biodiversity_record.species.scientific_name}) at {biodiversity_record.site.name}"
+    expected = f"{biodiversity_record.common_name} ({biodiversity_record.species.scientific_name}) at {biodiversity_record.neighborhood.name}"
     assert str(biodiversity_record) == expected
 
 
@@ -31,30 +31,3 @@ def test_biodiversity_record_properties(biodiversity_record):
     finally:
         # Restore the original location
         biodiversity_record.location = original_location
-
-
-@pytest.mark.django_db
-def test_biodiversity_record_validation(biodiversity_record, neighborhood, locality):
-    """Test the custom validation for biodiversity record."""
-    # Initially all is valid
-    biodiversity_record.clean()  # Should not raise errors
-
-    # Create a neighborhood in a different locality
-    invalid_neighborhood = neighborhood.__class__.objects.create(
-        name="Different Locality Neighborhood",
-        locality=locality.__class__.objects.create(
-            name="Different Locality",
-            municipality=biodiversity_record.site.locality.municipality,
-        ),
-    )
-
-    # Set an incompatible neighborhood
-    biodiversity_record.neighborhood = invalid_neighborhood
-
-    # Clean should raise a ValidationError
-    with pytest.raises(Exception) as excinfo:
-        biodiversity_record.clean()
-
-    assert "Site and Neighborhood must belong to the same Locality" in str(
-        excinfo.value
-    )

@@ -182,19 +182,12 @@ class NeighborhoodLightSerializer(serializers.ModelSerializer):
 class SiteSerializer(serializers.ModelSerializer):
     """Serializer for the Site model."""
 
-    locality = LocalityLightSerializer(read_only=True)
-    locality_id = serializers.PrimaryKeyRelatedField(
-        queryset=Locality.objects.all(), source="locality", write_only=True
-    )
-
     class Meta:
         model = Site
         fields = [
             "id",
             "uuid",
             "name",
-            "locality",
-            "locality_id",
             "zone",
             "subzone",
             "created_at",

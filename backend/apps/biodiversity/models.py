@@ -1,5 +1,4 @@
 from django.contrib.gis.db import models as gis_models
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -33,6 +32,8 @@ class BiodiversityRecord(BaseModel):
         on_delete=models.PROTECT,
         related_name="biodiversity_records",
         verbose_name=_("site"),
+        null=True,
+        blank=True,
     )
     location = gis_models.PointField(_("location"), srid=4326, geography=True)
     elevation_m = models.FloatField(_("elevation (m)"), null=True, blank=True)
@@ -50,27 +51,10 @@ class BiodiversityRecord(BaseModel):
         """Return a string representation of the biodiversity record.
 
         Example:
-            "Ocobo (Tabebuia rosea) at Parque Centenario"
+            "Ocobo (Tabebuia rosea) at Alto De La Cruz"
         """
         common_name = self.common_name if self.common_name else "Unknown"
-        return f"{common_name} ({self.species.scientific_name}) at {self.site.name}"
-
-    def clean(self):
-        """
-        Custom validation to ensure that the site and neighborhood belong
-        to the same locality.
-
-        This method is called before saving the model instance in the admin
-        interface or when using the `full_clean()` method.
-
-        This is not a database-level constraint, but a validation step to ensure
-        data integrity before saving the instance.
-        """
-        if self.site and self.neighborhood:
-            if self.site.locality_id != self.neighborhood.locality_id:
-                raise ValidationError(
-                    "Site and Neighborhood must belong to the same Locality."
-                )
+        return f"{common_name} ({self.species.scientific_name}) at {self.neighborhood.name}"
 
     def get_admin_url(self):
         return reverse(

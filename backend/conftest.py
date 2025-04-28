@@ -105,11 +105,10 @@ def neighborhood(locality):
 
 
 @pytest.fixture
-def site(locality):
+def site():
     """Create a site for testing."""
     return SiteFactory(
         name="Test Site",
-        locality=locality,
         zone=1,
         subzone=2,
     )

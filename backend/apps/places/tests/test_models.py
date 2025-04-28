@@ -47,9 +47,5 @@ def test_neighborhood_str(neighborhood):
 @pytest.mark.django_db
 def test_site_str(site):
     """Test the string representation of the site."""
-    expected = (
-        f"{site.name}, {site.locality.municipality.name}, "
-        f"{site.locality.municipality.department.name}, "
-        f"{site.locality.municipality.department.country.name}"
-    )
+    expected = f"{site.name}, Zone {site.zone}, Subzone {site.subzone}"
     assert str(site) == expected
