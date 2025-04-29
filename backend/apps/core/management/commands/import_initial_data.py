@@ -1112,13 +1112,10 @@ class Command(BaseCommand):
             desc="Creating climate stations",
             total=len(unique_stations),
         ):
-            # Create a Point geometry for the location
-            location = f"POINT({row.longitude} {row.latitude})"
-
             station = Station(
                 code=row.stationcode,
                 name=row.stationname,
-                location=location,
+                location=Point(row.longitude, row.latitude, srid=4326),
                 municipality=self.ibague,
             )
             stations_batch.append(station)
