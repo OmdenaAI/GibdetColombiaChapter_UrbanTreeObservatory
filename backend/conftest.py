@@ -14,6 +14,7 @@ from apps.taxonomy.factories import (
     GenusFactory,
     SpeciesFactory,
     FunctionalGroupFactory,
+    TraitFactory,
 )
 from apps.biodiversity.factories import BiodiversityRecordFactory
 from apps.reports.factories import MeasurementFactory, ObservationFactory
@@ -124,6 +125,12 @@ def family():
 def genus(family):
     """Create a genus for testing."""
     return GenusFactory(name="Test Genus", family=family)
+
+
+@pytest.fixture
+def trait():
+    """Create a Trait for testing."""
+    return TraitFactory(type="CS")  # Carbon sequestration
 
 
 @pytest.fixture
