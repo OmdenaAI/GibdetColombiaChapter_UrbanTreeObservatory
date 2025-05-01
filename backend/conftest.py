@@ -17,6 +17,7 @@ from apps.taxonomy.factories import (
     FunctionalGroupFactory,
     GenusFactory,
     SpeciesFactory,
+    TraitFactory,
 )
 from apps.users.factories import StaffUserFactory, SuperUserFactory, UserFactory
 
