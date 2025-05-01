@@ -14,27 +14,27 @@ import { HttpClientModule } from '@angular/common/http';
         <div class="grid grid-cols-1 gap-6">
           <!-- Left Column -->
           <div>
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ selectedRegion?.name || 'Colombia Overview' }}</h2>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ selectedRegion?.name || 'Ibagué Overview' }}</h2>
 
             <!-- Tree Statistics -->
             <div class="space-y-4">
               <h3 class="text-lg font-semibold text-gray-700">Tree Statistics</h3>
               <div class="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div>
-                  <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.statistics?.totalTrees || 'N/A' }}</p>
+                  <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.statistics?.totalTrees || '96,943' }}</p>
                   <p class="text-sm text-gray-600">Total Trees</p>
                 </div>
                 <div>
-                  <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.statistics?.speciesCount || 'N/A' }}</p>
+                  <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.statistics?.speciesCount || '439' }}</p>
                   <p class="text-sm text-gray-600">Species Count</p>
                 </div>
                 <div>
-                  <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.statistics?.avgHeight || 'N/A' }} m</p>
+                  <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.statistics?.avgHeight || '17.30' }} m</p>
                   <p class="text-sm text-gray-600">Average Height</p>
                 </div>
                 <div>
-                  <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.statistics?.healthIndex || 'N/A' }}</p>
-                  <p class="text-sm text-gray-600">Health Index</p>
+                  <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.statistics?.healthIndex || '0.18' }}</p>
+                  <p class="text-sm text-gray-600">Tree-per-capita index</p>
                 </div>
               </div>
             </div>
@@ -45,11 +45,11 @@ import { HttpClientModule } from '@angular/common/http';
             <h3 class="text-lg font-semibold text-gray-700 mb-4">Environmental Impact</h3>
             <div class="space-y-4">
               <div>
-                <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.environmental?.co2Absorption || 'N/A' }} kg/year</p>
+                <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.environmental?.co2Absorption || '646,867.27' }} Ton</p>
                 <p class="text-sm text-gray-600">CO₂ Absorption</p>
               </div>
               <div>
-                <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.environmental?.oxygenProduction || 'N/A' }} kg/year</p>
+                <p class="text-2xl font-bold text-green-700">{{ selectedRegion?.environmental?.oxygenProduction || '1,727,135.62' }} Ton/year</p>
                 <p class="text-sm text-gray-600">Oxygen Production</p>
               </div>
             </div>
@@ -100,7 +100,7 @@ export class MapComponent implements AfterViewInit, OnChanges {
   @Input() isSidebarOpen: boolean = true;
   private map!: L.Map;
   selectedRegion: any = {
-    name: 'Colombia Overview',
+    name: 'Ibagué Overview',
     statistics: {
       totalTrees: 0,
       speciesCount: 0,

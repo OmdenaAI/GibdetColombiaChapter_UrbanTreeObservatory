@@ -2,9 +2,10 @@ from django.contrib.gis.db import models as gis_models
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 from apps.core.models import BaseModel
-from apps.places.models import Site, Neighborhood
+from apps.places.models import Neighborhood, Site
 from apps.taxonomy.models import Species
 
 
@@ -19,7 +20,7 @@ class BiodiversityRecord(BaseModel):
         Species,
         on_delete=models.PROTECT,
         related_name="biodiversity_records",
-        verbose_name=_("species"),
+        verbose_name=pgettext_lazy("plural", "species"),
     )
     neighborhood = models.ForeignKey(
         Neighborhood,

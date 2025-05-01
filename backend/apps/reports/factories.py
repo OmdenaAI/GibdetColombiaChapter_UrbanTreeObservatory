@@ -1,7 +1,8 @@
 import factory
-from apps.reports.models import Measurement, Observation
-from apps.core.factories import BaseFactory
+
 from apps.biodiversity.factories import BiodiversityRecordFactory
+from apps.core.factories import BaseFactory
+from apps.reports.models import Measurement, Observation
 
 
 class MeasurementFactory(BaseFactory):

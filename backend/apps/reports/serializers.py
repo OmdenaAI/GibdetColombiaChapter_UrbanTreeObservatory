@@ -1,7 +1,9 @@
 from rest_framework import serializers
-from .models import Measurement, Observation
+
 from apps.biodiversity.models import BiodiversityRecord
 from apps.biodiversity.serializers import BiodiversityRecordLightSerializer
+
+from .models import Measurement, Observation
 
 
 class MeasurementSerializer(serializers.ModelSerializer):

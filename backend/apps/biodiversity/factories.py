@@ -1,9 +1,11 @@
-import factory
 import random
+
+import factory
 from django.contrib.gis.geos import Point
+
 from apps.biodiversity.models import BiodiversityRecord
 from apps.core.factories import BaseFactory
-from apps.places.factories import SiteFactory, NeighborhoodFactory
+from apps.places.factories import NeighborhoodFactory, SiteFactory
 from apps.taxonomy.factories import SpeciesFactory
 
 

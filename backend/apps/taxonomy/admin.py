@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html, format_html_join
 
-from .models import Family, Genus, Species, FunctionalGroup, Trait, TraitValue
+from .models import Family, FunctionalGroup, Genus, Species, Trait, TraitValue
 
 
 @admin.register(Family)

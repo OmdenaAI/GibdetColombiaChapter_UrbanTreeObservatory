@@ -1,13 +1,13 @@
-from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from .models import Family, Genus, Species, FunctionalGroup, Trait
+from .models import Family, FunctionalGroup, Genus, Species, Trait
 from .serializers import (
     FamilySerializer,
+    FunctionalGroupSerializer,
     GenusSerializer,
     SpeciesSerializer,
-    FunctionalGroupSerializer,
     TraitSerializer,
 )
 

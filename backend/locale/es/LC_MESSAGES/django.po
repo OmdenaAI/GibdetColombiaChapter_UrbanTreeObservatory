@@ -1,0 +1,856 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Sebastian Duque, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-04-25 20:28-0500\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
+"1 : 2;\n"
+
+#: apps/biodiversity/models.py:16
+msgid "common name"
+msgstr "nombre común"
+
+#: apps/taxonomy/models.py:280
+msgid "species"
+msgstr "especie"
+
+#: apps/biodiversity/models.py:23 apps/taxonomy/models.py:281
+msgid "species"
+msgstr "especies"
+
+#: apps/biodiversity/models.py:28
+msgid "place"
+msgstr "lugar"
+
+#: apps/biodiversity/models.py:30 apps/climate/models.py:12
+msgid "location"
+msgstr "ubicación"
+
+#: apps/biodiversity/models.py:31
+msgid "elevation (m)"
+msgstr "elevación (m)"
+
+#: apps/biodiversity/models.py:33 apps/reports/models.py:363
+msgid "recorded by"
+msgstr "registrado por"
+
+#: apps/biodiversity/models.py:35
+msgid "recorded date"
+msgstr "fecha de registro"
+
+#: apps/biodiversity/models.py:38 apps/reports/models.py:41
+#: apps/reports/models.py:148
+msgid "biodiversity record"
+msgstr "registro de biodiversidad"
+
+#: apps/biodiversity/models.py:39
+msgid "biodiversity records"
+msgstr "registros de biodiversidad"
+
+#: apps/climate/models.py:10
+msgid "station code"
+msgstr "código de la estación"
+
+#: apps/climate/models.py:11
+msgid "station name"
+msgstr "nombre de la estación"
+
+#: apps/climate/models.py:17 apps/places/models.py:42 apps/places/models.py:65
+msgid "municipality"
+msgstr "municipio"
+
+#: apps/climate/models.py:21 apps/climate/models.py:50
+msgid "weather station"
+msgstr "estación metereológica"
+
+#: apps/climate/models.py:22
+msgid "weather stations"
+msgstr "estaciones metereológicas"
+
+#: apps/climate/models.py:41
+msgid "air temperature at 2 m"
+msgstr "temperatura del aire a 2 m"
+
+#: apps/climate/models.py:44
+msgid "Celsius"
+msgstr "Celsius"
+
+#: apps/climate/models.py:52 apps/reports/models.py:62
+msgid "measurement date"
+msgstr "fecha de medición"
+
+#: apps/climate/models.py:54
+msgid "sensor description"
+msgstr "descripción del sensor"
+
+#: apps/climate/models.py:59
+msgid "measured value"
+msgstr "valor medido"
+
+#: apps/climate/models.py:61 apps/reports/models.py:51
+msgid "measurement unit"
+msgstr "unidad de medida"
+
+#: apps/climate/models.py:68 apps/climate/models.py:69
+msgid "climate data"
+msgstr "datos metereológicos"
+
+#: apps/core/models.py:10
+msgid "UUID"
+msgstr "UUID"
+
+#: apps/core/models.py:19
+msgid "created at"
+msgstr "creado en"
+
+#: apps/core/models.py:20
+msgid "updated at"
+msgstr "actualizado en"
+
+#: apps/places/models.py:11 apps/places/models.py:29
+msgid "country"
+msgstr "país"
+
+#: apps/places/models.py:15
+msgid "countries"
+msgstr "paises"
+
+#: apps/places/models.py:24 apps/places/models.py:47
+msgid "department"
+msgstr "departamento"
+
+#: apps/places/models.py:52
+msgid "municipalities"
+msgstr "municipios"
+
+#: apps/places/models.py:67
+msgid "site"
+msgstr "sitio"
+
+#: apps/places/models.py:68
+msgid "populated center"
+msgstr "centro poblado"
+
+#: apps/places/models.py:69
+msgid "zone"
+msgstr "zona"
+
+#: apps/places/models.py:70
+msgid "subzone"
+msgstr "subzona"
+
+#: apps/reports/models.py:15
+msgid "trunk height"
+msgstr "altura del tronco"
+
+#: apps/reports/models.py:16
+msgid "total height"
+msgstr "altura total"
+
+#: apps/reports/models.py:17
+msgid "crown diameter"
+msgstr "diámetro de la copa"
+
+#: apps/reports/models.py:18
+msgid "diameter at breast height"
+msgstr "diámetro a la altura del pecho"
+
+#: apps/reports/models.py:19
+msgid "volume"
+msgstr "volumen"
+
+#: apps/reports/models.py:20
+msgid "wood density"
+msgstr "densidad de la madera"
+
+#: apps/reports/models.py:21 apps/reports/models.py:28
+#: apps/reports/models.py:35 apps/reports/models.py:91
+#: apps/reports/models.py:98 apps/reports/models.py:104
+#: apps/reports/models.py:110 apps/reports/models.py:118
+#: apps/reports/models.py:128 apps/reports/models.py:133
+#: apps/reports/models.py:142
+msgid "not reported"
+msgstr "no reportado"
+
+#: apps/reports/models.py:24
+msgid "meters (m)"
+msgstr "metros (m)"
+
+#: apps/reports/models.py:25
+msgid "cubic meters (m3)"
+msgstr "metros cúbicos (m3)"
+
+#: apps/reports/models.py:26
+msgid "centimeters (cm)"
+msgstr "centímetros (cm)"
+
+#: apps/reports/models.py:27
+msgid "grams per cubic centimeter (g/cm3)"
+msgstr "gramos por centímetro cúbico (g/cm3)"
+
+#: apps/reports/models.py:31
+msgid "optical estimation"
+msgstr "estimación óptica"
+
+#: apps/reports/models.py:32
+msgid "volume equation"
+msgstr "ecuación volumétrica"
+
+#: apps/reports/models.py:33
+msgid "diameter tape"
+msgstr "cinta diamétrica"
+
+#: apps/reports/models.py:34
+msgid "wood density database"
+msgstr "base de datos de la densidad de la madera"
+
+#: apps/reports/models.py:44
+msgid "measured attribute"
+msgstr "atributo medido"
+
+#: apps/reports/models.py:49
+msgid "measurement value"
+msgstr "valor medido"
+
+#: apps/reports/models.py:57
+msgid "measurement method"
+msgstr "método de medición"
+
+#: apps/reports/models.py:65
+msgid "measurement"
+msgstr "medida"
+
+#: apps/reports/models.py:66
+msgid "measurements"
+msgstr "medidas"
+
+#: apps/reports/models.py:88
+msgid "flowering"
+msgstr "floreciendo"
+
+#: apps/reports/models.py:89
+msgid "fruiting"
+msgstr "dando frutos"
+
+#: apps/reports/models.py:90
+msgid "sterile"
+msgstr "estéril"
+
+#: apps/reports/models.py:94
+msgid "healthy"
+msgstr "saludable"
+
+#: apps/reports/models.py:95
+msgid "sick"
+msgstr "enfermo"
+
+#: apps/reports/models.py:96
+msgid "critical"
+msgstr "crítico"
+
+#: apps/reports/models.py:97
+msgid "dead"
+msgstr "muerto"
+
+#: apps/reports/models.py:101
+msgid "good"
+msgstr "bueno"
+
+#: apps/reports/models.py:102
+msgid "fair"
+msgstr "regular"
+
+#: apps/reports/models.py:103
+msgid "poor"
+msgstr "pobre"
+
+#: apps/reports/models.py:107
+msgid "dense"
+msgstr "denso"
+
+#: apps/reports/models.py:108
+msgid "medium"
+msgstr "medio"
+
+#: apps/reports/models.py:109
+msgid "sparse"
+msgstr "espaciado"
+
+#: apps/reports/models.py:113
+msgid "essential"
+msgstr "esencial"
+
+#: apps/reports/models.py:114
+msgid "emblematic"
+msgstr "emblemático"
+
+#: apps/reports/models.py:115
+msgid "desirable"
+msgstr "deseable"
+
+#: apps/reports/models.py:116
+msgid "indifferent"
+msgstr "indiferente"
+
+#: apps/reports/models.py:117
+msgid "unacceptable"
+msgstr "inaceptable"
+
+#: apps/reports/models.py:121
+msgid "seedling"
+msgstr "plántula"
+
+#: apps/reports/models.py:122
+msgid "juvenile"
+msgstr "juvenil"
+
+#: apps/reports/models.py:123
+msgid "adult"
+msgstr "adulto"
+
+#: apps/reports/models.py:126
+msgid "yes"
+msgstr "sí"
+
+#: apps/reports/models.py:127
+msgid "no"
+msgstr "no"
+
+#: apps/reports/models.py:131
+msgid "natural state"
+msgstr "estado natural"
+
+#: apps/reports/models.py:132
+msgid "nutrient deficiency"
+msgstr "deficiencia de nutrientes"
+
+#: apps/reports/models.py:136
+#| msgid "0%"
+msgid "0%"
+msgstr "0%"
+
+#: apps/reports/models.py:137
+msgid "20%"
+msgstr "20%"
+
+#: apps/reports/models.py:138
+msgid "40%"
+msgstr "40%"
+
+#: apps/reports/models.py:139
+msgid "60%"
+msgstr "60%"
+
+#: apps/reports/models.py:140
+msgid "80%"
+msgstr "80%"
+
+#: apps/reports/models.py:141
+#| msgid "100%"
+msgid "100%"
+msgstr "100%"
+
+#: apps/reports/models.py:151
+msgid "reproductive condition"
+msgstr "condición reproductiva"
+
+#: apps/reports/models.py:157
+msgid "phytosanitary status"
+msgstr "estado fitosanitario"
+
+#: apps/reports/models.py:163
+msgid "physical condition"
+msgstr "condición física"
+
+#: apps/reports/models.py:169
+msgid "foliage density"
+msgstr "densidad de follaje"
+
+#: apps/reports/models.py:175
+msgid "aesthetic value"
+msgstr "valor estético"
+
+#: apps/reports/models.py:181
+msgid "growth phase"
+msgstr "fase de crecimiento"
+
+#: apps/reports/models.py:188
+msgid "ed"
+msgstr "ed"
+
+#: apps/reports/models.py:194
+msgid "hc"
+msgstr "hc"
+
+#: apps/reports/models.py:200
+msgid "hcf"
+msgstr "hcf"
+
+#: apps/reports/models.py:207
+msgid "standing"
+msgstr "posición"
+
+#: apps/reports/models.py:215
+msgid "cre"
+msgstr "cre"
+
+#: apps/reports/models.py:221
+msgid "crh"
+msgstr "crh"
+
+#: apps/reports/models.py:227
+msgid "cra"
+msgstr "cra"
+
+#: apps/reports/models.py:233
+msgid "coa"
+msgstr "coa"
+
+#: apps/reports/models.py:239
+msgid "ce"
+msgstr "ce"
+
+#: apps/reports/models.py:245
+msgid "civ"
+msgstr "civ"
+
+#: apps/reports/models.py:251
+msgid "crt"
+msgstr "crt"
+
+#: apps/reports/models.py:257
+msgid "crg"
+msgstr "crg"
+
+#: apps/reports/models.py:263
+msgid "cap"
+msgstr "cap"
+
+#: apps/reports/models.py:271
+msgid "rd"
+msgstr "rd"
+
+#: apps/reports/models.py:277
+msgid "dm"
+msgstr "dm"
+
+#: apps/reports/models.py:283
+msgid "bbs"
+msgstr "bbs"
+
+#: apps/reports/models.py:289
+msgid "ab"
+msgstr "ab"
+
+#: apps/reports/models.py:295
+msgid "pi"
+msgstr "pi"
+
+#: apps/reports/models.py:301
+msgid "ph"
+msgstr "ph"
+
+#: apps/reports/models.py:307
+msgid "pa"
+msgstr "pa"
+
+#: apps/reports/models.py:313
+msgid "pd"
+msgstr "pd"
+
+#: apps/reports/models.py:319
+msgid "pe"
+msgstr "pe"
+
+#: apps/reports/models.py:325
+msgid "pp"
+msgstr "pp"
+
+#: apps/reports/models.py:331
+msgid "po"
+msgstr "po"
+
+#: apps/reports/models.py:337
+msgid "r_vol"
+msgstr "r_vol"
+
+#: apps/reports/models.py:343
+msgid "r_cr"
+msgstr "r_cr"
+
+#: apps/reports/models.py:349
+msgid "r_ce"
+msgstr "r_ce"
+
+#: apps/reports/models.py:356
+msgid "photo URL"
+msgstr "URL de la foto"
+
+#: apps/reports/models.py:360
+msgid "URL of the photo associated with the observation"
+msgstr "URL de la foto asociada a la observación"
+
+#: apps/reports/models.py:362
+msgid "field notes"
+msgstr "notas en campo"
+
+#: apps/reports/models.py:365
+msgid "accompanying collectors"
+msgstr "recolectores acompañantes"
+
+#: apps/reports/models.py:367
+msgid "observation date"
+msgstr "fecha de la observación"
+
+#: apps/reports/models.py:370
+msgid "observation"
+msgstr "observación"
+
+#: apps/reports/models.py:371
+msgid "observations"
+msgstr "observaciones"
+
+#: apps/taxonomy/models.py:27
+msgid "family name"
+msgstr "nombre de la familia"
+
+#: apps/taxonomy/models.py:30 apps/taxonomy/models.py:46
+msgid "family"
+msgstr "familia"
+
+#: apps/taxonomy/models.py:31
+msgid "families"
+msgstr "familias"
+
+#: apps/taxonomy/models.py:41
+msgid "genus name"
+msgstr "nombre del género"
+
+#: apps/taxonomy/models.py:50 apps/taxonomy/models.py:219
+msgid "genus"
+msgstr "género"
+
+#: apps/taxonomy/models.py:51
+msgid "genera"
+msgstr "genera"
+
+#: apps/taxonomy/models.py:62
+#, fuzzy
+#| msgid "carbon sequestration (%)"
+msgid "carbon sequestration (%)"
+msgstr "secuestro de carbono (%)"
+
+#: apps/taxonomy/models.py:63
+msgid "shade index"
+msgstr "índice de sombra"
+
+#: apps/taxonomy/models.py:64
+msgid "canopy diameter (m)"
+msgstr "diámetro del dosel arbóreo (m)"
+
+#: apps/taxonomy/models.py:65
+msgid "maximum height (m)"
+msgstr "altura máxima (m)"
+
+#: apps/taxonomy/models.py:68
+msgid "trait type"
+msgstr "tipo de rasgo"
+
+#: apps/taxonomy/models.py:88
+msgid "trait"
+msgstr "rasgo"
+
+#: apps/taxonomy/models.py:94 apps/taxonomy/models.py:149
+#: apps/taxonomy/models.py:228
+msgid "functional group"
+msgstr "grupo funcional"
+
+#: apps/taxonomy/models.py:97
+msgid "minimum value"
+msgstr "valor mínimo"
+
+#: apps/taxonomy/models.py:101
+msgid "Minimum value for this trait in the functional group"
+msgstr "Valor mínimo para este rasgo en el grupo funcional"
+
+#: apps/taxonomy/models.py:104
+msgid "maximum value"
+msgstr "valor máximo"
+
+#: apps/taxonomy/models.py:108
+msgid "Maximum value for this trait in the functional group"
+msgstr "Valor máximo para este rasgo en el grupo funcional"
+
+#: apps/taxonomy/models.py:112
+msgid "trait value"
+msgstr "valor del rasgo"
+
+#: apps/taxonomy/models.py:113
+msgid "trait values"
+msgstr "valores del rasgo"
+
+#: apps/taxonomy/models.py:137
+msgid "group id"
+msgstr "id del grupo"
+
+#: apps/taxonomy/models.py:138
+msgid "Unique identifier for the functional group"
+msgstr "Identificador único para el grupo funcional"
+
+#: apps/taxonomy/models.py:145
+msgid "traits"
+msgstr "rasgos"
+
+#: apps/taxonomy/models.py:150
+msgid "functional groups"
+msgstr "grupos funcionales"
+
+#: apps/taxonomy/models.py:161
+msgid "native"
+msgstr "nativo"
+
+#: apps/taxonomy/models.py:162
+msgid "cultivated"
+msgstr "cultivado"
+
+#: apps/taxonomy/models.py:163
+msgid "native | cultivated"
+msgstr "nativo | cultivado"
+
+#: apps/taxonomy/models.py:164
+msgid "naturalized"
+msgstr "naturalizado"
+
+#: apps/taxonomy/models.py:165
+msgid "naturalized | cultivated"
+msgstr "naturalizado | cultivado"
+
+#: apps/taxonomy/models.py:166
+msgid "endemic"
+msgstr "endémico"
+
+#: apps/taxonomy/models.py:167 apps/taxonomy/models.py:200
+#: apps/taxonomy/models.py:213
+msgid "not identified"
+msgstr "no identificado"
+
+#: apps/taxonomy/models.py:170
+msgid "data deficient"
+msgstr "dato deficiente"
+
+#: apps/taxonomy/models.py:171
+msgid "least concern"
+msgstr "menor importancia"
+
+#: apps/taxonomy/models.py:172
+msgid "lower risk / conservation dependent"
+msgstr "riesgo bajo / dependiente de la conservación"
+
+#: apps/taxonomy/models.py:173
+msgid "near threatened"
+msgstr "casi amenazado"
+
+#: apps/taxonomy/models.py:174
+msgid "vulnerable"
+msgstr "vulnerable"
+
+#: apps/taxonomy/models.py:175
+msgid "endangered"
+msgstr "en peligro"
+
+#: apps/taxonomy/models.py:176
+msgid "critically endangered"
+msgstr "en peligro crítico"
+
+#: apps/taxonomy/models.py:177
+msgid "extinct in the wild"
+msgstr "extinto en la naturaleza"
+
+#: apps/taxonomy/models.py:178
+msgid "extinct"
+msgstr "extinto"
+
+#: apps/taxonomy/models.py:179
+msgid "not evaluated"
+msgstr "no evaluado"
+
+#: apps/taxonomy/models.py:182
+msgid "tree"
+msgstr "árbol"
+
+#: apps/taxonomy/models.py:183
+msgid "palm tree"
+msgstr "árbol de palma"
+
+#: apps/taxonomy/models.py:184
+msgid "shrub"
+msgstr "arbusto"
+
+#: apps/taxonomy/models.py:185 apps/taxonomy/models.py:199
+#: apps/taxonomy/models.py:212
+msgid "other"
+msgstr "otro"
+
+#: apps/taxonomy/models.py:188
+msgid "broad"
+msgstr "ancho"
+
+#: apps/taxonomy/models.py:189
+msgid "caulirosula - fan"
+msgstr "abanico - caulirosula"
+
+#: apps/taxonomy/models.py:190
+msgid "caulirosula - feather"
+msgstr "pluma - caulirosula"
+
+#: apps/taxonomy/models.py:191
+msgid "caulirosula sespitoso"
+msgstr "caulirosula sespitoso"
+
+#: apps/taxonomy/models.py:192
+msgid "columnar"
+msgstr "columnar"
+
+#: apps/taxonomy/models.py:193
+msgid "globose"
+msgstr "globoso"
+
+#: apps/taxonomy/models.py:194
+msgid "irregular"
+msgstr "irregular"
+
+#: apps/taxonomy/models.py:195
+msgid "oval"
+msgstr "ovalado"
+
+#: apps/taxonomy/models.py:196
+msgid "pyramidal"
+msgstr "piramidal"
+
+#: apps/taxonomy/models.py:197
+msgid "semiglobose"
+msgstr "semigloboso"
+
+#: apps/taxonomy/models.py:198
+msgid "spreading"
+msgstr "esparcida"
+
+#: apps/taxonomy/models.py:203
+msgid "brown"
+msgstr "café"
+
+#: apps/taxonomy/models.py:204
+msgid "fuchsia"
+msgstr "fucsia"
+
+#: apps/taxonomy/models.py:205
+msgid "green"
+msgstr "verde"
+
+#: apps/taxonomy/models.py:206
+msgid "orange"
+msgstr "naranja"
+
+#: apps/taxonomy/models.py:207
+msgid "pink"
+msgstr "rosado"
+
+#: apps/taxonomy/models.py:208
+msgid "red"
+msgstr "rojo"
+
+#: apps/taxonomy/models.py:209
+msgid "violet"
+msgstr "violeta"
+
+#: apps/taxonomy/models.py:210
+msgid "white"
+msgstr "blanco"
+
+#: apps/taxonomy/models.py:211
+msgid "yellow"
+msgstr "amarillo"
+
+#: apps/taxonomy/models.py:222
+msgid "species name"
+msgstr "nombre de la especie"
+
+#: apps/taxonomy/models.py:222
+msgid "Species name without the genus"
+msgstr "Nombre de la especie sin el género"
+
+#: apps/taxonomy/models.py:232
+msgid "accepted scientific name"
+msgstr "nombre científico aceptado"
+
+#: apps/taxonomy/models.py:235
+msgid ""
+"Scientific genus and species name with optional reference to whom named it"
+msgstr ""
+"Nombre científico del género y especie con referencia opcional a quien lo "
+"nombró"
+
+#: apps/taxonomy/models.py:240
+msgid "origin"
+msgstr "origen"
+
+#: apps/taxonomy/models.py:246
+msgid "IUCN status"
+msgstr "estado IUCN"
+
+#: apps/taxonomy/models.py:252
+msgid "life form"
+msgstr "forma de vida"
+
+#: apps/taxonomy/models.py:258
+msgid "canopy shape"
+msgstr "forma del dosel arbóreo"
+
+#: apps/taxonomy/models.py:264
+msgid "flower color"
+msgstr "color de la flor"
+
+#: apps/taxonomy/models.py:270
+msgid "GBIF ID"
+msgstr "GBIF ID"
+
+#: apps/taxonomy/models.py:270
+msgid "GBIF species identifier"
+msgstr "identificador de especie GBIF"
+
+#: apps/taxonomy/models.py:273
+msgid "identified by"
+msgstr "identificado por"
+
+#: apps/taxonomy/models.py:275
+msgid "identified date"
+msgstr "fecha de identificación"
+
+#: apps/users/models.py:28
+msgid "user profile"
+msgstr "perfil de usuario"
+
+#: apps/users/models.py:29
+msgid "user profiles"
+msgstr "perfiles de usuarios"
+
+#: config/settings/base.py:156
+msgid "Spanish"
+msgstr "Español"
+
+#: config/settings/base.py:157
+msgid "English"
+msgstr "Inglés"

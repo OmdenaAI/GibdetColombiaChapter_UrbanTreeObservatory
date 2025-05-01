@@ -1,14 +1,16 @@
-import factory
 import random
+
+import factory
+
+from apps.core.factories import BaseFactory
 from apps.taxonomy.models import (
     Family,
+    FunctionalGroup,
     Genus,
     Species,
-    FunctionalGroup,
     Trait,
     TraitValue,
 )
-from apps.core.factories import BaseFactory
 
 
 class FamilyFactory(BaseFactory):

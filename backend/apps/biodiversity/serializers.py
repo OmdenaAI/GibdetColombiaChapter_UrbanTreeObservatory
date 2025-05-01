@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
-from .models import BiodiversityRecord
+from apps.places.serializers import NeighborhoodLightSerializer, SiteLightSerializer
 from apps.taxonomy.serializers import SpeciesLightSerializer
-from apps.places.serializers import SiteLightSerializer, NeighborhoodLightSerializer
+
+from .models import BiodiversityRecord
 
 
 class BiodiversityRecordSerializer(serializers.ModelSerializer):

@@ -1,7 +1,8 @@
+from datetime import datetime, timedelta
+
 import pytest
 from django.urls import reverse
 from rest_framework import status
-from datetime import datetime, timedelta
 
 
 @pytest.mark.django_db

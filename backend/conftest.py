@@ -1,25 +1,24 @@
 import pytest
 from rest_framework.test import APIClient
 
+from apps.biodiversity.factories import BiodiversityRecordFactory
+from apps.climate.factories import ClimateFactory, StationFactory
 from apps.places.factories import (
     CountryFactory,
     DepartmentFactory,
-    MunicipalityFactory,
     LocalityFactory,
+    MunicipalityFactory,
     NeighborhoodFactory,
     SiteFactory,
 )
+from apps.reports.factories import MeasurementFactory, ObservationFactory
 from apps.taxonomy.factories import (
     FamilyFactory,
+    FunctionalGroupFactory,
     GenusFactory,
     SpeciesFactory,
-    FunctionalGroupFactory,
-    TraitFactory,
 )
-from apps.biodiversity.factories import BiodiversityRecordFactory
-from apps.reports.factories import MeasurementFactory, ObservationFactory
-from apps.climate.factories import StationFactory, ClimateFactory
-from apps.users.factories import UserFactory, StaffUserFactory, SuperUserFactory
+from apps.users.factories import StaffUserFactory, SuperUserFactory, UserFactory
 
 
 @pytest.fixture

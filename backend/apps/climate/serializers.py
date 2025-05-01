@@ -1,7 +1,9 @@
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
+
 from apps.places.serializers import MunicipalitySerializer
-from .models import Station, Climate
+
+from .models import Climate, Station
 
 
 class StationSerializer(serializers.ModelSerializer):

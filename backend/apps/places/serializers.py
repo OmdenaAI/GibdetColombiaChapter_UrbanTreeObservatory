@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
-from .models import Country, Department, Municipality, Locality, Neighborhood, Site
+
+from .models import Country, Department, Locality, Municipality, Neighborhood, Site
 
 
 class CountrySerializer(serializers.ModelSerializer):

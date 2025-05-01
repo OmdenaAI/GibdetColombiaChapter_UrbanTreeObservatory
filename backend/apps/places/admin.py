@@ -1,7 +1,7 @@
 from django.contrib import admin
 from leaflet.admin import LeafletGeoAdmin
 
-from .models import Country, Department, Municipality, Locality, Neighborhood, Site
+from .models import Country, Department, Locality, Municipality, Neighborhood, Site
 
 
 # Use the standard LeafletGeoAdmin class for spatial models

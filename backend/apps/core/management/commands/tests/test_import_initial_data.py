@@ -7,34 +7,34 @@ Observatory.
 """
 
 import json
-import pytest
 import tempfile
-from unittest import mock
-from pathlib import Path
 from io import StringIO
+from pathlib import Path
+from unittest import mock
 
 import pandas as pd
+import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import override_settings
 
+from apps.biodiversity.models import BiodiversityRecord
+from apps.climate.models import Climate, Station
+from apps.core.management.commands.import_initial_data import Command
 from apps.places.models import (
-    Municipality,
     Locality,
+    Municipality,
     Neighborhood,
     Site,
 )
+from apps.reports.models import Measurement, Observation
 from apps.taxonomy.models import (
     Family,
+    FunctionalGroup,
     Genus,
     Species,
-    FunctionalGroup,
     Trait,
     TraitValue,
 )
-from apps.biodiversity.models import BiodiversityRecord
-from apps.reports.models import Measurement, Observation
-from apps.climate.models import Station, Climate
 
 
 class TestImportInitialDataCommand:
@@ -287,7 +287,6 @@ class TestImportInitialDataCommand:
             assert "Family" in str(excinfo.value)
 
     @pytest.mark.django_db
-    @override_settings(IMPORT_MEASUREMENTS_CHUNK_SIZE=10, IMPORT_CLIMATE_CHUNK_SIZE=10)
     def test_command_with_local_data_dir(
         self, ibague, setup_empty_tables, mock_data_dir
     ):
@@ -452,7 +451,6 @@ class TestImportInitialDataCommand:
                     assert "All required data files are accessible" in output
 
     @pytest.mark.django_db
-    @override_settings(IMPORT_MEASUREMENTS_CHUNK_SIZE=10, IMPORT_CLIMATE_CHUNK_SIZE=10)
     def test_foreign_key_integrity(self, ibague, setup_empty_tables, mock_data_dir):
         """Test that the command verifies foreign key integrity after import."""
         with mock.patch(
@@ -479,7 +477,6 @@ class TestImportInitialDataCommand:
             assert "Found 0 invalid biodiversity_record_id(s) in Measurement" in output
 
     @pytest.mark.django_db
-    @override_settings(IMPORT_MEASUREMENTS_CHUNK_SIZE=10, IMPORT_CLIMATE_CHUNK_SIZE=10)
     def test_unknown_locality_and_neighborhood_creation(
         self, ibague, setup_empty_tables, mock_data_dir
     ):
@@ -503,3 +500,91 @@ class TestImportInitialDataCommand:
             unknown_neighborhood = Neighborhood.objects.get(id=688)
             assert unknown_neighborhood.name == "Desconocido"
             assert unknown_neighborhood.locality_id == 14
+
+    def test_command_has_chunksize_parameter(self):
+        """Test that the command accepts a chunksize parameter with correct default."""
+        # Create a parser
+        parser = mock.MagicMock()
+        parser.add_argument = mock.MagicMock()
+
+        # Create command and call add_arguments
+        command = Command()
+        command.add_arguments(parser)
+
+        # Check that chunksize parameter was added with correct attributes
+        call_args_list = parser.add_argument.call_args_list
+
+        # Find the call that adds the chunksize parameter
+        chunksize_call = None
+        for call in call_args_list:
+            args, kwargs = call
+            if args and args[0] == "--chunksize":
+                chunksize_call = call
+                break
+
+        assert chunksize_call is not None, (
+            "No --chunksize parameter found in add_arguments"
+        )
+
+        # Check the attributes
+        args, kwargs = chunksize_call
+        assert kwargs.get("type") is int, "chunksize parameter should be type int"
+        assert kwargs.get("default") == 25000, (
+            "chunksize parameter should default to 25000"
+        )
+        assert "help" in kwargs, "chunksize parameter should have help text"
+
+        # Verify the help text mentions measurements and climate data
+        help_text = kwargs.get("help").lower()
+        assert "measurement" in help_text or "climate" in help_text, (
+            "Help text should mention what the chunksize affects"
+        )
+
+    def test_methods_use_chunksize_for_pandas_read_csv(self):
+        """Test that the methods pass the chunksize parameter to pd.read_csv."""
+        # This test verifies that the chunksize parameter is used in the relevant methods
+
+        # Mock pd.read_csv to avoid actual file operations
+        with mock.patch(
+            "apps.core.management.commands.import_initial_data.pd.read_csv"
+        ) as mock_read_csv:
+            # Create expected return values
+            mock_read_csv.return_value = pd.DataFrame(
+                {
+                    "record_code": [1],
+                    "measurement_name": ["TH"],
+                    "measurement_value": [10.0],
+                    "measurement_unit": ["m"],
+                    "measurement_method": ["OE"],
+                    "measurement_date_event": ["2023-01-01"],
+                }
+            )
+
+            # Use source code inspection to verify the implementation details
+            import inspect
+
+            # Get the source code of the import_measurements method
+            measurements_source = inspect.getsource(Command.import_measurements)
+
+            # Check that it assigns self.chunksize to a local variable
+            assert "chunksize = self.chunksize" in measurements_source, (
+                "import_measurements does not use self.chunksize"
+            )
+
+            # Check that it contains the read_csv with chunksize parameter
+            assert (
+                "pd.read_csv(csv_path, chunksize=chunksize)" in measurements_source
+            ), "import_measurements does not use chunksize in pd.read_csv"
+
+            # Get the source code of the import_climate_data method
+            climate_source = inspect.getsource(Command.import_climate_data)
+
+            # Check that it assigns self.chunksize to a local variable
+            assert "chunksize = self.chunksize" in climate_source, (
+                "import_climate_data does not use self.chunksize"
+            )
+
+            # Check that it contains the read_csv with chunksize parameter
+            assert "pd.read_csv(csv_path, chunksize=chunksize)" in climate_source, (
+                "import_climate_data does not use chunksize in pd.read_csv"
+            )

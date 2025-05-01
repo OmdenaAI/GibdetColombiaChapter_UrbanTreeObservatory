@@ -1,19 +1,19 @@
-from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from .models import Country, Department, Municipality, Locality, Neighborhood, Site
+from .models import Country, Department, Locality, Municipality, Neighborhood, Site
 from .serializers import (
-    CountrySerializer,
     CountryGeoSerializer,
-    DepartmentSerializer,
+    CountrySerializer,
     DepartmentGeoSerializer,
-    MunicipalitySerializer,
-    MunicipalityGeoSerializer,
-    LocalitySerializer,
+    DepartmentSerializer,
     LocalityGeoSerializer,
-    NeighborhoodSerializer,
+    LocalitySerializer,
+    MunicipalityGeoSerializer,
+    MunicipalitySerializer,
     NeighborhoodGeoSerializer,
+    NeighborhoodSerializer,
     SiteSerializer,
 )
 

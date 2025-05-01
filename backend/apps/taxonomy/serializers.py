@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Family, Genus, Species, FunctionalGroup, Trait, TraitValue
+
+from .models import Family, FunctionalGroup, Genus, Species, Trait, TraitValue
 
 
 class FamilySerializer(serializers.ModelSerializer):

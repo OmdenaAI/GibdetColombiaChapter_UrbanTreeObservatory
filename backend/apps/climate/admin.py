@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
 
-from .models import Station, Climate
+from .models import Climate, Station
 
 
 @admin.register(Station)

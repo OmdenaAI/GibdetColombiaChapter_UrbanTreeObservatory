@@ -1,8 +1,10 @@
-import factory
 import random
+
+import factory
 from django.contrib.gis.geos import Point
 from factory.django import DjangoModelFactory
-from apps.climate.models import Station, Climate
+
+from apps.climate.models import Climate, Station
 from apps.core.factories import BaseFactory
 from apps.places.factories import MunicipalityFactory
 

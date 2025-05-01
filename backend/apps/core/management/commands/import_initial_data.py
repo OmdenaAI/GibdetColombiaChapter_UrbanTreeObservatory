@@ -24,7 +24,8 @@ Usage:
 Options:
     --local-dir PATH        Path to directory containing the CSV and JSON files
                               in subdirectories csv/ and json/
-
+    --chunksize INT         Number of measurement and climate data records to read
+                              from the source files at a time (default: 25000)
     --taxonomy-url URL      URL for the taxonomy details CSV file
     --sites-url URL         URL for the sites CSV file
     --biodiversity-url URL  URL for the biodiversity records CSV file
@@ -34,19 +35,6 @@ Options:
     --climate-url URL       URL for the climate data CSV file
     --localities-url URL    URL for the localities JSON file
     --hoods-url URL         URL for the neighborhoods JSON file
-
-Settings:
-    IMPORT_MEASUREMENTS_CHUNK_SIZE
-        Number of rows to process at a time when importing measurements.
-        Default: 50000. Adjust based on available memory.
-
-    IMPORT_CLIMATE_CHUNK_SIZE
-        Number of rows to process at a time when importing climate data.
-        Default: 50000. Adjust based on available memory.
-
-    These can be set as environment variables, e.g.:
-        export IMPORT_MEASUREMENTS_CHUNK_SIZE=25000
-        export IMPORT_CLIMATE_CHUNK_SIZE=10000
 
 By default, the command fetches data from Hugging Face URLs.
 
@@ -58,26 +46,24 @@ Example:
 import json
 from pathlib import Path
 
-from tqdm import tqdm
 import pandas as pd
-
-from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Point
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction, connection
+from django.db import connection, transaction
+from tqdm import tqdm
 
+from apps.biodiversity.models import BiodiversityRecord
+from apps.climate.models import Climate, Station
+from apps.places.models import Locality, Municipality, Neighborhood, Site
+from apps.reports.models import Measurement, Observation
 from apps.taxonomy.models import (
     Family,
+    FunctionalGroup,
     Genus,
     Species,
-    FunctionalGroup,
     Trait,
     TraitValue,
 )
-from apps.places.models import Locality, Municipality, Neighborhood, Site
-from apps.biodiversity.models import BiodiversityRecord
-from apps.reports.models import Measurement, Observation
-from apps.climate.models import Station, Climate
 
 
 class Command(BaseCommand):
@@ -135,6 +121,12 @@ class Command(BaseCommand):
             "--local-dir",
             help="Local directory containing CSV and JSON files with the same names as Hugging Face URLs",
         )
+        parser.add_argument(
+            "--chunksize",
+            type=int,
+            default=25000,
+            help="Number of records to process in each chunk of measurements and climate data",
+        )
 
     def parse_date(self, date_string):
         """Convert a date-time string to a date object for Django DateField.
@@ -157,6 +149,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Store the URLs or paths for later use
         self.use_local = options.get("local_dir") is not None
+        self.chunksize = options["chunksize"]
 
         if self.use_local:
             self.data_dir = Path(options["local_dir"])
@@ -872,7 +865,7 @@ class Command(BaseCommand):
 
         # Read measurements.csv
         # We'll process this in chunks due to the large number of rows
-        chunksize = settings.IMPORT_MEASUREMENTS_CHUNK_SIZE
+        chunksize = self.chunksize
 
         if self.use_local:
             csv_path = self.data_dir / "csv" / "measurements.csv"
@@ -1069,7 +1062,7 @@ class Command(BaseCommand):
 
         # Read climate.csv
         # We'll process this in chunks due to the large number of rows
-        chunksize = settings.IMPORT_CLIMATE_CHUNK_SIZE
+        chunksize = self.chunksize
 
         if self.use_local:
             csv_path = self.data_dir / "csv" / "climate.csv"

@@ -1,7 +1,7 @@
-from rest_framework import viewsets, filters
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 import django_filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, viewsets
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from .models import Measurement, Observation
 from .serializers import MeasurementSerializer, ObservationSerializer

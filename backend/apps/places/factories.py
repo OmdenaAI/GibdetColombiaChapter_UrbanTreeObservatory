@@ -1,8 +1,10 @@
 import factory
-from factory.django import DjangoModelFactory
 from django.contrib.gis.geos import MultiPolygon, Polygon
-from .models import Country, Department, Municipality, Locality, Neighborhood, Site
+from factory.django import DjangoModelFactory
+
 from apps.core.factories import BaseFactory
+
+from .models import Country, Department, Locality, Municipality, Neighborhood, Site
 
 
 class CountryFactory(DjangoModelFactory):

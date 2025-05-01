@@ -1,6 +1,10 @@
 # Data import files
 data/csv/
+
+**/locale/**/*.mo
+
 data/json/
+
 
 # Coverage files
 .coverage

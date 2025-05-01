@@ -39,11 +39,14 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+minversion = "6.0"
 DJANGO_SETTINGS_MODULE = "config.settings.dev"
-python_files = "test_*.py"
-python_classes = "Test*"
+addopts = "--cov=. --cov-report=term --reuse-db --import-mode=importlib"
+python_files = "tests.py test_*.py *_tests.py"
+python_classes = "Test* *Tests"
 python_functions = "test_*"
 testpaths = ["apps"]
+filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
 source = ["."]
@@ -72,3 +75,26 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+]
+ignore = [
+    "E203",  # whitespace before ':'
+    "E501",  # line too long
+    "B904",  # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+    "B017",  # Do not assert blind exception: `Exception`
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
