@@ -1,32 +1,29 @@
-# Build stage
-FROM node:20-alpine as builder
+# Development image for the frontend (Leptos, client-side rendered), served by Trunk on port 4200.
+FROM rust:1.90-slim-bookworm
 
-# Set working directory
-WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy project files
-COPY . .
-
-# Development stage
-FROM node:20-alpine as development
+# Trunk 0.22 needs rustc >= 1.96; 0.21 is the latest compatible with this toolchain.
+RUN rustup target add wasm32-unknown-unknown \
+    && cargo install --locked trunk --version "~0.21"
 
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package*.json ./
-RUN npm install
+# Pre-fetch and pre-build dependencies to speed up the first `trunk serve`.
+# The dummy crate's own artifacts are deleted afterwards: the real sources keep their
+# (older) host mtimes, so otherwise cargo would consider the dummy binary up to date.
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs \
+    && cargo build --target wasm32-unknown-unknown \
+    && rm -rf src \
+       target/wasm32-unknown-unknown/debug/.fingerprint/urban-tree-observatory-* \
+       target/wasm32-unknown-unknown/debug/deps/urban_tree_observatory* \
+       target/wasm32-unknown-unknown/debug/urban-tree-observatory*
 
-# Copy project files
 COPY . .
 
-# Expose port
 EXPOSE 4200
 
-# Start development server
-CMD ["npm", "start", "--", "--host", "0.0.0.0", "--poll=2000"]
+CMD ["trunk", "serve", "--address", "0.0.0.0", "--port", "4200"]

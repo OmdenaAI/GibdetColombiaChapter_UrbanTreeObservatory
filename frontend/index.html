@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Urban Tree Observatory</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link data-trunk rel="copy-file" href="public/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- Styles: tailwind first, then leaflet.css -->
+  <link data-trunk rel="tailwind-css" href="styles/tailwind.css">
+  <link data-trunk rel="css" href="public/vendor/leaflet.css">
+
+  <!-- Vendored JS libraries (leaflet 1.9.4, chart.js 4.4.9), used from Rust via wasm-bindgen -->
+  <link data-trunk rel="copy-dir" href="public/vendor">
+  <link data-trunk rel="copy-dir" href="public/assets">
+  <script src="/vendor/leaflet.js"></script>
+  <script src="/vendor/chart.umd.js"></script>
+
+  <link data-trunk rel="rust" data-wasm-opt="z">
+</head>
+
+<body>
+</body>
+
+</html>

@@ -31,7 +31,7 @@ The Urban Tree Observatory is a data-driven platform for monitoring and conservi
 3. Access the different components:
    - Django backend: <http://localhost:8000/>
    - Django admin: <http://localhost:8000/admin/>
-   - Angular frontend: <http://localhost:4200/>
+   - Frontend (Leptos): <http://localhost:4200/>
    - PostgreSQL database: localhost:5432
    - PgAdmin: <http://localhost:5050/>
 
@@ -97,17 +97,17 @@ To import initial data into the database:
     - `reports/` - Tree measurements and observations
     - `climate/` - Climate data management
 
-### Frontend (Angular)
+### Frontend (Leptos)
 
-- `frontend/` - Angular application
-  - `src/app/` - Angular components and modules
-    - `core/` - Core functionality
-    - `shared/` - Shared components
-    - `features/` - Feature modules
-      - `map/` - Map visualization
-      - `trees/` - Tree management interfaces
-      - `reports/` - Reporting interface
-      - `analysis/` - Data analysis dashboards
+Rust + WebAssembly single-page app built with [Leptos](https://book.leptos.dev/) and served by
+[Trunk](https://trunkrs.dev/). See [`frontend/README.md`](frontend/README.md) for details.
+
+- `frontend/` - Leptos application
+  - `src/app.rs` - Routes
+  - `src/layout.rs` - Navbar and sidebar
+  - `src/api.rs` - HTTP client for the Django API
+  - `src/interop/` - Bindings to Leaflet (map) and Chart.js (charts)
+  - `src/pages/` - One module per page: dashboard, map, trees, reports, alerts, analytics, about
 
 ### Database
 

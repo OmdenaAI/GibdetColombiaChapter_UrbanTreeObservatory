@@ -125,7 +125,7 @@ SPECTACULAR_SETTINGS = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",  # Angular frontend
+    "http://localhost:4200",  # Frontend (Leptos)
     "http://127.0.0.1:4200",
 ]
 
