@@ -230,16 +230,17 @@ docker compose exec backend pytest --cov=apps --cov-report=html
 
 ### Frontend Tests
 
-Run all tests:
+The frontend is a Rust/Leptos crate. Run its tests and checks with Cargo:
 
 ```bash
-docker compose exec frontend npm test
+docker compose exec frontend cargo test
+docker compose exec frontend cargo clippy --target wasm32-unknown-unknown
 ```
 
-Run tests for a specific component:
+Run a specific test:
 
 ```bash
-docker compose exec frontend npm test -- ComponentName
+docker compose exec frontend cargo test test_name
 ```
 
 ## Continuous Integration

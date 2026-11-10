@@ -56,17 +56,15 @@ services:
     profiles:
       - reset
 
-  # Angular frontend
+  # Frontend (Leptos / Rust + WebAssembly, served by Trunk with live reload)
   frontend:
     build: ./frontend
-    command: npm start -- --host 0.0.0.0 --poll=2000
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - /app/target
+      - /app/dist
     ports:
       - "4200:4200"
-    environment:
-      - NODE_ENV=development
     depends_on:
       - backend
 

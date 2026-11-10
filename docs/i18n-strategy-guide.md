@@ -1,12 +1,12 @@
 # Internationalization (i18n) Strategy Guide
 
-This document outlines the comprehensive internationalization strategy for the Urban Tree Observatory project, which uses Django, Django REST Framework (DRF), and Angular.
+This document outlines the comprehensive internationalization strategy for the Urban Tree Observatory project, which uses Django, Django REST Framework (DRF), and a Leptos (Rust/WebAssembly) frontend.
 
 ## Table of Contents
 
 1. [Core Principles](#core-principles)
 2. [Backend (Django/DRF) Implementation](#backend-djangodrf-implementation)
-3. [Frontend (Angular) Implementation](#frontend-angular-implementation)
+3. [Frontend Implementation (outdated: Angular)](#frontend-implementation-outdated-angular)
 4. [API Communication Strategy](#api-communication-strategy)
 5. [Database and Data Import Strategy](#database-and-data-import-strategy)
 6. [Workflow for Adding/Updating Translations](#workflow-for-addingupdating-translations)
@@ -209,7 +209,11 @@ class LocalizedChoiceField(serializers.ChoiceField):
         return str(self._choices.get(value, value))
 ```
 
-## Frontend (Angular) Implementation
+## Frontend Implementation (outdated: Angular)
+
+> **Note:** the frontend was migrated from Angular to Leptos (Rust/WebAssembly). This section
+> describes the original Angular/ngx-translate plan and is kept for reference only. Frontend
+> i18n is not implemented yet in Leptos; a candidate is the `leptos_i18n` crate.
 
 ### Setup ngx-translate
 

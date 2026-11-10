@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Map page styles. Leaflet injects the label elements outside the component tree,
+ * so these rules are global.
+ */
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+.region-label {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.label-content {
+  color: white;
+  text-align: center;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.75);
+  font-weight: bold;
+}
+
+.region-name {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.statistics {
+  font-size: 14px;
+}

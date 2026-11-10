@@ -1,0 +1,11 @@
+[build]
+target = "index.html"
+dist = "dist"
+
+[serve]
+port = 4200
+
+[tools]
+# Tailwind version pinned for the project.
+# Trunk downloads the standalone CLI, so no Node.js is required.
+tailwindcss = "3.4.17"

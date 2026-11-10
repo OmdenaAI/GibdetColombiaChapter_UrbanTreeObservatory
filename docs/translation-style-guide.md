@@ -244,7 +244,11 @@ name = models.CharField(_("common name"), max_length=100)
 raise ValidationError(_("Please enter a valid value."))
 ```
 
-### In Angular Templates
+### In Frontend Templates
+
+> **Note:** the frontend was migrated from Angular to Leptos (Rust). The example below uses the
+> previous Angular/ngx-translate syntax; frontend i18n is not implemented yet in Leptos (a
+> candidate is the `leptos_i18n` crate). The capitalization rules still apply.
 
 ```html
 <!-- Field label - lowercase -->
