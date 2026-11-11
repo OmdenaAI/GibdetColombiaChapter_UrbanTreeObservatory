@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import DashboardView, MeasurementViewSet, ObservationViewSet
+from .views import AnalyticsView, DashboardView, MeasurementViewSet, ObservationViewSet
 
 app_name = "reports"
 
@@ -11,5 +11,6 @@ router.register(r"observations", ObservationViewSet, basename="observation")
 
 urlpatterns = [
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("analytics/", AnalyticsView.as_view(), name="analytics"),
     path("", include(router.urls)),
 ]

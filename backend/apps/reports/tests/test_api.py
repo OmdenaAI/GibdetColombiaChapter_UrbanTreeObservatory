@@ -317,3 +317,59 @@ class TestDashboardAPI:
         assert [s["values"] for s in temperature["stations"]] == [[20.0]]
         assert data["recent_records"][0]["height_m"] == 30.0
         assert data["recent_records"][0]["phytosanitary_status"] == "SI"
+
+
+@pytest.mark.django_db
+class TestAnalyticsAPI:
+    """GET /api/v1/reports/analytics/: urban forest indicators."""
+
+    def test_analytics_summary(self, api_client, neighborhood, genus):
+        import datetime
+
+        from django.core.cache import cache
+
+        from apps.biodiversity.factories import BiodiversityRecordFactory
+        from apps.reports.factories import MeasurementFactory, ObservationFactory
+        from apps.taxonomy.factories import SpeciesFactory
+
+        cache.clear()
+        neighborhood.locality.population_2019 = 1000
+        neighborhood.locality.save()
+        native = SpeciesFactory(genus=genus, name="nativa", origin="NT", life_form="TR", iucn_status="VU")
+        exotic = SpeciesFactory(genus=genus, name="exotica", origin="CU", life_form="TR", iucn_status="LC")
+        # 3 native trees (one sick), 1 introduced; DBH 5, 15, 25, 90 cm.
+        for species, dbh, health in [
+            (native, 5.0, "HE"),
+            (native, 15.0, "SI"),
+            (native, 25.0, "HE"),
+            (exotic, 90.0, "HE"),
+        ]:
+            record = BiodiversityRecordFactory(
+                neighborhood=neighborhood, species=species, date=datetime.date(2017, 1, 1)
+            )
+            MeasurementFactory(biodiversity_record=record, attribute="DBH", value=dbh, unit="cm")
+            ObservationFactory(biodiversity_record=record, phytosanitary_status=health)
+
+        response = api_client.get(reverse("reports:analytics"))
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.data
+        assert data["total_trees"] == 4
+        assert data["trees_per_1000_inhabitants"] == 4
+        assert data["native_percent"] == 75.0
+        assert data["issues_percent"] == 25.0
+        rule = {r["level"]: r for r in data["concentration"]["rule"]}
+        assert rule["species"]["percent"] == 75.0
+        assert rule["species"]["limit"] == 10
+        assert rule["genus"]["percent"] == 100.0
+        classes = {c["from_cm"]: c["count"] for c in data["dbh_classes"]["classes"]}
+        assert (classes[0], classes[10], classes[20], classes[80]) == (1, 1, 1, 1)
+        # The factory boundaries contain the factory points: every tree is placed.
+        comunas = data["comunas"]
+        assert sum(c["trees"] for c in comunas["results"]) == 4
+        assert comunas["outside_comunas"] == 0
+        health = {s["name"]: s for s in data["species_health"]}
+        assert health[native.scientific_name]["sick_percent"] == 33.3
+        threatened = data["threatened"]
+        assert {s["status"]: s["count"] for s in threatened["by_status"]}["VU"] == 3
+        cache.clear()
