@@ -53,8 +53,18 @@ highlights the point; "Back to summary" restores the statistics. Comuna labels (
 17–18) show each area's tree count; clicking one shows its trees, distinct species and average
 height in the panel. Barrios and tree points are loaded only for the visible area (one request per
 pan/zoom: `/places/neighborhoods/bbox/` with geometry + statistics, `/biodiversity/records/bbox/`);
-barrios already drawn are kept and sent as `exclude`, and stale point responses are dropped. The **Dashboard** and **Trees** pages also use real data; Reports, Alerts
-and Analytics still use hardcoded sample data.
+barrios already drawn are kept and sent as `exclude`, and stale point responses are dropped. The **Dashboard**, **Trees** and **Analytics** pages also use real data;
+Reports and Alerts still use hardcoded sample data.
+
+### Analytics (`/analytics`)
+
+Urban forest indicators from `GET /api/v1/reports/analytics/` (computed in PostGIS, cached one
+hour; ~4 s uncached): trees per 1,000 inhabitants, native share, share with health problems,
+the 10-20-30 diversity rule (largest species / genus / family vs 10 / 20 / 30 %), top 10
+species, origin, DBH size classes (life form "tree" only), trees per comuna per hectare and per
+1,000 inhabitants, health problems in the 10 most common species and trees of threatened IUCN
+species. Comunas are assigned by the trees' coordinates (point-in-polygon), not by the census
+field.
 
 ### Tree inventory (`/trees`)
 
@@ -93,7 +103,6 @@ code with `KNOWN ISSUE:`. Main ones:
 - Dashboard: real figures from `GET /api/v1/reports/dashboard/` (census, taxonomy, climate,
   population 2019). CO₂ absorption and oxygen production show N/A: there is no model for them
   yet. Temperature trends are one line per station (stations report in different periods).
-- Analytics: all figures are still sample data.
 - Dashboard and Analytics charts are never destroyed when leaving the page.
 
 ## Gotcha: DOM access after navigation
