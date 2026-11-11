@@ -6,6 +6,8 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 
+use crate::app::RESTRICTED_PAGES;
+
 const NAV_BASE: &str =
     "flex items-center px-4 py-2 text-gray-700 hover:bg-primary-50 transition-colors duration-200";
 const NAV_ACTIVE: &str = "flex items-center px-4 py-2 text-gray-700 hover:bg-primary-50 transition-colors duration-200 bg-primary-50 text-primary-600";
@@ -14,6 +16,9 @@ const BTN: &str =
     "text-white hover:bg-primary-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary-400";
 
 const ICON_BELL: &str = "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9";
+
+/// Routes hidden unless the `restricted-pages` feature is on (see `app::RESTRICTED_PAGES`).
+const RESTRICTED_ROUTES: [&str; 2] = ["/reports", "/alerts"];
 
 /// (route, label, svg path), in sidebar order.
 const NAV_ITEMS: [(&str, &str, &str); 8] = [
@@ -47,11 +52,14 @@ pub fn Layout(children: Children) -> impl IntoView {
                         </div>
 
                         <div class="flex items-center space-x-4">
-                            <button class=BTN>
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d=ICON_BELL />
-                                </svg>
-                            </button>
+                            // Notifications belong to the Alerts page (restricted, see app.rs).
+                            {RESTRICTED_PAGES.then(|| view! {
+                                <button class=BTN>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d=ICON_BELL />
+                                    </svg>
+                                </button>
+                            })}
                             <button class=BTN>
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -74,6 +82,7 @@ pub fn Layout(children: Children) -> impl IntoView {
                     <nav class="mt-4 space-y-2">
                         {NAV_ITEMS
                             .into_iter()
+                            .filter(|(href, ..)| RESTRICTED_PAGES || !RESTRICTED_ROUTES.contains(href))
                             .map(|(href, label, d)| view! { <NavItem href label d open=is_sidebar_open /> })
                             .collect_view()}
                     </nav>

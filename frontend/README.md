@@ -38,7 +38,8 @@ public/vendor/        leaflet.js/.css, chart.umd.js (vendored, pinned versions)
 public/assets/        static assets
 src/
 ├── main.rs           mounts <App/>
-├── app.rs            router: /dashboard (default), /map, /trees, /species, /reports, /alerts, /analytics, /about
+├── app.rs            router: /dashboard (default), /map, /trees, /species, /analytics, /about
+│                     (+ /reports, /alerts: hidden, see "Future work")
 ├── layout.rs         navbar + collapsible sidebar
 ├── api.rs            HTTP (gloo-net) + JS `||`/truthiness helpers
 ├── interop/          Leaflet & Chart.js bindings, `when_connected` DOM helper
@@ -54,7 +55,7 @@ highlights the point; "Back to summary" restores the statistics. Comuna labels (
 height in the panel. Barrios and tree points are loaded only for the visible area (one request per
 pan/zoom: `/places/neighborhoods/bbox/` with geometry + statistics, `/biodiversity/records/bbox/`);
 barrios already drawn are kept and sent as `exclude`, and stale point responses are dropped. The **Dashboard**, **Trees** and **Analytics** pages also use real data;
-Reports and Alerts still use hardcoded sample data.
+Reports and Alerts are hidden for now (see "Future work").
 
 ### Analytics (`/analytics`)
 
@@ -89,6 +90,24 @@ most frequent one in the species' biodiversity records (`common_name`, annotated
 (bookmarks) are stored in the browser's `localStorage` only. Functional-group metrics appear only
 for the 168 species that have a group. Trait ranges are shown sorted, because some records have
 `min > max`.
+
+## Future work: Reports and Alerts (restricted pages)
+
+**Pending — do not forget.** Reports and Alerts are meant for administrators and for the public
+and private institutions that manage urban trees, not for the public demo. They will be defined
+with those institutions after the demo is shown, together with the platform's login and roles.
+
+Until then they are disabled with the Cargo feature `restricted-pages` (off by default): no
+sidebar entries, no navbar bell, and `/reports` and `/alerts` redirect to the dashboard. The
+pages still compile (`src/pages/reports.rs`, `src/pages/alerts.rs`) but contain only sample
+data. To look at them: `trunk serve --features restricted-pages` (or
+`cargo build --features restricted-pages`). Search the code for `TODO(restricted-pages)`.
+
+Next steps when this resumes:
+- define with the partner institutions what reports and alerts they need, and from which data;
+- add login and roles (Django auth already exists for the admin) and show these pages only to
+  privileged users instead of the build-time feature;
+- replace the sample data with API endpoints.
 
 ## Known issues
 
