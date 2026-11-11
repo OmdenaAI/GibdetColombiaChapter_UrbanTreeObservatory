@@ -22,58 +22,17 @@ use crate::interop::when_connected;
 
 #[derive(Deserialize)]
 struct Summary {
-    total_trees: i64,
-    species_count: i64,
-    population: i64,
     trees_per_1000_inhabitants: Option<i64>,
-    native_percent: Option<f64>,
     issues_percent: Option<f64>,
-    concentration: Concentration,
     origin: Vec<Origin>,
-    dbh_classes: DbhClasses,
     comunas: Comunas,
     species_health: Vec<SpeciesHealth>,
     threatened: Threatened,
 }
 
 #[derive(Deserialize)]
-struct Concentration {
-    rule: Vec<RuleRow>,
-    top_species: Vec<Share>,
-}
-
-#[derive(Deserialize)]
-struct RuleRow {
-    level: String,
-    name: String,
-    percent: f64,
-    limit: f64,
-}
-
-#[derive(Deserialize)]
-struct Share {
-    name: String,
-    count: i64,
-    percent: f64,
-}
-
-#[derive(Deserialize)]
 struct Origin {
     group: String,
-    count: i64,
-    percent: Option<f64>,
-}
-
-#[derive(Deserialize)]
-struct DbhClasses {
-    trees_measured: i64,
-    classes: Vec<DbhClass>,
-}
-
-#[derive(Deserialize)]
-struct DbhClass {
-    from_cm: i64,
-    to_cm: Option<i64>,
     count: i64,
     percent: Option<f64>,
 }
@@ -140,7 +99,6 @@ const BAR: &str = "#15803d";
 const CARD: &str = "bg-white rounded-lg shadow border border-gray-200 p-5";
 const H2: &str = "text-lg font-semibold text-gray-900";
 const NOTE: &str = "text-sm text-gray-500 mt-0.5";
-const SECTION: &str = "text-xs font-semibold text-gray-500 uppercase tracking-wider";
 
 fn pct(v: Option<f64>) -> String {
     v.map(|v| format!("{v:.1}%")).unwrap_or_else(|| "—".into())
@@ -160,13 +118,6 @@ fn iucn_label(code: &str) -> &'static str {
         "EN" => "Endangered",
         "VU" => "Vulnerable",
         _ => "Other",
-    }
-}
-
-fn dbh_label(c: &DbhClass) -> String {
-    match c.to_cm {
-        Some(to) => format!("{}–{}", c.from_cm, to),
-        None => format!("≥ {}", c.from_cm),
     }
 }
 
@@ -270,131 +221,18 @@ pub fn Analytics() -> impl IntoView {
 
 fn content(s: &Summary) -> impl IntoView + use<> {
     view! {
-        {kpis(s)}
-        <h2 class=SECTION>"Diversity"</h2>
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <div class="lg:col-span-2">{rule_card(s)}</div>
-            <div class=format!("{CARD} lg:col-span-3")>
-                <h3 class=H2>"Most planted species"</h3>
-                <p class=NOTE>
-                    {format!("Share of all {} trees. The 10 most common of {} species make up {:.0}% of the urban forest.",
-                        n(s.total_trees), s.species_count,
-                        s.concentration.top_species.iter().map(|t| t.percent).sum::<f64>())}
-                </p>
-                <div class="h-72 mt-3"><canvas id="topSpeciesChart"></canvas></div>
-            </div>
-        </div>
-
-        <h2 class=SECTION>"Composition and structure"</h2>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {origin_card(s)}
-            <div class=CARD>
-                <h3 class=H2>"Size structure (trunk diameter)"</h3>
-                <p class=NOTE>{dbh_note(s)}</p>
-                <div class="h-60 mt-3"><canvas id="dbhChart"></canvas></div>
-            </div>
-        </div>
-
-        <h2 class=SECTION>"Distribution by comuna"</h2>
+        {origin_card(s)}
         {comunas_card(s)}
-
-        <h2 class=SECTION>"Health and conservation"</h2>
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <div class=format!("{CARD} lg:col-span-3")>
+        <div class="grid grid-cols-1 xl:grid-cols-5 gap-6 items-stretch">
+            <div class=format!("{CARD} xl:col-span-3 flex flex-col")>
                 <h3 class=H2>"Health problems in the most common species"</h3>
                 <p class=NOTE>
                     {format!("Share of each species' trees recorded sick, critical or dead (city average: {}). Highest first.",
                         pct(s.issues_percent))}
                 </p>
-                <div class="h-72 mt-3"><canvas id="speciesHealthChart"></canvas></div>
+                <div class="relative mt-3 flex-1 min-h-80"><canvas id="speciesHealthChart"></canvas></div>
             </div>
-            <div class="lg:col-span-2">{threatened_card(s)}</div>
-        </div>
-    }
-}
-
-fn kpis(s: &Summary) -> impl IntoView + use<> {
-    let top = s.concentration.rule.iter().find(|r| r.level == "species");
-    let threatened: i64 = s.threatened.by_status.iter().map(|b| b.count).sum();
-    let per_1000 = s.trees_per_1000_inhabitants;
-    let tile = |label: &'static str, value: String, note: String| {
-        view! {
-            <div class=CARD>
-                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</p>
-                <p class="mt-1 text-3xl font-bold text-gray-900">{value}</p>
-                <p class="mt-1 text-sm text-gray-500">{note}</p>
-            </div>
-        }
-    };
-    view! {
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            {tile(
-                "Trees per 1,000 inhabitants",
-                per_1000.map(n).unwrap_or_else(|| "—".into()),
-                match per_1000 {
-                    Some(v) if v > 0 => format!("About 1 tree per {:.0} people (pop. 2019: {})", 1000.0 / v as f64, n(s.population)),
-                    _ => "No population data".into(),
-                },
-            )}
-            {tile("Native origin", pct(s.native_percent), "Trees of native or endemic species".into())}
-            {tile("With health problems", pct(s.issues_percent), "Recorded sick, critical or dead".into())}
-            {tile(
-                "Most planted species",
-                top.map(|t| format!("{:.1}%", t.percent)).unwrap_or_else(|| "—".into()),
-                top.map(|t| format!("{} (recommended max. {:.0}%)", t.name, t.limit)).unwrap_or_default(),
-            )}
-            {tile("Threatened species", n(threatened), format!("Trees of {} species in IUCN CR, EN or VU", s.threatened.species_count))}
-        </div>
-    }
-}
-
-fn rule_card(s: &Summary) -> impl IntoView + use<> {
-    let rows = s
-        .concentration
-        .rule
-        .iter()
-        .map(|r| {
-            let over = r.percent > r.limit;
-            let (badge, icon, text) = if over {
-                ("bg-red-100 text-red-800", "✕", "Above limit")
-            } else {
-                ("bg-green-100 text-green-800", "✓", "Within limit")
-            };
-            // Bar scale: 0-40%, so the 30% family limit fits.
-            let width = (r.percent / 40.0 * 100.0).min(100.0);
-            let mark = r.limit / 40.0 * 100.0;
-            let fill = if over { "bg-red-500" } else { "bg-green-600" };
-            let level = match r.level.as_str() {
-                "species" => "Species",
-                "genus" => "Genus",
-                _ => "Family",
-            };
-            view! {
-                <div>
-                    <div class="flex items-baseline justify-between gap-2">
-                        <p class="text-sm text-gray-900">
-                            <span class="font-semibold">{level}</span>
-                            " · "
-                            <span class:italic=r.level != "family">{r.name.clone()}</span>
-                        </p>
-                        <span class=format!("shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold {badge}")>{format!("{icon} {text}")}</span>
-                    </div>
-                    <div class="relative mt-1.5 h-3 rounded bg-gray-100">
-                        <div class=format!("absolute inset-y-0 left-0 rounded {fill}") style=format!("width:{width:.1}%")></div>
-                        <div class="absolute -inset-y-1 w-0.5 bg-gray-800" style=format!("left:{mark:.1}%") title=format!("Limit {:.0}%", r.limit)></div>
-                    </div>
-                    <p class="mt-1 text-xs text-gray-500">{format!("{:.1}% of all trees · limit {:.0}%", r.percent, r.limit)}</p>
-                </div>
-            }
-        })
-        .collect_view();
-    view! {
-        <div class=format!("{CARD} h-full")>
-            <h3 class=H2>"10-20-30 rule"</h3>
-            <p class=NOTE>
-                "To limit the damage a single pest or disease can do, no species should exceed 10% of the urban forest, no genus 20% and no family 30% (Santamour). Largest of each:"
-            </p>
-            <div class="mt-4 space-y-4">{rows}</div>
+            <div class="xl:col-span-2">{threatened_card(s)}</div>
         </div>
     }
 }
@@ -436,27 +274,20 @@ fn origin_card(s: &Summary) -> impl IntoView + use<> {
         .collect_view();
     view! {
         <div class=CARD>
-            <h3 class=H2>"Origin of the trees"</h3>
-            <p class=NOTE>
-                "Native species are adapted to the local climate and support local fauna. Origin follows each species' record in the catalog."
-            </p>
-            <div class="mt-5 flex h-8 gap-0.5 overflow-hidden rounded">{segments}</div>
-            <div class="mt-4 grid grid-cols-3 gap-3">{legend}</div>
-            <p class="mt-4 text-xs text-gray-500">
-                "Native includes native, endemic and native-cultivated species; introduced includes cultivated and naturalized ones."
-            </p>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-8 gap-y-4 items-center">
+                <div>
+                    <h3 class=H2>"Origin of the trees"</h3>
+                    <p class=NOTE>
+                        "Native species are adapted to the local climate and support local fauna. Native includes native, endemic and native-cultivated species; introduced includes cultivated and naturalized ones."
+                    </p>
+                </div>
+                <div class="lg:col-span-2">
+                    <div class="flex h-8 gap-0.5 overflow-hidden rounded">{segments}</div>
+                    <div class="mt-3 grid grid-cols-3 gap-3">{legend}</div>
+                </div>
+            </div>
         </div>
     }
-}
-
-fn dbh_note(s: &Summary) -> String {
-    let d = &s.dbh_classes;
-    let small: f64 = d.classes.iter().filter(|c| c.to_cm.is_some_and(|t| t <= 20)).filter_map(|c| c.percent).sum();
-    let large: f64 = d.classes.iter().filter(|c| c.from_cm >= 60).filter_map(|c| c.percent).sum();
-    format!(
-        "{} trees (palms and shrubs excluded). {small:.0}% are under 20 cm — a young population — and only {large:.1}% reach 60 cm or more.",
-        n(d.trees_measured)
-    )
 }
 
 fn comunas_card(s: &Summary) -> impl IntoView + use<> {
@@ -481,12 +312,12 @@ fn comunas_card(s: &Summary) -> impl IntoView + use<> {
     view! {
         <div class=CARD>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
+                <div class="flex flex-col">
                     <h3 class=H2>"Trees per 1,000 inhabitants"</h3>
                     <p class=NOTE>
                         {format!("City-wide: {}. Highest first.", s.trees_per_1000_inhabitants.map(n).unwrap_or_else(|| "—".into()))}
                     </p>
-                    <div class="h-80 mt-3"><canvas id="comunaChart"></canvas></div>
+                    <div class="relative mt-3 flex-1 min-h-80"><canvas id="comunaChart"></canvas></div>
                 </div>
                 <div>
                     <h3 class=H2>"Comuna figures"</h3>
@@ -558,7 +389,10 @@ fn threatened_card(s: &Summary) -> impl IntoView + use<> {
     view! {
         <div class=format!("{CARD} h-full")>
             <h3 class=H2>"Threatened species"</h3>
-            <p class=NOTE>"Trees whose species is globally threatened (IUCN Red List). The category describes wild populations, not the planted trees."</p>
+            <p class=NOTE>
+                {format!("{} trees of {} species that are globally threatened (IUCN Red List). The category describes wild populations, not the planted trees.",
+                    n(s.threatened.by_status.iter().map(|b| b.count).sum()), s.threatened.species_count)}
+            </p>
             <div class="mt-4 grid grid-cols-3 gap-2">{summary}</div>
             <table class="mt-4 w-full">
                 <thead>
@@ -579,8 +413,6 @@ fn threatened_card(s: &Summary) -> impl IntoView + use<> {
 // ---------------------------------------------------------------------------
 
 fn draw_charts(s: &Summary) {
-    top_species_chart(s);
-    dbh_chart(s);
     comuna_chart(s);
     species_health_chart(s);
 }
@@ -604,46 +436,6 @@ fn horizontal_bar(id: &str, labels: Vec<String>, datasets: Vec<Value>, value_tit
                 "plugins": {
                     "legend": { "display": legend, "position": "bottom", "labels": { "boxWidth": 10, "font": { "size": 11 } } }
                 }
-            }
-        }),
-        true,
-    );
-}
-
-fn top_species_chart(s: &Summary) {
-    let rows = &s.concentration.top_species;
-    horizontal_bar(
-        "topSpeciesChart",
-        rows.iter().map(|r| format!("{} ({})", r.name, n(r.count))).collect(),
-        vec![bar_dataset("Share of all trees (%)", rows.iter().map(|r| json!(r.percent)).collect(), BAR)],
-        "% of all trees",
-        false,
-        false,
-    );
-}
-
-fn dbh_chart(s: &Summary) {
-    let c = &s.dbh_classes.classes;
-    chart_by_id(
-        "dbhChart",
-        json!({
-            "type": "bar",
-            "data": {
-                "labels": c.iter().map(dbh_label).collect::<Vec<_>>(),
-                "datasets": [bar_dataset("Trees", c.iter().map(|x| json!(x.count)).collect(), BAR)]
-            },
-            "options": {
-                "responsive": true,
-                "maintainAspectRatio": false,
-                "scales": {
-                    "y": axes(false, "Trees")["y"],
-                    "x": {
-                        "grid": { "display": false },
-                        "ticks": { "font": { "size": 11 }, "color": "#374151" },
-                        "title": { "display": true, "text": "Diameter at breast height (cm)", "color": "#6b7280", "font": { "size": 11 } }
-                    }
-                },
-                "plugins": { "legend": { "display": false } }
             }
         }),
         true,

@@ -59,12 +59,11 @@ Reports and Alerts still use hardcoded sample data.
 ### Analytics (`/analytics`)
 
 Urban forest indicators from `GET /api/v1/reports/analytics/` (computed in PostGIS, cached one
-hour; ~4 s uncached): trees per 1,000 inhabitants, native share, share with health problems,
-the 10-20-30 diversity rule (largest species / genus / family vs 10 / 20 / 30 %), top 10
-species, origin, DBH size classes (life form "tree" only), trees per comuna per hectare and per
-1,000 inhabitants, health problems in the 10 most common species and trees of threatened IUCN
-species. Comunas are assigned by the trees' coordinates (point-in-polygon), not by the census
-field.
+hour; ~4 s uncached): origin of the trees (native / introduced / not identified), trees per
+1,000 inhabitants per comuna with a comuna table (trees, area, trees per hectare, per 1,000
+inhabitants, share with health problems), health problems in the 10 most common species and
+trees of threatened IUCN species. Comunas are assigned by the trees' coordinates
+(point-in-polygon), not by the census field.
 
 ### Tree inventory (`/trees`)
 
