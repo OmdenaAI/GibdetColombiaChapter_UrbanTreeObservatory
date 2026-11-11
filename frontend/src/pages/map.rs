@@ -25,6 +25,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 use crate::api::{API_BASE, console_error, fmt_thousands, get_json, js_or, js_string, truthy};
+use crate::i18n::{I18n, Lang, pick};
 use crate::interop::leaflet::{self as L, LMap, Layer};
 use crate::interop::{to_js, when_connected};
 
@@ -103,9 +104,15 @@ async fn load_statistics(kind: &str) -> (HashMap<i64, Value>, Option<Value>) {
     }
 }
 
-/// `"8.14" + "m"` -> `"8.14 m"`; `"N/A"` stays without a unit.
-fn with_unit(value: String, unit: &str) -> String {
-    if value == "N/A" { value } else { format!("{value} {unit}") }
+/// `"8.14" + "m"` -> `"8.14 m"`; `"N/A"` stays without a unit (and is shown as "N/D" in
+/// Spanish).
+fn with_unit(l: Lang, value: String, unit: &str) -> String {
+    if value == "N/A" { na(l, value) } else { format!("{value} {unit}") }
+}
+
+/// The panel keeps "N/A" as its "no data" marker; this is how it reads on screen.
+fn na(l: Lang, value: String) -> String {
+    if value == "N/A" { pick(l, "N/D", "N/A").into() } else { value }
 }
 
 fn escape_html(s: &str) -> String {
@@ -175,9 +182,13 @@ pub fn MapPage() -> impl IntoView {
         }
     });
 
-    let name = move || selected_region.with(|r| js_or(&json!(r.name), "Ibagué Overview"));
+    let i = I18n::use_ctx();
+    let name = move || {
+        let n = selected_region.with(|r| js_or(&json!(r.name), OVERVIEW));
+        if n == OVERVIEW { i.t("Resumen de Ibagué", "Ibagué Overview").to_string() } else { n }
+    };
     let stat = move |k: &'static str, fb: &'static str| {
-        move || selected_region.with(|r| js_or(&r.statistics[k], fb))
+        move || na(i.lang(), selected_region.with(|r| js_or(&r.statistics[k], fb)))
     };
     let env = move |k: &'static str, fb: &'static str| {
         move || selected_region.with(|r| js_or(&r.environmental[k], fb))
@@ -190,37 +201,37 @@ pub fn MapPage() -> impl IntoView {
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">{name}</h2>
                     <div class="space-y-4">
-                        <h3 class="text-lg font-semibold text-gray-700">"Tree Statistics"</h3>
+                        <h3 class="text-lg font-semibold text-gray-700">{move || i.t("Estadísticas de árboles", "Tree Statistics")}</h3>
                         <div class="grid grid-cols-2 gap-x-8 gap-y-4">
                             <div>
                                 <p class="text-2xl font-bold text-green-700">{stat("totalTrees", "101,283")}</p>
-                                <p class="text-sm text-gray-600">"Total Trees"</p>
+                                <p class="text-sm text-gray-600">{move || i.t("Total de árboles", "Total Trees")}</p>
                             </div>
                             <div>
                                 <p class="text-2xl font-bold text-green-700">{stat("speciesCount", "407")}</p>
-                                <p class="text-sm text-gray-600">"Species Count"</p>
+                                <p class="text-sm text-gray-600">{move || i.t("Número de especies", "Species Count")}</p>
                             </div>
                             <div>
-                                <p class="text-2xl font-bold text-green-700">{move || with_unit(stat("avgHeight", "17.30")(), "m")}</p>
-                                <p class="text-sm text-gray-600">"Average Height"</p>
+                                <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), stat("avgHeight", "17.30")(), "m")}</p>
+                                <p class="text-sm text-gray-600">{move || i.t("Altura promedio", "Average Height")}</p>
                             </div>
                             <div>
                                 <p class="text-2xl font-bold text-green-700">{stat("healthIndex", "0.18")}</p>
-                                <p class="text-sm text-gray-600">"Tree-per-capita index"</p>
+                                <p class="text-sm text-gray-600">{move || i.t("Índice de árboles por habitante", "Tree-per-capita index")}</p>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">"Environmental Impact"</h3>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">{move || i.t("Impacto ambiental", "Environmental Impact")}</h3>
                     <div class="space-y-4">
                         <div>
-                            <p class="text-2xl font-bold text-green-700">{move || with_unit(env("co2Absorption", "646,867.27")(), "Ton")}</p>
-                            <p class="text-sm text-gray-600">"CO₂ Absorption"</p>
+                            <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), env("co2Absorption", "646,867.27")(), "t")}</p>
+                            <p class="text-sm text-gray-600">{move || i.t("Absorción de CO₂", "CO₂ Absorption")}</p>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold text-green-700">{move || with_unit(env("oxygenProduction", "1,727,135.62")(), "Ton/year")}</p>
-                            <p class="text-sm text-gray-600">"Oxygen Production"</p>
+                            <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), env("oxygenProduction", "1,727,135.62")(), i.t("t/año", "t/year"))}</p>
+                            <p class="text-sm text-gray-600">{move || i.t("Producción de oxígeno", "Oxygen Production")}</p>
                         </div>
                     </div>
                 </div>

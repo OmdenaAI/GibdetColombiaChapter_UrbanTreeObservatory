@@ -14,6 +14,7 @@ use serde::Deserialize;
 use super::species::card::{ILLUSTRATION_BG, illustration_img, photo_placeholder};
 use super::species::model::{self, Species, fmt_num};
 use crate::api::{API_BASE, console_error, get_json};
+use crate::i18n::I18n;
 
 /// What the map knows about a point before any extra request.
 #[derive(Clone, PartialEq)]
@@ -108,6 +109,7 @@ const TD: &str = "border border-gray-900 px-2 py-1.5 text-center align-middle";
 
 #[component]
 pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
+    let i = I18n::use_ctx();
     let species = RwSignal::new(Load::<Arc<Species>>::Loading);
     let measures = RwSignal::new(Load::<Measures>::Loading);
     match tree.species_id {
@@ -156,7 +158,7 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
         species.with(|s| match s {
             Load::Ready(s) => {
                 let code = s.iucn_status.clone();
-                let (label, _, desc) = model::iucn_info(&code);
+                let (label, _, desc) = model::iucn_info(i.lang(), &code);
                 let (bg, fg) = model::iucn_colors(&code);
                 view! {
                     <div
@@ -185,7 +187,7 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
                         view! {
                             <a href=h target="_blank" rel="noopener noreferrer" class="flex flex-col items-center group">
                                 <span class="text-lg font-bold text-gray-900">{name}</span>
-                                <span class="text-xs italic text-blue-700 underline group-hover:text-blue-900">"View more…"</span>
+                                <span class="text-xs italic text-blue-700 underline group-hover:text-blue-900">{i.t("Ver más…", "View more…")}</span>
                             </a>
                         }
                     })
@@ -202,10 +204,10 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
         })
     };
 
-    let row = |label: &'static str, value: AnyView| {
+    let row = move |es: &'static str, en: &'static str, value: AnyView| {
         view! {
             <tr>
-                <th class=format!("{TD} font-normal w-1/2")>{label}</th>
+                <th class=format!("{TD} font-normal w-1/2")>{move || i.t(es, en)}</th>
                 <td class=TD>{value}</td>
             </tr>
         }
@@ -218,7 +220,7 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
                 class="inline-flex items-center gap-1 text-sm text-primary-700 hover:underline"
                 on:click=move |_| on_close.run(())
             >
-                "← Back to summary"
+                {move || i.t("← Volver al resumen", "← Back to summary")}
             </button>
 
             <div class="border-2 border-gray-900 rounded px-2 py-1 text-center text-xl font-semibold text-gray-900 truncate">
@@ -232,7 +234,7 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
                 view! {
                     <div class=format!("relative h-56 overflow-hidden rounded border-2 border-gray-900 flex items-center justify-center {bg}")>
                         {match img {
-                            Some((src, name)) => illustration_img(src, &name).into_any(),
+                            Some((src, name)) => illustration_img(i.lang(), src, &name).into_any(),
                             None => photo_placeholder().into_any(),
                         }}
                     </div>
@@ -243,13 +245,16 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
 
             <table class="w-full border-collapse text-sm text-gray-900">
                 <tbody>
-                    {row("Id", tree.id.to_string().into_any())}
-                    {row("Family", from_species(|s| s.family().to_string()).into_any())}
-                    {row("Life form", model::life_form_label(&tree.life_form).into_any())}
-                    {row("Diameter (cm)", from_measures(|m| m.dbh_cm).into_any())}
-                    {row("Total height (m)", from_measures(|m| m.height_m).into_any())}
-                    {row("Neighborhood", place(tree.neighborhood.clone()).into_any())}
-                    {row("Site", place(tree.site.clone()).into_any())}
+                    {row("Id", "Id", tree.id.to_string().into_any())}
+                    {row("Familia", "Family", from_species(|s| s.family().to_string()).into_any())}
+                    {row("Forma de vida", "Life form", {
+                        let code = tree.life_form.clone();
+                        (move || model::life_form_label(i.lang(), &code)).into_any()
+                    })}
+                    {row("Diámetro (cm)", "Diameter (cm)", from_measures(|m| m.dbh_cm).into_any())}
+                    {row("Altura total (m)", "Total height (m)", from_measures(|m| m.height_m).into_any())}
+                    {row("Barrio", "Neighborhood", place(tree.neighborhood.clone()).into_any())}
+                    {row("Sitio", "Site", place(tree.site.clone()).into_any())}
                 </tbody>
             </table>
 

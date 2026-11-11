@@ -11,10 +11,11 @@ use leptos::task::spawn_local;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::shared::HEALTH;
+use super::shared::{HEALTH, health_label};
 use crate::api::{API_BASE, console_error, fmt_thousands, get_json};
 use crate::interop::chart::chart_by_id;
 use crate::interop::when_connected;
+use crate::i18n::{I18n, Lang, pick};
 
 // ---------------------------------------------------------------------------
 // Data
@@ -112,12 +113,12 @@ fn health_color(code: &str) -> &'static str {
     HEALTH.iter().find(|(c, ..)| *c == code).map(|(.., color)| *color).unwrap_or("#9ca3af")
 }
 
-fn iucn_label(code: &str) -> &'static str {
+fn iucn_label(l: Lang, code: &str) -> &'static str {
     match code {
-        "CR" => "Critically endangered",
-        "EN" => "Endangered",
-        "VU" => "Vulnerable",
-        _ => "Other",
+        "CR" => pick(l, "En peligro crítico", "Critically endangered"),
+        "EN" => pick(l, "En peligro", "Endangered"),
+        "VU" => pick(l, "Vulnerable", "Vulnerable"),
+        _ => pick(l, "Otra", "Other"),
     }
 }
 
@@ -158,6 +159,7 @@ fn bar_dataset(label: &str, data: Vec<Value>, color: &str) -> Value {
 
 #[component]
 pub fn Analytics() -> impl IntoView {
+    let i = I18n::use_ctx();
     let state = RwSignal::new(Load::Loading);
     let load = move || {
         state.set(Load::Loading);
@@ -178,14 +180,16 @@ pub fn Analytics() -> impl IntoView {
     load();
 
     let root = NodeRef::<leptos::html::Div>::new();
+    // Charts are drawn again when the language changes (labels and axis titles).
     Effect::new(move |_| {
+        let l = i.lang();
         let ready = state.with(|s| match s {
             Load::Ready(s) => Some(s.clone()),
             _ => None,
         });
         if let (Some(el), Some(summary)) = (root.get(), ready) {
             when_connected(el.into(), move || {
-                set_timeout(move || draw_charts(&summary), Duration::from_millis(100))
+                set_timeout(move || draw_charts(l, &summary), Duration::from_millis(100))
             });
         }
     });
@@ -194,56 +198,63 @@ pub fn Analytics() -> impl IntoView {
         <div node_ref=root class="block w-full">
             <div class="p-6 space-y-6">
                 <div>
-                    <h1 class="text-2xl font-bold text-green-700">"Urban Forest Analysis"</h1>
+                    <h1 class="text-2xl font-bold text-green-700">{move || i.t("Análisis del bosque urbano", "Urban Forest Analysis")}</h1>
                     <p class="mt-1 text-gray-600">
-                        "Indicators computed from the Cortolima tree census of Ibagué (2014–2017) stored in PostGIS."
+                        {move || i.t(
+                            "Indicadores calculados a partir del censo arbóreo de Cortolima en Ibagué (2014–2017), almacenado en PostGIS.",
+                            "Indicators computed from the Cortolima tree census of Ibagué (2014–2017) stored in PostGIS.",
+                        )}
                     </p>
                 </div>
-                {move || match state.get() {
+                {move || { let l = i.lang(); match state.get() {
                     Load::Loading => view! {
                         <div class="py-24 flex items-center justify-center text-gray-500">
                             <div class="h-8 w-8 mr-3 rounded-full border-4 border-green-200 border-t-green-600 animate-spin"></div>
-                            "Computing indicators…"
+                            {pick(l, "Calculando indicadores…", "Computing indicators…")}
                         </div>
                     }.into_any(),
                     Load::Failed => view! {
                         <div class="py-24 text-center text-red-600">
-                            "Could not load the analysis. "
-                            <button class="underline font-medium" on:click=move |_| load()>"Retry"</button>
+                            {pick(l, "No se pudo cargar el análisis. ", "Could not load the analysis. ")}
+                            <button class="underline font-medium" on:click=move |_| load()>{pick(l, "Reintentar", "Retry")}</button>
                         </div>
                     }.into_any(),
-                    Load::Ready(s) => content(&s).into_any(),
-                }}
+                    Load::Ready(s) => content(l, &s).into_any(),
+                }}}
             </div>
         </div>
     }
 }
 
-fn content(s: &Summary) -> impl IntoView + use<> {
+fn content(l: Lang, s: &Summary) -> impl IntoView + use<> {
     view! {
-        {origin_card(s)}
-        {comunas_card(s)}
+        {origin_card(l, s)}
+        {comunas_card(l, s)}
         <div class="grid grid-cols-1 xl:grid-cols-5 gap-6 items-stretch">
             <div class=format!("{CARD} xl:col-span-3 flex flex-col")>
-                <h3 class=H2>"Health problems in the most common species"</h3>
+                <h3 class=H2>{pick(l, "Problemas de salud en las especies más comunes", "Health problems in the most common species")}</h3>
                 <p class=NOTE>
-                    {format!("Share of each species' trees recorded sick, critical or dead (city average: {}). Highest first.",
-                        pct(s.issues_percent))}
+                    {pick(
+                        l,
+                        format!("Porcentaje de árboles de cada especie registrados como enfermos, críticos o muertos (promedio de la ciudad: {}). De mayor a menor.", pct(s.issues_percent)),
+                        format!("Share of each species' trees recorded sick, critical or dead (city average: {}). Highest first.", pct(s.issues_percent)),
+                    )}
                 </p>
                 <div class="relative mt-3 flex-1 min-h-80"><canvas id="speciesHealthChart"></canvas></div>
             </div>
-            <div class="xl:col-span-2">{threatened_card(s)}</div>
+            <div class="xl:col-span-2">{threatened_card(l, s)}</div>
         </div>
     }
 }
 
-fn origin_card(s: &Summary) -> impl IntoView + use<> {
+fn origin_card(l: Lang, s: &Summary) -> impl IntoView + use<> {
     // Native: the app's green; introduced: orange; not identified: neutral gray.
-    let style_for = |g: &str| match g {
-        "native" => ("Native", "#15803d"),
-        "introduced" => ("Introduced", "#eb6834"),
-        _ => ("Not identified", "#9ca3af"),
+    let style_for = move |g: &str| match g {
+        "native" => (pick(l, "Nativas", "Native"), "#15803d"),
+        "introduced" => (pick(l, "Introducidas", "Introduced"), "#eb6834"),
+        _ => (pick(l, "Sin identificar", "Not identified"), "#9ca3af"),
     };
+    let trees = pick(l, "árboles", "trees");
     let segments = s
         .origin
         .iter()
@@ -252,7 +263,7 @@ fn origin_card(s: &Summary) -> impl IntoView + use<> {
             let w = o.percent.unwrap_or(0.0);
             view! {
                 <div class="h-full first:rounded-l last:rounded-r" style=format!("width:{w}%;background:{color}")
-                    title=format!("{label}: {} trees ({})", n(o.count), pct(o.percent))></div>
+                    title=format!("{label}: {} {trees} ({})", n(o.count), pct(o.percent))></div>
             }
         })
         .collect_view();
@@ -266,7 +277,7 @@ fn origin_card(s: &Summary) -> impl IntoView + use<> {
                     <span class="mt-1 h-3 w-3 shrink-0 rounded-sm" style=format!("background:{color}")></span>
                     <div>
                         <p class="text-sm font-medium text-gray-900">{format!("{label} · {}", pct(o.percent))}</p>
-                        <p class="text-xs text-gray-500">{format!("{} trees", n(o.count))}</p>
+                        <p class="text-xs text-gray-500">{format!("{} {trees}", n(o.count))}</p>
                     </div>
                 </div>
             }
@@ -276,9 +287,13 @@ fn origin_card(s: &Summary) -> impl IntoView + use<> {
         <div class=CARD>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-8 gap-y-4 items-center">
                 <div>
-                    <h3 class=H2>"Origin of the trees"</h3>
+                    <h3 class=H2>{pick(l, "Origen de los árboles", "Origin of the trees")}</h3>
                     <p class=NOTE>
-                        "Native species are adapted to the local climate and support local fauna. Native includes native, endemic and native-cultivated species; introduced includes cultivated and naturalized ones."
+                        {pick(
+                            l,
+                            "Las especies nativas están adaptadas al clima local y sostienen la fauna local. Nativas incluye especies nativas, endémicas y nativas-cultivadas; introducidas incluye las cultivadas y naturalizadas.",
+                            "Native species are adapted to the local climate and support local fauna. Native includes native, endemic and native-cultivated species; introduced includes cultivated and naturalized ones.",
+                        )}
                     </p>
                 </div>
                 <div class="lg:col-span-2">
@@ -290,7 +305,8 @@ fn origin_card(s: &Summary) -> impl IntoView + use<> {
     }
 }
 
-fn comunas_card(s: &Summary) -> impl IntoView + use<> {
+fn comunas_card(l: Lang, s: &Summary) -> impl IntoView + use<> {
+    let tr = move |es: &'static str, en: &'static str| pick(l, es, en);
     let c = &s.comunas;
     let rows = c
         .results
@@ -313,25 +329,30 @@ fn comunas_card(s: &Summary) -> impl IntoView + use<> {
         <div class=CARD>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="flex flex-col">
-                    <h3 class=H2>"Trees per 1,000 inhabitants"</h3>
+                    <h3 class=H2>{tr("Árboles por cada mil habitantes", "Trees per 1,000 inhabitants")}</h3>
                     <p class=NOTE>
-                        {format!("City-wide: {}. Highest first.", s.trees_per_1000_inhabitants.map(n).unwrap_or_else(|| "—".into()))}
+                        {format!(
+                            "{}: {}. {}",
+                            tr("Toda la ciudad", "City-wide"),
+                            s.trees_per_1000_inhabitants.map(n).unwrap_or_else(|| "—".into()),
+                            tr("De mayor a menor.", "Highest first."),
+                        )}
                     </p>
                     <div class="relative mt-3 flex-1 min-h-80"><canvas id="comunaChart"></canvas></div>
                 </div>
                 <div>
-                    <h3 class=H2>"Comuna figures"</h3>
-                    <p class=NOTE>"Density per area, per inhabitant (population 2019) and health."</p>
+                    <h3 class=H2>{tr("Cifras por comuna", "Comuna figures")}</h3>
+                    <p class=NOTE>{tr("Densidad por área, por habitante (población 2019) y salud.", "Density per area, per inhabitant (population 2019) and health.")}</p>
                     <div class="mt-3 overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead>
                                 <tr>
                                     <th class="px-3 py-2 text-xs font-medium text-gray-500 uppercase text-left">"Comuna"</th>
-                                    <th class=th>"Trees"</th>
-                                    <th class=th>"Area (ha)"</th>
-                                    <th class=th>"Trees / ha"</th>
-                                    <th class=th>"Per 1,000 inh."</th>
-                                    <th class=th>"With problems"</th>
+                                    <th class=th>{tr("Árboles", "Trees")}</th>
+                                    <th class=th>{tr("Área (ha)", "Area (ha)")}</th>
+                                    <th class=th>{tr("Árboles / ha", "Trees / ha")}</th>
+                                    <th class=th>{tr("Por mil hab.", "Per 1,000 inh.")}</th>
+                                    <th class=th>{tr("Con problemas", "With problems")}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">{rows}</tbody>
@@ -340,16 +361,24 @@ fn comunas_card(s: &Summary) -> impl IntoView + use<> {
                 </div>
             </div>
             <p class="mt-4 text-xs text-gray-500">
-                {format!(
-                    "Each tree is placed in a comuna by its coordinates (PostGIS point-in-polygon). The census field leaves {} trees in an unknown comuna; by location only {} fall outside the comuna boundaries.",
-                    n(c.unknown_comuna_in_census), n(c.outside_comunas)
+                {pick(
+                    l,
+                    format!(
+                        "Cada árbol se asigna a una comuna según sus coordenadas (punto en polígono con PostGIS). El campo del censo deja {} árboles en una comuna desconocida; por ubicación solo {} quedan fuera de los límites de las comunas.",
+                        n(c.unknown_comuna_in_census), n(c.outside_comunas)
+                    ),
+                    format!(
+                        "Each tree is placed in a comuna by its coordinates (PostGIS point-in-polygon). The census field leaves {} trees in an unknown comuna; by location only {} fall outside the comuna boundaries.",
+                        n(c.unknown_comuna_in_census), n(c.outside_comunas)
+                    ),
                 )}
             </p>
         </div>
     }
 }
 
-fn threatened_card(s: &Summary) -> impl IntoView + use<> {
+fn threatened_card(l: Lang, s: &Summary) -> impl IntoView + use<> {
+    let tr = move |es: &'static str, en: &'static str| pick(l, es, en);
     let badge = |code: &str| match code {
         "CR" => "bg-red-100 text-red-800",
         "EN" => "bg-orange-100 text-orange-800",
@@ -364,7 +393,7 @@ fn threatened_card(s: &Summary) -> impl IntoView + use<> {
                 <div class="text-center">
                     <p class="text-xl font-bold text-gray-900">{n(b.count)}</p>
                     <p class=format!("mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold {}", badge(&b.status))>
-                        {format!("{} · {}", b.status, iucn_label(&b.status))}
+                        {format!("{} · {}", b.status, iucn_label(l, &b.status))}
                     </p>
                 </div>
             }
@@ -388,18 +417,24 @@ fn threatened_card(s: &Summary) -> impl IntoView + use<> {
         .collect_view();
     view! {
         <div class=format!("{CARD} h-full")>
-            <h3 class=H2>"Threatened species"</h3>
+            <h3 class=H2>{tr("Especies amenazadas", "Threatened species")}</h3>
             <p class=NOTE>
-                {format!("{} trees of {} species that are globally threatened (IUCN Red List). The category describes wild populations, not the planted trees.",
-                    n(s.threatened.by_status.iter().map(|b| b.count).sum()), s.threatened.species_count)}
+                {{
+                    let (trees, species) = (n(s.threatened.by_status.iter().map(|b| b.count).sum()), s.threatened.species_count);
+                    pick(
+                        l,
+                        format!("{trees} árboles de {species} especies amenazadas a nivel global (Lista Roja de la UICN). La categoría describe las poblaciones silvestres, no los árboles plantados."),
+                        format!("{trees} trees of {species} species that are globally threatened (IUCN Red List). The category describes wild populations, not the planted trees."),
+                    )
+                }}
             </p>
             <div class="mt-4 grid grid-cols-3 gap-2">{summary}</div>
             <table class="mt-4 w-full">
                 <thead>
                     <tr class="border-b border-gray-200">
-                        <th class="py-1.5 text-left text-xs font-medium text-gray-500 uppercase">"Species"</th>
-                        <th class="py-1.5 text-center text-xs font-medium text-gray-500 uppercase">"IUCN"</th>
-                        <th class="py-1.5 text-right text-xs font-medium text-gray-500 uppercase">"Trees"</th>
+                        <th class="py-1.5 text-left text-xs font-medium text-gray-500 uppercase">{tr("Especie", "Species")}</th>
+                        <th class="py-1.5 text-center text-xs font-medium text-gray-500 uppercase">{tr("UICN", "IUCN")}</th>
+                        <th class="py-1.5 text-right text-xs font-medium text-gray-500 uppercase">{tr("Árboles", "Trees")}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">{rows}</tbody>
@@ -412,9 +447,9 @@ fn threatened_card(s: &Summary) -> impl IntoView + use<> {
 // Charts
 // ---------------------------------------------------------------------------
 
-fn draw_charts(s: &Summary) {
-    comuna_chart(s);
-    species_health_chart(s);
+fn draw_charts(l: Lang, s: &Summary) {
+    comuna_chart(l, s);
+    species_health_chart(l, s);
 }
 
 fn horizontal_bar(id: &str, labels: Vec<String>, datasets: Vec<Value>, value_title: &str, stacked: bool, legend: bool) {
@@ -442,30 +477,31 @@ fn horizontal_bar(id: &str, labels: Vec<String>, datasets: Vec<Value>, value_tit
     );
 }
 
-fn comuna_chart(s: &Summary) {
+fn comuna_chart(l: Lang, s: &Summary) {
+    let title = pick(l, "Árboles por cada mil habitantes", "Trees per 1,000 inhabitants");
     let mut rows: Vec<&Comuna> = s.comunas.results.iter().filter(|c| c.trees_per_1000_inhabitants.is_some()).collect();
     rows.sort_by_key(|c| std::cmp::Reverse(c.trees_per_1000_inhabitants));
     horizontal_bar(
         "comunaChart",
         rows.iter().map(|c| c.name.replace("COMUNA", "Comuna")).collect(),
-        vec![bar_dataset("Trees per 1,000 inhabitants", rows.iter().map(|c| json!(c.trees_per_1000_inhabitants)).collect(), BAR)],
-        "Trees per 1,000 inhabitants",
+        vec![bar_dataset(title, rows.iter().map(|c| json!(c.trees_per_1000_inhabitants)).collect(), BAR)],
+        title,
         false,
         false,
     );
 }
 
-fn species_health_chart(s: &Summary) {
+fn species_health_chart(l: Lang, s: &Summary) {
     let rows = &s.species_health;
     let series = [
-        ("Sick", "SI", rows.iter().map(|r| json!(r.sick_percent)).collect::<Vec<_>>()),
-        ("Critical", "CR", rows.iter().map(|r| json!(r.critical_percent)).collect()),
-        ("Dead", "DE", rows.iter().map(|r| json!(r.dead_percent)).collect()),
+        ("SI", rows.iter().map(|r| json!(r.sick_percent)).collect::<Vec<_>>()),
+        ("CR", rows.iter().map(|r| json!(r.critical_percent)).collect()),
+        ("DE", rows.iter().map(|r| json!(r.dead_percent)).collect()),
     ];
     let datasets = series
         .into_iter()
-        .map(|(label, code, data)| {
-            let mut d = bar_dataset(label, data, health_color(code));
+        .map(|(code, data)| {
+            let mut d = bar_dataset(health_label(l, code), data, health_color(code));
             // Stacked segments: rounded ends only on the outer segment, 2px gap between fills.
             d["borderRadius"] = json!(0);
             d["borderColor"] = json!("#ffffff");
@@ -477,7 +513,7 @@ fn species_health_chart(s: &Summary) {
         "speciesHealthChart",
         rows.iter().map(|r| format!("{} ({})", r.name, n(r.trees))).collect(),
         datasets,
-        "% of the species' trees",
+        pick(l, "% de los árboles de la especie", "% of the species' trees"),
         true,
         true,
     );

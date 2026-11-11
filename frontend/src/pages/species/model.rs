@@ -10,6 +10,7 @@ use futures::future::try_join_all;
 use serde::Deserialize;
 
 use crate::api::{API_BASE, get_json};
+use crate::i18n::{Lang, pick};
 
 // ---------------------------------------------------------------------------
 // API types (subset of /api/v1/taxonomy/species/)
@@ -134,11 +135,12 @@ pub const ILLUSTRATIONS: [&str; 17] = [
 ];
 
 /// Functional-group traits shown on cards: carbon sequestration, shade, canopy, height.
-pub const TRAITS: [(&str, &str); 4] = [
-    ("CS", "Carbon sequestration (%)"),
-    ("SH", "Shade index"),
-    ("CY", "Canopy diameter (m)"),
-    ("HX", "Maximum height (m)"),
+/// (code, Spanish, English)
+pub const TRAITS: [(&str, &str, &str); 4] = [
+    ("CS", "Secuestro de carbono (%)", "Carbon sequestration (%)"),
+    ("SH", "Índice de sombra", "Shade index"),
+    ("CY", "Diámetro de copa (m)", "Canopy diameter (m)"),
+    ("HX", "Altura máxima (m)", "Maximum height (m)"),
 ];
 
 impl Species {
@@ -193,78 +195,128 @@ pub fn fmt_num(v: f64) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Code tables (backend codes → English labels), in sidebar display order
+// Code tables (backend codes → Spanish / English labels), in sidebar display order
 // ---------------------------------------------------------------------------
 
-/// (code, label, swatch classes)
-pub const FLOWER_COLORS: [(&str, &str, &str); 10] = [
-    ("NI", "No information", "border border-gray-400 bg-transparent"),
-    ("WH", "White", "border border-gray-300 bg-white"),
-    ("YE", "Yellow", "bg-yellow-400"),
-    ("PI", "Pink", "bg-pink-400"),
-    ("RE", "Red", "bg-red-500"),
-    ("VI", "Violet", "bg-purple-500"),
-    ("OR", "Orange", "bg-orange-500"),
-    ("FU", "Fuchsia", "bg-fuchsia-600"),
-    ("BR", "Brown", "bg-amber-800"),
-    ("GR", "Green", "bg-green-500"),
+/// (code, Spanish, English, swatch classes)
+pub const FLOWER_COLORS: [(&str, &str, &str, &str); 10] = [
+    ("NI", "Sin información", "No information", "border border-gray-400 bg-transparent"),
+    ("WH", "Blanco", "White", "border border-gray-300 bg-white"),
+    ("YE", "Amarillo", "Yellow", "bg-yellow-400"),
+    ("PI", "Rosado", "Pink", "bg-pink-400"),
+    ("RE", "Rojo", "Red", "bg-red-500"),
+    ("VI", "Violeta", "Violet", "bg-purple-500"),
+    ("OR", "Naranja", "Orange", "bg-orange-500"),
+    ("FU", "Fucsia", "Fuchsia", "bg-fuchsia-600"),
+    ("BR", "Café", "Brown", "bg-amber-800"),
+    ("GR", "Verde", "Green", "bg-green-500"),
 ];
 
-pub const LIFE_FORMS: [(&str, &str); 4] = [
-    ("TR", "Tree"),
-    ("SH", "Shrub"),
-    ("PT", "Palm"),
-    ("OT", "Other"),
+/// (code, Spanish, English)
+pub type Label = (&'static str, &'static str, &'static str);
+
+pub const LIFE_FORMS: [Label; 4] = [
+    ("TR", "Árbol", "Tree"),
+    ("SH", "Arbusto", "Shrub"),
+    ("PT", "Palma", "Palm"),
+    ("OT", "Otro", "Other"),
 ];
 
-/// (code, label, badge classes, description)
-pub const IUCN: [(&str, &str, &str, &str); 9] = [
-    ("LC", "Least concern", "bg-green-600", "Widespread and abundant taxa with a low risk of extinction."),
-    ("NT", "Near threatened", "bg-teal-700", "Close to qualifying for a threatened category in the near future."),
-    ("VU", "Vulnerable", "bg-amber-500", "Facing a high risk of extinction in the wild."),
-    ("EN", "Endangered", "bg-orange-600", "Facing a very high risk of extinction in the wild."),
-    ("CR", "Critically endangered", "bg-red-700", "Facing an extremely high risk of extinction in the wild."),
-    ("EW", "Extinct in the wild", "bg-gray-900", "Known only to survive in cultivation or outside its natural range."),
-    ("CD", "Conservation dependent", "bg-lime-600", "Lower risk, but dependent on conservation measures (older IUCN category)."),
-    ("DD", "Data deficient", "bg-gray-500", "Not enough information to assess its risk of extinction."),
-    ("NE", "Not evaluated", "bg-gray-400", "Not yet assessed against the IUCN Red List criteria."),
-];
-
-pub const ORIGINS: [(&str, &str); 7] = [
-    ("NT", "Native"),
-    ("CU", "Cultivated"),
-    ("NC", "Native-cultivated"),
-    ("EN", "Endemic"),
-    ("NU", "Naturalized"),
-    ("NL", "Naturalized-cultivated"),
-    ("NI", "Unidentified"),
-];
-
-pub const CANOPIES: [(&str, &str); 12] = [
-    ("GL", "Globose"),
-    ("SG", "Semiglobose"),
-    ("OV", "Oval"),
-    ("IR", "Irregular"),
-    ("SP", "Spreading"),
-    ("PY", "Pyramidal"),
-    ("CO", "Columnar"),
-    ("BD", "Broad"),
-    ("CF", "Fan-shaped caulirosula"),
-    ("CR", "Feather-shaped caulirosula"),
-    ("CS", "Cespitose caulirosula"),
-    ("NI", "No information"),
-];
-
-fn lookup2(table: &[(&'static str, &'static str)], code: &str) -> &'static str {
-    table.iter().find(|(c, _)| *c == code).map(|(_, l)| *l).unwrap_or("Unknown")
+/// IUCN category: code, labels, badge classes and descriptions.
+pub struct IucnCategory {
+    pub code: &'static str,
+    pub es: &'static str,
+    pub en: &'static str,
+    pub badge: &'static str,
+    pub desc_es: &'static str,
+    pub desc_en: &'static str,
 }
 
-pub fn life_form_label(code: &str) -> &'static str { lookup2(&LIFE_FORMS, code) }
-pub fn origin_label(code: &str) -> &'static str { lookup2(&ORIGINS, code) }
-pub fn canopy_label(code: &str) -> &'static str { lookup2(&CANOPIES, code) }
+const fn iucn(
+    code: &'static str,
+    es: &'static str,
+    en: &'static str,
+    badge: &'static str,
+    desc_es: &'static str,
+    desc_en: &'static str,
+) -> IucnCategory {
+    IucnCategory { code, es, en, badge, desc_es, desc_en }
+}
 
-pub fn flower_label(code: &str) -> &'static str {
-    FLOWER_COLORS.iter().find(|(c, _, _)| *c == code).map(|(_, l, _)| *l).unwrap_or("Unknown")
+pub const IUCN: [IucnCategory; 9] = [
+    iucn("LC", "Preocupación menor", "Least concern", "bg-green-600",
+        "Taxones extendidos y abundantes, con bajo riesgo de extinción.",
+        "Widespread and abundant taxa with a low risk of extinction."),
+    iucn("NT", "Casi amenazada", "Near threatened", "bg-teal-700",
+        "Cerca de calificar para una categoría de amenaza en el futuro cercano.",
+        "Close to qualifying for a threatened category in the near future."),
+    iucn("VU", "Vulnerable", "Vulnerable", "bg-amber-500",
+        "Enfrenta un riesgo alto de extinción en estado silvestre.",
+        "Facing a high risk of extinction in the wild."),
+    iucn("EN", "En peligro", "Endangered", "bg-orange-600",
+        "Enfrenta un riesgo muy alto de extinción en estado silvestre.",
+        "Facing a very high risk of extinction in the wild."),
+    iucn("CR", "En peligro crítico", "Critically endangered", "bg-red-700",
+        "Enfrenta un riesgo extremadamente alto de extinción en estado silvestre.",
+        "Facing an extremely high risk of extinction in the wild."),
+    iucn("EW", "Extinta en estado silvestre", "Extinct in the wild", "bg-gray-900",
+        "Solo sobrevive en cultivo o fuera de su área de distribución natural.",
+        "Known only to survive in cultivation or outside its natural range."),
+    iucn("CD", "Dependiente de conservación", "Conservation dependent", "bg-lime-600",
+        "Riesgo menor, pero depende de medidas de conservación (categoría antigua de la UICN).",
+        "Lower risk, but dependent on conservation measures (older IUCN category)."),
+    iucn("DD", "Datos insuficientes", "Data deficient", "bg-gray-500",
+        "No hay información suficiente para evaluar su riesgo de extinción.",
+        "Not enough information to assess its risk of extinction."),
+    iucn("NE", "No evaluada", "Not evaluated", "bg-gray-400",
+        "Aún no evaluada con los criterios de la Lista Roja de la UICN.",
+        "Not yet assessed against the IUCN Red List criteria."),
+];
+
+pub const ORIGINS: [Label; 7] = [
+    ("NT", "Nativa", "Native"),
+    ("CU", "Cultivada", "Cultivated"),
+    ("NC", "Nativa-cultivada", "Native-cultivated"),
+    ("EN", "Endémica", "Endemic"),
+    ("NU", "Naturalizada", "Naturalized"),
+    ("NL", "Naturalizada-cultivada", "Naturalized-cultivated"),
+    ("NI", "Sin identificar", "Unidentified"),
+];
+
+pub const CANOPIES: [Label; 12] = [
+    ("GL", "Globosa", "Globose"),
+    ("SG", "Semiglobosa", "Semiglobose"),
+    ("OV", "Ovalada", "Oval"),
+    ("IR", "Irregular", "Irregular"),
+    ("SP", "Extendida", "Spreading"),
+    ("PY", "Piramidal", "Pyramidal"),
+    ("CO", "Columnar", "Columnar"),
+    ("BD", "Amplia", "Broad"),
+    ("CF", "Caulirrósula en abanico", "Fan-shaped caulirosula"),
+    ("CR", "Caulirrósula plumosa", "Feather-shaped caulirosula"),
+    ("CS", "Caulirrósula cespitosa", "Cespitose caulirosula"),
+    ("NI", "Sin información", "No information"),
+];
+
+/// "Unknown" in the given language.
+pub fn unknown(l: Lang) -> &'static str {
+    pick(l, "Desconocido", "Unknown")
+}
+
+fn lookup(table: &[Label], l: Lang, code: &str) -> &'static str {
+    table.iter().find(|(c, ..)| *c == code).map(|(_, es, en)| pick(l, *es, *en)).unwrap_or(unknown(l))
+}
+
+pub fn life_form_label(l: Lang, code: &str) -> &'static str { lookup(&LIFE_FORMS, l, code) }
+pub fn origin_label(l: Lang, code: &str) -> &'static str { lookup(&ORIGINS, l, code) }
+pub fn canopy_label(l: Lang, code: &str) -> &'static str { lookup(&CANOPIES, l, code) }
+
+pub fn flower_label(l: Lang, code: &str) -> &'static str {
+    FLOWER_COLORS
+        .iter()
+        .find(|(c, ..)| *c == code)
+        .map(|(_, es, en, _)| pick(l, *es, *en))
+        .unwrap_or(unknown(l))
 }
 
 /// Card icon colors (fill, text) per flower color code.
@@ -298,11 +350,12 @@ pub fn iucn_colors(code: &str) -> (&'static str, &'static str) {
     }
 }
 
-pub fn iucn_info(code: &str) -> (&'static str, &'static str, &'static str) {
+/// (label, badge classes, description) of an IUCN category.
+pub fn iucn_info(l: Lang, code: &str) -> (&'static str, &'static str, &'static str) {
     IUCN.iter()
-        .find(|(c, ..)| *c == code)
-        .map(|(_, l, b, d)| (*l, *b, *d))
-        .unwrap_or(("Unknown", "bg-gray-400", ""))
+        .find(|c| c.code == code)
+        .map(|c| (pick(l, c.es, c.en), c.badge, pick(l, c.desc_es, c.desc_en)))
+        .unwrap_or((unknown(l), "bg-gray-400", ""))
 }
 
 // ---------------------------------------------------------------------------
@@ -323,13 +376,13 @@ pub enum Category {
 }
 
 impl Category {
-    pub fn chip_prefix(self) -> &'static str {
+    pub fn chip_prefix(self, l: Lang) -> &'static str {
         match self {
-            Category::FlowerColor => "Flower",
-            Category::LifeForm => "Habit",
-            Category::Iucn => "IUCN",
-            Category::Origin => "Origin",
-            Category::Canopy => "Canopy",
+            Category::FlowerColor => pick(l, "Flor", "Flower"),
+            Category::LifeForm => pick(l, "Hábito", "Habit"),
+            Category::Iucn => pick(l, "UICN", "IUCN"),
+            Category::Origin => pick(l, "Origen", "Origin"),
+            Category::Canopy => pick(l, "Copa", "Canopy"),
         }
     }
 
@@ -343,13 +396,13 @@ impl Category {
         }
     }
 
-    pub fn label(self, code: &str) -> &'static str {
+    pub fn label(self, l: Lang, code: &str) -> &'static str {
         match self {
-            Category::FlowerColor => flower_label(code),
-            Category::LifeForm => life_form_label(code),
-            Category::Iucn => iucn_info(code).0,
-            Category::Origin => origin_label(code),
-            Category::Canopy => canopy_label(code),
+            Category::FlowerColor => flower_label(l, code),
+            Category::LifeForm => life_form_label(l, code),
+            Category::Iucn => iucn_info(l, code).0,
+            Category::Origin => origin_label(l, code),
+            Category::Canopy => canopy_label(l, code),
         }
     }
 }

@@ -6,7 +6,8 @@
 //! "recent activity" blocks were replaced by the height distribution and the census
 //! campaigns, because the census has one measurement per tree and no activity log.
 //!
-//! KNOWN ISSUE: charts are created via `document.getElementById` and never destroyed.
+//! Texts follow the selected language: the content is rebuilt and the charts redrawn when
+//! it changes.
 
 use std::time::Duration;
 
@@ -16,6 +17,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::api::{API_BASE, console_error, fmt_thousands, get_json};
+use crate::i18n::{I18n, Lang, pick};
 use crate::interop::chart::chart_by_id;
 use crate::interop::when_connected;
 use super::shared::{HEALTH, health_badge, health_label};
@@ -134,11 +136,13 @@ enum Load {
 const CARD: &str = "bg-white rounded-lg shadow border border-gray-200 p-4";
 const TH: &str = "px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase";
 
-fn month_label(ym: &str) -> String {
-    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+fn month_label(l: Lang, ym: &str) -> String {
+    const MONTHS_EN: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const MONTHS_ES: [&str; 12] = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    let months = pick(l, MONTHS_ES, MONTHS_EN);
     let (y, m) = ym.split_once('-').unwrap_or((ym, "1"));
     let m: usize = m.parse().unwrap_or(1);
-    format!("{} {}", MONTHS[(m.clamp(1, 12)) - 1], &y[y.len().saturating_sub(2)..])
+    format!("{} {}", months[(m.clamp(1, 12)) - 1], &y[y.len().saturating_sub(2)..])
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +151,7 @@ fn month_label(ym: &str) -> String {
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
+    let i = I18n::use_ctx();
     let state = RwSignal::new(Load::Loading);
     let load = move || {
         state.set(Load::Loading);
@@ -174,9 +179,10 @@ pub fn Dashboard() -> impl IntoView {
             Load::Ready(s) => Some(s.clone()),
             _ => None,
         });
+        let l = i.lang();
         if let (Some(el), Some(summary)) = (root.get(), ready) {
             when_connected(el.into(), move || {
-                set_timeout(move || initialize_charts(&summary), Duration::from_millis(100))
+                set_timeout(move || initialize_charts(&summary, l), Duration::from_millis(100))
             });
         }
     });
@@ -185,74 +191,74 @@ pub fn Dashboard() -> impl IntoView {
         <div node_ref=root class="block w-full">
             <div class="bg-white rounded-lg p-6">
                 <div class="mb-6">
-                    <h1 class="text-2xl font-bold text-green-600">"Ibagué Urban Forest Dashboard"</h1>
-                    <p class="text-gray-600 mt-1">"Overview of urban tree census data and environmental impact in Ibagué"</p>
+                    <h1 class="text-2xl font-bold text-green-600">{move || i.t("Panel del arbolado urbano de Ibagué", "Ibagué Urban Forest Dashboard")}</h1>
+                    <p class="text-gray-600 mt-1">{move || i.t("Resumen del censo de arbolado urbano y su impacto ambiental en Ibagué", "Overview of urban tree census data and environmental impact in Ibagué")}</p>
                 </div>
 
-                {move || match state.get() {
+                {move || { let l = i.lang(); match state.get() {
                     Load::Loading => view! {
                         <div class="py-24 flex items-center justify-center text-gray-500">
                             <div class="h-8 w-8 mr-3 rounded-full border-4 border-green-200 border-t-green-600 animate-spin"></div>
-                            "Loading dashboard…"
+                            {pick(l, "Cargando el panel…", "Loading dashboard…")}
                         </div>
                     }
                     .into_any(),
                     Load::Failed(err) => view! {
                         <div class="py-24 flex flex-col items-center justify-center gap-3 text-gray-600">
-                            <p class="font-medium text-red-600">"Could not load the dashboard data."</p>
+                            <p class="font-medium text-red-600">{pick(l, "No se pudieron cargar los datos del panel.", "Could not load the dashboard data.")}</p>
                             <p class="text-sm text-gray-500">{err}</p>
                             <button class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700" on:click=move |_| load()>
-                                "Retry"
+                                {pick(l, "Reintentar", "Retry")}
                             </button>
                         </div>
                     }
                     .into_any(),
                     Load::Ready(s) => view! {
                         <div class="mb-8">
-                            <h2 class="text-xl font-semibold text-gray-800 mb-3">"Overview"</h2>
-                            <h3 class="text-lg font-medium text-gray-700 mb-3">"Tree Statistics"</h3>
-                            {stat_cards(&s)}
-                            {health_and_campaigns(&s)}
-                            {impact_and_species(&s)}
+                            <h2 class="text-xl font-semibold text-gray-800 mb-3">{pick(l, "Resumen", "Overview")}</h2>
+                            <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Estadísticas del arbolado", "Tree Statistics")}</h3>
+                            {stat_cards(&s, l)}
+                            {health_and_campaigns(&s, l)}
+                            {impact_and_species(&s, l)}
                         </div>
-                        {analytics_section()}
-                        {records_section(&s)}
+                        {analytics_section(l)}
+                        {records_section(&s, l)}
                     }
                     .into_any(),
-                }}
+                }}}
             </div>
         </div>
     }
 }
 
-fn stat_cards(s: &Summary) -> impl IntoView + use<> {
+fn stat_cards(s: &Summary, l: Lang) -> impl IntoView + use<> {
     let height = s.overall.avg_height_m.map(|h| format!("{h:.2} m")).unwrap_or_else(|| "N/A".into());
     let per_capita = s.trees_per_capita.value.map(|v| format!("{v:.2}")).unwrap_or_else(|| "N/A".into());
     let population = s
         .trees_per_capita
         .population
-        .map(|p| format!("Trees per inhabitant (pop. 2019: {})", fmt_thousands(p)))
-        .unwrap_or_else(|| "Trees per inhabitant".into());
+        .map(|p| pick(l, format!("Árboles por habitante (pobl. 2019: {})", fmt_thousands(p)), format!("Trees per inhabitant (pop. 2019: {})", fmt_thousands(p))))
+        .unwrap_or_else(|| pick(l, "Árboles por habitante", "Trees per inhabitant").into());
 
     view! {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div class="bg-green-50 p-4 rounded-lg shadow border border-green-100">
-                <h4 class="text-xs font-medium text-gray-500 uppercase">"Total Trees"</h4>
+                <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Total de árboles", "Total Trees")}</h4>
                 <p class="text-3xl font-bold text-green-600">{fmt_thousands(s.overall.total_trees)}</p>
-                <p class="text-green-600 text-xs mt-1">"Urban Tree Census"</p>
+                <p class="text-green-600 text-xs mt-1">{pick(l, "Censo de arbolado urbano", "Urban Tree Census")}</p>
             </div>
             <div class="bg-blue-50 p-4 rounded-lg shadow border border-blue-100">
-                <h4 class="text-xs font-medium text-gray-500 uppercase">"Species Count"</h4>
+                <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Número de especies", "Species Count")}</h4>
                 <p class="text-3xl font-bold text-blue-600">{fmt_thousands(s.overall.species_count)}</p>
-                <p class="text-blue-600 text-xs mt-1">"Total species diversity"</p>
+                <p class="text-blue-600 text-xs mt-1">{pick(l, "Diversidad total de especies", "Total species diversity")}</p>
             </div>
             <div class="bg-purple-50 p-4 rounded-lg shadow border border-purple-100">
-                <h4 class="text-xs font-medium text-gray-500 uppercase">"Average Height"</h4>
+                <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Altura promedio", "Average Height")}</h4>
                 <p class="text-3xl font-bold text-purple-600">{height}</p>
-                <p class="text-purple-600 text-xs mt-1">"Mean total height"</p>
+                <p class="text-purple-600 text-xs mt-1">{pick(l, "Altura total media", "Mean total height")}</p>
             </div>
             <div class="bg-amber-50 p-4 rounded-lg shadow border border-amber-100">
-                <h4 class="text-xs font-medium text-gray-500 uppercase">"Tree-per-capita"</h4>
+                <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Árboles per cápita", "Tree-per-capita")}</h4>
                 <p class="text-3xl font-bold text-amber-600">{per_capita}</p>
                 <p class="text-amber-600 text-xs mt-1">{population}</p>
             </div>
@@ -260,16 +266,16 @@ fn stat_cards(s: &Summary) -> impl IntoView + use<> {
     }
 }
 
-fn health_and_campaigns(s: &Summary) -> impl IntoView + use<> {
+fn health_and_campaigns(s: &Summary, l: Lang) -> impl IntoView + use<> {
     let legend = HEALTH
         .iter()
-        .map(|(code, label, dot, _)| {
+        .map(|(code, es, en, dot, _)| {
             let n = s.phytosanitary_status.get(*code).copied().unwrap_or(0);
             view! {
                 <div class="text-center">
                     <span class=format!("block w-4 h-4 mx-auto rounded-full {dot}")></span>
-                    <span class="text-xs font-medium block mt-1">{*label}</span>
-                    <span class="text-xs text-gray-500">{format!("{} trees", fmt_thousands(n))}</span>
+                    <span class="text-xs font-medium block mt-1">{pick(l, *es, *en)}</span>
+                    <span class="text-xs text-gray-500">{format!("{} {}", fmt_thousands(n), pick(l, "árboles", "trees"))}</span>
                 </div>
             }
         })
@@ -286,7 +292,7 @@ fn health_and_campaigns(s: &Summary) -> impl IntoView + use<> {
                 <li>
                     <div class="flex justify-between text-sm">
                         <span class="font-medium text-gray-900">{y.year}</span>
-                        <span class="text-gray-600">{format!("{} records", fmt_thousands(y.count))}</span>
+                        <span class="text-gray-600">{format!("{} {}", fmt_thousands(y.count), pick(l, "registros", "records"))}</span>
                     </div>
                     <div class="mt-1 h-2 rounded bg-gray-100">
                         <div class="h-2 rounded bg-green-500" style=width></div>
@@ -301,7 +307,7 @@ fn health_and_campaigns(s: &Summary) -> impl IntoView + use<> {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             // Tree Health Distribution (phytosanitary status of the census observations)
             <div class=CARD>
-                <h3 class="text-lg font-medium text-gray-700 mb-3">"Tree Health Distribution"</h3>
+                <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Estado fitosanitario", "Tree Health Distribution")}</h3>
                 <div class="flex justify-center">
                     <div class="h-64 w-64">
                         <canvas id="healthDistributionChart"></canvas>
@@ -312,12 +318,12 @@ fn health_and_campaigns(s: &Summary) -> impl IntoView + use<> {
 
             // Census campaigns (records per year)
             <div class=CARD>
-                <h3 class="text-lg font-medium text-gray-700 mb-3">"Census Campaigns"</h3>
-                <p class="text-sm text-gray-500 mb-4">"Trees recorded per year (source: Cortolima)"</p>
+                <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Campañas del censo", "Census Campaigns")}</h3>
+                <p class="text-sm text-gray-500 mb-4">{pick(l, "Árboles registrados por año (fuente: Cortolima)", "Trees recorded per year (source: Cortolima)")}</p>
                 <ul class="space-y-4">{years}</ul>
                 {(invalid > 0).then(|| view! {
                     <p class="mt-4 text-xs text-gray-400">
-                        {format!("{invalid} record(s) with an invalid date are not shown.")}
+                        {pick(l, format!("{invalid} registro(s) con fecha inválida no se muestran."), format!("{invalid} record(s) with an invalid date are not shown."))}
                     </p>
                 })}
             </div>
@@ -325,7 +331,7 @@ fn health_and_campaigns(s: &Summary) -> impl IntoView + use<> {
     }
 }
 
-fn impact_and_species(s: &Summary) -> impl IntoView + use<> {
+fn impact_and_species(s: &Summary, l: Lang) -> impl IntoView + use<> {
     let top = s.top_species.first().map(|t| t.count).unwrap_or(1).max(1);
     let species = s
         .top_species
@@ -350,27 +356,27 @@ fn impact_and_species(s: &Summary) -> impl IntoView + use<> {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             // Environmental Impact: no data source yet
             <div class=CARD>
-                <h3 class="text-lg font-medium text-gray-700 mb-3">"Environmental Impact"</h3>
+                <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Impacto ambiental", "Environmental Impact")}</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-                        <h4 class="text-xs font-medium text-gray-500 uppercase">"CO₂ Absorption"</h4>
+                        <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Absorción de CO₂", "CO₂ Absorption")}</h4>
                         <p class="text-2xl font-bold text-gray-400">"N/A"</p>
-                        <p class="text-green-600 text-xs mt-1">"Tons"</p>
+                        <p class="text-green-600 text-xs mt-1">{pick(l, "Toneladas", "Tons")}</p>
                     </div>
                     <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                        <h4 class="text-xs font-medium text-gray-500 uppercase">"Oxygen Production"</h4>
+                        <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Producción de oxígeno", "Oxygen Production")}</h4>
                         <p class="text-2xl font-bold text-gray-400">"N/A"</p>
-                        <p class="text-blue-600 text-xs mt-1">"Tons/year"</p>
+                        <p class="text-blue-600 text-xs mt-1">{pick(l, "Toneladas/año", "Tons/year")}</p>
                     </div>
                 </div>
                 <p class="mt-3 text-xs text-gray-400">
-                    "Not computed yet: the database has no carbon or oxygen model for the census trees."
+                    {pick(l, "Aún no se calcula: la base de datos no tiene un modelo de carbono ni de oxígeno para los árboles del censo.", "Not computed yet: the database has no carbon or oxygen model for the census trees.")}
                 </p>
             </div>
 
             // Top Species Distribution
             <div class=CARD>
-                <h3 class="text-lg font-medium text-gray-700 mb-3">"Top Species Distribution"</h3>
+                <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Especies más frecuentes", "Top Species Distribution")}</h3>
                 <div class="space-y-3">{species}</div>
             </div>
         </div>
@@ -400,23 +406,23 @@ fn ChartCard(title: &'static str, canvas_id: &'static str, #[prop(optional)] not
     }
 }
 
-fn analytics_section() -> impl IntoView {
+fn analytics_section(l: Lang) -> impl IntoView {
     view! {
         <div>
-            <h2 class="text-xl font-semibold text-gray-800 mb-3">"Analytics"</h2>
+            <h2 class="text-xl font-semibold text-gray-800 mb-3">{pick(l, "Gráficas", "Analytics")}</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <ChartCard title="Height Distribution" canvas_id="heightDistributionChart" note="Trees per total-height range" />
-                <ChartCard title="Geographic Distribution" canvas_id="geoDistributionChart" note="Trees per comuna" />
+                <ChartCard title=pick(l, "Distribución de alturas", "Height Distribution") canvas_id="heightDistributionChart" note=pick(l, "Árboles por rango de altura total", "Trees per total-height range") />
+                <ChartCard title=pick(l, "Distribución geográfica", "Geographic Distribution") canvas_id="geoDistributionChart" note=pick(l, "Árboles por comuna", "Trees per comuna") />
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <ChartCard title="Temperature Trends" canvas_id="temperatureTrendsChart" note="Monthly mean air temperature per station, last 12 months with data" />
-                <ChartCard title="Functional Groups" canvas_id="functionalGroupsChart" note="Trees per functional group of their species" />
+                <ChartCard title=pick(l, "Tendencia de temperatura", "Temperature Trends") canvas_id="temperatureTrendsChart" note=pick(l, "Temperatura media mensual del aire por estación, últimos 12 meses con datos", "Monthly mean air temperature per station, last 12 months with data") />
+                <ChartCard title=pick(l, "Grupos funcionales", "Functional Groups") canvas_id="functionalGroupsChart" note=pick(l, "Árboles por grupo funcional de su especie", "Trees per functional group of their species") />
             </div>
         </div>
     }
 }
 
-fn records_section(s: &Summary) -> impl IntoView + use<> {
+fn records_section(s: &Summary, l: Lang) -> impl IntoView + use<> {
     let records = s
         .recent_records
         .iter()
@@ -432,7 +438,7 @@ fn records_section(s: &Summary) -> impl IntoView + use<> {
                     </td>
                     <td class="px-2 py-2">
                         <span class=format!("px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full {badge}")>
-                            {health_label(&status)}
+                            {health_label(l, &status)}
                         </span>
                     </td>
                     <td class="px-2 py-2 text-sm">{format!("{}, {}", t.neighborhood, t.locality)}</td>
@@ -456,19 +462,19 @@ fn records_section(s: &Summary) -> impl IntoView + use<> {
 
     view! {
         <div>
-            <h2 class="text-xl font-semibold text-gray-800 mb-3">"Records"</h2>
+            <h2 class="text-xl font-semibold text-gray-800 mb-3">{pick(l, "Registros", "Records")}</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white rounded-lg shadow border border-gray-200 p-4 overflow-x-auto">
-                    <h3 class="text-lg font-medium text-gray-700 mb-3">"Recent Tree Records"</h3>
+                    <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Registros recientes de árboles", "Recent Tree Records")}</h3>
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
                             <tr>
                                 <th class=TH>"ID"</th>
-                                <th class=TH>"Species"</th>
-                                <th class=TH>"Height"</th>
-                                <th class=TH>"Health"</th>
-                                <th class=TH>"Location"</th>
-                                <th class=TH>"Date"</th>
+                                <th class=TH>{pick(l, "Especie", "Species")}</th>
+                                <th class=TH>{pick(l, "Altura", "Height")}</th>
+                                <th class=TH>{pick(l, "Salud", "Health")}</th>
+                                <th class=TH>{pick(l, "Ubicación", "Location")}</th>
+                                <th class=TH>{pick(l, "Fecha", "Date")}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">{records}</tbody>
@@ -476,18 +482,18 @@ fn records_section(s: &Summary) -> impl IntoView + use<> {
                 </div>
 
                 <div class="bg-white rounded-lg shadow border border-gray-200 p-4 overflow-x-auto">
-                    <h3 class="text-lg font-medium text-gray-700 mb-3">"Latest Climate Readings"</h3>
+                    <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Últimas lecturas de clima", "Latest Climate Readings")}</h3>
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
                             <tr>
-                                <th class=TH>"Station"</th>
-                                <th class=TH>"Date"</th>
-                                <th class=TH>"Air temperature"</th>
+                                <th class=TH>{pick(l, "Estación", "Station")}</th>
+                                <th class=TH>{pick(l, "Fecha", "Date")}</th>
+                                <th class=TH>{pick(l, "Temperatura del aire", "Air temperature")}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">{climate}</tbody>
                     </table>
-                    <p class="mt-3 text-xs text-gray-400">"Last reading of each station. The stations only report air temperature."</p>
+                    <p class="mt-3 text-xs text-gray-400">{pick(l, "Última lectura de cada estación. Las estaciones solo reportan temperatura del aire.", "Last reading of each station. The stations only report air temperature.")}</p>
                 </div>
             </div>
         </div>
@@ -498,12 +504,12 @@ fn records_section(s: &Summary) -> impl IntoView + use<> {
 // Charts
 // ---------------------------------------------------------------------------
 
-fn initialize_charts(s: &Summary) {
-    create_health_distribution_chart(s);
-    create_height_distribution_chart(s);
-    create_geo_distribution_chart(s);
-    create_temperature_trends_chart(s);
-    create_functional_groups_chart(s);
+fn initialize_charts(s: &Summary, l: Lang) {
+    create_health_distribution_chart(s, l);
+    create_height_distribution_chart(s, l);
+    create_geo_distribution_chart(s, l);
+    create_temperature_trends_chart(s, l);
+    create_functional_groups_chart(s, l);
 }
 
 fn small_ticks_xy() -> Value {
@@ -551,8 +557,8 @@ fn bar_chart(id: &str, labels: Vec<String>, data: Vec<i64>, label: &str, y_title
     );
 }
 
-fn create_health_distribution_chart(s: &Summary) {
-    let labels: Vec<_> = HEALTH.iter().map(|(_, l, ..)| *l).collect();
+fn create_health_distribution_chart(s: &Summary, l: Lang) {
+    let labels: Vec<_> = HEALTH.iter().map(|(_, es, en, ..)| pick(l, *es, *en)).collect();
     let data: Vec<_> = HEALTH.iter().map(|(c, ..)| s.phytosanitary_status.get(*c).copied().unwrap_or(0)).collect();
     let colors: Vec<_> = HEALTH.iter().map(|(.., color)| *color).collect();
     chart_by_id(
@@ -573,7 +579,7 @@ fn create_health_distribution_chart(s: &Summary) {
     );
 }
 
-fn create_height_distribution_chart(s: &Summary) {
+fn create_height_distribution_chart(s: &Summary, l: Lang) {
     let labels = s
         .height_distribution
         .iter()
@@ -583,17 +589,19 @@ fn create_height_distribution_chart(s: &Summary) {
         })
         .collect();
     let data = s.height_distribution.iter().map(|b| b.count).collect();
-    bar_chart("heightDistributionChart", labels, data, "Trees", "Trees", "Total height");
+    let trees = pick(l, "Árboles", "Trees");
+    bar_chart("heightDistributionChart", labels, data, trees, trees, pick(l, "Altura total", "Total height"));
 }
 
-fn create_geo_distribution_chart(s: &Summary) {
+fn create_geo_distribution_chart(s: &Summary, l: Lang) {
     let labels = s.localities.iter().map(|l| l.name.clone()).collect();
     let data = s.localities.iter().map(|l| l.total_trees).collect();
-    bar_chart("geoDistributionChart", labels, data, "Total Trees", "Total de árboles", "Comunas");
+    let trees = pick(l, "Total de árboles", "Total trees");
+    bar_chart("geoDistributionChart", labels, data, trees, trees, "Comunas");
 }
 
-fn create_temperature_trends_chart(s: &Summary) {
-    let labels: Vec<_> = s.monthly_temperature.months.iter().map(|m| month_label(m)).collect();
+fn create_temperature_trends_chart(s: &Summary, l: Lang) {
+    let labels: Vec<_> = s.monthly_temperature.months.iter().map(|m| month_label(l, m)).collect();
     let datasets: Vec<_> = s
         .monthly_temperature
         .stations
@@ -632,14 +640,15 @@ fn create_temperature_trends_chart(s: &Summary) {
     );
 }
 
-fn create_functional_groups_chart(s: &Summary) {
+fn create_functional_groups_chart(s: &Summary, l: Lang) {
     let labels = s
         .functional_groups
         .iter()
-        .map(|g| g.group.map(|n| n.to_string()).unwrap_or_else(|| "None".into()))
+        .map(|g| g.group.map(|n| n.to_string()).unwrap_or_else(|| pick(l, "Ninguno", "None").into()))
         .collect();
     let data = s.functional_groups.iter().map(|g| g.count).collect();
-    bar_chart("functionalGroupsChart", labels, data, "Trees", "Trees", "Functional group");
+    let trees = pick(l, "Árboles", "Trees");
+    bar_chart("functionalGroupsChart", labels, data, trees, trees, pick(l, "Grupo funcional", "Functional group"));
 }
 
 #[cfg(test)]
@@ -648,7 +657,7 @@ mod tests {
 
     #[test]
     fn month_labels() {
-        assert_eq!(month_label("2025-04"), "Apr 25");
-        assert_eq!(month_label("2024-12"), "Dec 24");
+        assert_eq!(month_label(Lang::En, "2025-04"), "Apr 25");
+        assert_eq!(month_label(Lang::Es, "2024-12"), "Dic 24");
     }
 }

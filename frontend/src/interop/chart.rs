@@ -9,6 +9,13 @@ extern "C" {
     /// `catch`: a Chart.js exception becomes an `Err` instead of aborting the wasm module.
     #[wasm_bindgen(catch, constructor)]
     fn new(item: &JsValue, config: &JsValue) -> Result<Chart, JsValue>;
+
+    /// `Chart.getChart(canvas)`: the chart drawn on a canvas, if any.
+    #[wasm_bindgen(static_method_of = Chart, js_name = getChart)]
+    fn get_chart(item: &JsValue) -> Option<Chart>;
+
+    #[wasm_bindgen(method)]
+    fn destroy(this: &Chart);
 }
 
 /// `document.getElementById(id)` (or `null`).
@@ -24,11 +31,15 @@ fn element_by_id(id: &str) -> JsValue {
 ///
 /// `skip_if_missing` skips silently when the canvas is absent (Dashboard); otherwise the
 /// Chart.js error is logged (Analytics).
-/// KNOWN ISSUE: charts are never destroyed when leaving the page.
+/// A chart already on the canvas (e.g. drawn before a language switch) is destroyed first.
+/// KNOWN ISSUE: charts are not destroyed when leaving the page (the canvas goes away).
 pub fn chart_by_id(id: &str, config: serde_json::Value, skip_if_missing: bool) {
     let el = element_by_id(id);
     if skip_if_missing && el.is_null() {
         return;
+    }
+    if let Some(old) = Chart::get_chart(&el) {
+        old.destroy();
     }
     if let Err(e) = Chart::new(&el, &super::to_js(&config)) {
         web_sys::console::error_2(&format!("Error creating chart #{id}:").into(), &e);

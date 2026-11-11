@@ -16,6 +16,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::api::console_error;
+use crate::i18n::{I18n, pick};
 use card::{ICON_BOOKMARK, SpeciesCard, SpeciesTable, svg};
 use modal::SpeciesModal;
 use model::{Catalog, Category, Filters, Species, fetch_all_species};
@@ -73,6 +74,7 @@ pub fn SpeciesCatalog() -> impl IntoView {
         selected: RwSignal::new(None),
     };
     let grid = RwSignal::new(true);
+    let i = I18n::use_ctx();
 
     let load = move || {
         state.set(Load::Loading);
@@ -136,8 +138,8 @@ pub fn SpeciesCatalog() -> impl IntoView {
             // Header
             <div class="bg-white rounded-lg shadow p-4 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-semibold text-gray-800">"Species Catalog"</h1>
-                    <p class="text-sm text-gray-500">"Tree and plant species recorded in Ibagué's urban forest"</p>
+                    <h1 class="text-2xl font-semibold text-gray-800">{move || i.t("Catálogo de especies", "Species Catalog")}</h1>
+                    <p class="text-sm text-gray-500">{move || i.t("Especies de árboles y plantas registradas en el bosque urbano de Ibagué", "Tree and plant species recorded in Ibagué's urban forest")}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <button
@@ -145,26 +147,26 @@ pub fn SpeciesCatalog() -> impl IntoView {
                         on:click=move |_| ctx.filters.update(|f| f.saved_only = !f.saved_only)
                     >
                         {svg(ICON_BOOKMARK, "h-5 w-5")}
-                        {move || format!("Saved ({})", ctx.saved.with(HashSet::len))}
+                        {move || format!("{} ({})", i.t("Guardadas", "Saved"), ctx.saved.with(HashSet::len))}
                     </button>
                     <button
                         class=format!("{BTN} {BTN_IDLE} disabled:opacity-50 disabled:cursor-not-allowed")
                         disabled=move || filtered.with(Vec::is_empty)
-                        on:click=move |_| filtered.with(|rows| export::download_csv(rows))
+                        on:click=move |_| filtered.with(|rows| export::download_csv(i.lang_untracked(), rows))
                     >
                         {svg(ICON_DOWNLOAD, "h-5 w-5")}
-                        "Export CSV"
+                        {move || i.t("Exportar CSV", "Export CSV")}
                     </button>
                     <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
                         <button
-                            title="Grid view"
+                            title=move || i.t("Vista de cuadrícula", "Grid view")
                             class=move || if grid.get() { "p-2 bg-primary-600 text-white" } else { "p-2 bg-white text-gray-600 hover:bg-gray-50" }
                             on:click=move |_| grid.set(true)
                         >
                             {svg(ICON_GRID, "h-5 w-5")}
                         </button>
                         <button
-                            title="List view"
+                            title=move || i.t("Vista de lista", "List view")
                             class=move || if grid.get() { "p-2 bg-white text-gray-600 hover:bg-gray-50" } else { "p-2 bg-primary-600 text-white" }
                             on:click=move |_| grid.set(false)
                         >
@@ -178,15 +180,15 @@ pub fn SpeciesCatalog() -> impl IntoView {
                 Load::Loading => view! {
                     <div class="flex-1 flex items-center justify-center text-gray-500">
                         <div class="h-8 w-8 mr-3 rounded-full border-4 border-primary-200 border-t-primary-600 animate-spin"></div>
-                        "Loading species…"
+                        {move || i.t("Cargando especies…", "Loading species…")}
                     </div>
                 }
                 .into_any(),
                 Load::Failed(err) => view! {
                     <div class="flex-1 flex flex-col items-center justify-center gap-3 text-gray-600">
-                        <p class="font-medium text-red-600">"Could not load the species catalog."</p>
+                        <p class="font-medium text-red-600">{move || i.t("No se pudo cargar el catálogo de especies.", "Could not load the species catalog.")}</p>
                         <p class="text-sm text-gray-500">{err}</p>
-                        <button class=format!("{BTN} {BTN_ON}") on:click=move |_| load()>"Retry"</button>
+                        <button class=format!("{BTN} {BTN_ON}") on:click=move |_| load()>{move || i.t("Reintentar", "Retry")}</button>
                     </div>
                 }
                 .into_any(),
@@ -197,35 +199,39 @@ pub fn SpeciesCatalog() -> impl IntoView {
                             <ResultsBar total=all.len() shown=Signal::derive(move || filtered.with(Vec::len)) ctx />
                             <Show
                                 when=move || !filtered.with(Vec::is_empty)
-                                fallback=|| view! {
+                                fallback=move || view! {
                                     <div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-                                        "No species match the current filters."
+                                        {move || i.t("Ninguna especie coincide con los filtros actuales.", "No species match the current filters.")}
                                     </div>
                                 }
                             >
                                 {move || if grid.get() {
+                                    let l = i.lang();
                                     view! {
                                         <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                                             <For
                                                 each=move || visible.get()
                                                 key=|s| s.id
-                                                children={move |s: Arc<Species>| view! { <SpeciesCard species=s ctx /> }}
+                                                children={move |s: Arc<Species>| view! { <SpeciesCard species=s ctx l /> }}
                                             />
                                         </div>
                                     }
                                     .into_any()
                                 } else {
-                                    view! { <SpeciesTable rows=visible ctx /> }.into_any()
+                                    view! { <SpeciesTable rows=visible ctx l=i.lang() /> }.into_any()
                                 }}
                                 <div class="flex flex-col items-center gap-2 py-6">
                                     <span class="text-sm text-gray-500">
-                                        {move || format!("Showing {} of {} species", visible.with(Vec::len), filtered.with(Vec::len))}
+                                        {move || {
+                                            let (n, of) = (visible.with(Vec::len), filtered.with(Vec::len));
+                                            pick(i.lang(), format!("Mostrando {n} de {of} especies"), format!("Showing {n} of {of} species"))
+                                        }}
                                     </span>
                                     <Show when=move || visible.with(Vec::len) < filtered.with(Vec::len)>
                                         <button class=format!("{BTN} {BTN_ON} px-5") on:click=show_more>
                                             {move || {
                                                 let left = filtered.with(Vec::len) - visible.with(Vec::len);
-                                                format!("Show next {}", left.min(BATCH))
+                                                format!("{} {}", i.t("Mostrar siguientes", "Show next"), left.min(BATCH))
                                             }}
                                         </button>
                                     </Show>
@@ -237,7 +243,10 @@ pub fn SpeciesCatalog() -> impl IntoView {
                 .into_any(),
             }}
 
-            {move || ctx.selected.get().map(|s| view! { <SpeciesModal species=s ctx /> })}
+            {move || {
+                let l = i.lang();
+                ctx.selected.get().map(|s| view! { <SpeciesModal species=s ctx l /> })
+            }}
         </div>
     }
 }
@@ -246,11 +255,12 @@ pub fn SpeciesCatalog() -> impl IntoView {
 #[component]
 fn ResultsBar(total: usize, shown: Signal<usize>, ctx: Ctx) -> impl IntoView {
     let f = ctx.filters;
-    let chip = |label: String, clear: Box<dyn Fn() + Send + Sync>| {
+    let i = I18n::use_ctx();
+    let chip = move |label: String, clear: Box<dyn Fn() + Send + Sync>| {
         view! {
             <span class="inline-flex items-center gap-1 pl-3 pr-1 py-1 rounded-full bg-primary-50 text-primary-800 text-xs font-medium">
                 {label}
-                <button class="rounded-full p-0.5 hover:bg-primary-100" title="Remove filter" on:click=move |_| clear()>
+                <button class="rounded-full p-0.5 hover:bg-primary-100" title=move || i.t("Quitar filtro", "Remove filter") on:click=move |_| clear()>
                     {svg(ICON_X, "h-3.5 w-3.5")}
                 </button>
             </span>
@@ -259,34 +269,36 @@ fn ResultsBar(total: usize, shown: Signal<usize>, ctx: Ctx) -> impl IntoView {
 
     let chips = move || {
         let cur = f.get();
+        let l = i.lang();
+        let t = move |es, en| pick(l, es, en);
         let mut out = Vec::new();
         if !cur.common_name.trim().is_empty() {
             out.push(chip(
-                format!("Common name: {}", cur.common_name.trim()),
+                format!("{}: {}", t("Nombre común", "Common name"), cur.common_name.trim()),
                 Box::new(move || f.update(|f| f.common_name.clear())),
             ));
         }
         if !cur.scientific_name.trim().is_empty() {
             out.push(chip(
-                format!("Scientific name: {}", cur.scientific_name.trim()),
+                format!("{}: {}", t("Nombre científico", "Scientific name"), cur.scientific_name.trim()),
                 Box::new(move || f.update(|f| f.scientific_name.clear())),
             ));
         }
         if !cur.family.trim().is_empty() {
             out.push(chip(
-                format!("Family: {}", cur.family.trim()),
+                format!("{}: {}", t("Familia", "Family"), cur.family.trim()),
                 Box::new(move || f.update(|f| f.family.clear())),
             ));
         }
         for (cat, code) in cur.selected.iter().copied() {
             out.push(chip(
-                format!("{}: {}", cat.chip_prefix(), Category::label(cat, code)),
+                format!("{}: {}", cat.chip_prefix(l), Category::label(cat, l, code)),
                 Box::new(move || f.update(|f| f.toggle(cat, code))),
             ));
         }
         if cur.group_range_active() {
             out.push(chip(
-                format!("Group: {}–{}", cur.group_min, cur.group_max),
+                format!("{}: {}–{}", t("Grupo", "Group"), cur.group_min, cur.group_max),
                 Box::new(move || {
                     f.update(|f| {
                         f.group_min = model::GROUP_MIN;
@@ -296,10 +308,10 @@ fn ResultsBar(total: usize, shown: Signal<usize>, ctx: Ctx) -> impl IntoView {
             ));
         }
         if cur.illustrated_only {
-            out.push(chip("With illustration".into(), Box::new(move || f.update(|f| f.illustrated_only = false))));
+            out.push(chip(t("Con ilustración", "With illustration").into(), Box::new(move || f.update(|f| f.illustrated_only = false))));
         }
         if cur.saved_only {
-            out.push(chip("Saved only".into(), Box::new(move || f.update(|f| f.saved_only = false))));
+            out.push(chip(t("Solo guardadas", "Saved only").into(), Box::new(move || f.update(|f| f.saved_only = false))));
         }
         out
     };
@@ -307,12 +319,12 @@ fn ResultsBar(total: usize, shown: Signal<usize>, ctx: Ctx) -> impl IntoView {
     view! {
         <div class="mb-4 flex flex-wrap items-center gap-2">
             <span class="text-sm text-gray-600 mr-2">
-                "Results: " <span class="font-semibold text-gray-800">{move || format!("{}/{total}", shown.get())}</span>
+                {move || i.t("Resultados: ", "Results: ")} <span class="font-semibold text-gray-800">{move || format!("{}/{total}", shown.get())}</span>
             </span>
             {chips}
             <Show when=move || f.with(Filters::is_active)>
                 <button class="text-xs text-primary-700 hover:underline ml-1" on:click=move |_| f.set(Filters::default())>
-                    "Clear all"
+                    {move || i.t("Limpiar todo", "Clear all")}
                 </button>
             </Show>
         </div>

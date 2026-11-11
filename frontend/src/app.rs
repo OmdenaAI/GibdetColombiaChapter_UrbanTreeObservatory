@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::path;
 
+use crate::i18n::I18n;
 use crate::layout::Layout;
 use crate::pages::{
     about::About, alerts::Alerts, analytics::Analytics, dashboard::Dashboard, map::MapPage,
@@ -27,6 +28,7 @@ fn restricted(page: fn() -> AnyView) -> AnyView {
 
 #[component]
 pub fn App() -> impl IntoView {
+    I18n::provide();
     view! {
         <Router>
             <Layout>

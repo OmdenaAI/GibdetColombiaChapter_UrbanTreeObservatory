@@ -38,6 +38,7 @@ public/vendor/        leaflet.js/.css, chart.umd.js (vendored, pinned versions)
 public/assets/        static assets
 src/
 ├── main.rs           mounts <App/>
+├── i18n.rs           Spanish / English: `Lang`, `I18n` context, `pick`, ES | EN switch
 ├── app.rs            router: /dashboard (default), /map, /trees, /species, /analytics, /about
 │                     (+ /reports, /alerts: hidden, see "Future work")
 ├── layout.rs         navbar + collapsible sidebar
@@ -90,6 +91,24 @@ most frequent one in the species' biodiversity records (`common_name`, annotated
 (bookmarks) are stored in the browser's `localStorage` only. Functional-group metrics appear only
 for the 168 species that have a group. Trait ranges are shown sorted, because some records have
 `min > max`.
+
+## Languages (Spanish / English)
+
+The whole interface is available in Spanish (default) and English, switched with the
+**ES | EN** button next to the title in the navbar. The choice is stored in `localStorage`
+(`uto.lang`) and sets `<html lang>`. The project name "Urban Tree Observatory" is not translated.
+
+- `src/i18n.rs`: `I18n::use_ctx()` gives the language signal; texts are written in place as
+  Spanish/English pairs — `i.t("Árboles", "Trees")` in reactive closures, or
+  `pick(l, es, en)` when a view is rebuilt with `l = i.lang()`. Code tables (health status,
+  life form, origin, IUCN, canopy, flower color, traits) hold both labels.
+- Charts are redrawn on a language change (`chart_by_id` destroys the previous chart).
+- Labels that come from the API are translated by Django: the tree detail and the inventory CSV
+  take `?lang=es|en` (default English); the detail is fetched again when the language changes.
+  CSV headers stay in English in both languages, so that files keep stable column names.
+- Data values (species, barrio and comuna names, common names) are shown as recorded.
+- Numbers keep the current format (`101,228`, `6.21`) in both languages.
+- Reports and Alerts are hidden (see below) and were not translated.
 
 ## Future work: Reports and Alerts (restricted pages)
 

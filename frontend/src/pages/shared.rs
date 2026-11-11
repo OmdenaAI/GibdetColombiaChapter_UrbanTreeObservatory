@@ -2,18 +2,25 @@
 
 use leptos::prelude::*;
 
+use crate::i18n::{Lang, pick};
+
 pub const TH: &str = "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider";
-/// Phytosanitary status: (code, label, legend dot, chart color), in display order.
-pub const HEALTH: [(&str, &str, &str, &str); 5] = [
-    ("HE", "Healthy", "bg-green-500", "#10b981"),
-    ("SI", "Sick", "bg-yellow-500", "#f59e0b"),
-    ("CR", "Critical", "bg-red-500", "#ef4444"),
-    ("DE", "Dead", "bg-gray-700", "#374151"),
-    ("NR", "Not reported", "bg-gray-300", "#d1d5db"),
+/// Phytosanitary status: (code, Spanish label, English label, legend dot, chart color),
+/// in display order.
+pub const HEALTH: [(&str, &str, &str, &str, &str); 5] = [
+    ("HE", "Sano", "Healthy", "bg-green-500", "#10b981"),
+    ("SI", "Enfermo", "Sick", "bg-yellow-500", "#f59e0b"),
+    ("CR", "Crítico", "Critical", "bg-red-500", "#ef4444"),
+    ("DE", "Muerto", "Dead", "bg-gray-700", "#374151"),
+    ("NR", "No reportado", "Not reported", "bg-gray-300", "#d1d5db"),
 ];
 
-pub fn health_label(code: &str) -> &'static str {
-    HEALTH.iter().find(|(c, ..)| *c == code).map(|(_, l, ..)| *l).unwrap_or("Unknown")
+pub fn health_label(lang: Lang, code: &str) -> &'static str {
+    HEALTH
+        .iter()
+        .find(|(c, ..)| *c == code)
+        .map(|(_, es, en, ..)| pick(lang, *es, *en))
+        .unwrap_or_else(|| pick(lang, "Desconocido", "Unknown"))
 }
 
 /// Pill colors for a phytosanitary status code.

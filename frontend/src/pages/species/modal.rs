@@ -10,12 +10,13 @@ use super::card::{
 };
 use super::model::{self, Species, TRAITS};
 use super::{Ctx, ICON_X};
+use crate::i18n::{Lang, pick};
 
 const ICON_EXTERNAL: &str = "M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14";
 const LABEL: &str = "text-xs font-semibold text-gray-500 uppercase tracking-wider";
 
 #[component]
-pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx) -> impl IntoView {
+pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx, l: Lang) -> impl IntoView {
     let close = move || ctx.selected.set(None);
     let handle = window_event_listener(leptos::ev::keydown, move |ev| {
         if ev.key() == "Escape" {
@@ -25,7 +26,7 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx) -> impl IntoView {
     on_cleanup(move || handle.remove());
 
     let s = species;
-    let (_, _, iucn_desc) = model::iucn_info(&s.iucn_status);
+    let (_, _, iucn_desc) = model::iucn_info(l, &s.iucn_status);
     let accepted = s
         .accepted_scientific_name
         .clone()
@@ -34,10 +35,11 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx) -> impl IntoView {
     let illustration = s.illustration();
     let image_bg = if illustration.is_some() { ILLUSTRATION_BG } else { "bg-[#DFE1E6]" };
 
-    let fact = |label: &'static str, value: AnyView| {
+    let t = move |es: &'static str, en: &'static str| pick(l, es, en);
+    let fact = move |es: &'static str, en: &'static str, value: AnyView| {
         view! {
             <div>
-                <dt class=LABEL>{label}</dt>
+                <dt class=LABEL>{t(es, en)}</dt>
                 <dd class="mt-0.5 text-sm text-gray-900">{value}</dd>
             </div>
         }
@@ -69,10 +71,10 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx) -> impl IntoView {
                         <h2 class="flex-1 min-w-0 text-center text-2xl font-bold text-gray-900 truncate py-1">
                             {common.unwrap_or_else(|| "—".into())}
                         </h2>
-                        {group_tag(s.group())}
+                        {group_tag(l, s.group())}
                     </div>
                     <BookmarkButton id=s.id ctx />
-                    <button class="p-1 rounded hover:bg-black/10 text-gray-700" title="Close" on:click=move |_| close()>
+                    <button class="p-1 rounded hover:bg-black/10 text-gray-700" title=t("Cerrar", "Close") on:click=move |_| close()>
                         {svg(ICON_X, "h-6 w-6")}
                     </button>
                 </div>
@@ -80,35 +82,35 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx) -> impl IntoView {
                 <div class="grid gap-4 sm:grid-cols-[2fr_3fr]">
                     <div class=format!("relative overflow-hidden h-64 sm:h-auto sm:min-h-[16rem] flex items-center justify-center {image_bg}")>
                         {match illustration {
-                            Some(src) => illustration_img(src, &s.scientific_name).into_any(),
+                            Some(src) => illustration_img(l, src, &s.scientific_name).into_any(),
                             None => photo_placeholder().into_any(),
                         }}
                     </div>
                     <div class="space-y-3">
                         <div class=format!("{SCI_BAR} rounded px-3 py-1.5 text-white")>
                             <h3 class="text-xl font-semibold italic">{s.scientific_name.clone()}</h3>
-                            {accepted.map(|a| view! { <p class="text-sm text-gray-200">"Accepted name: " <i>{a}</i></p> })}
+                            {accepted.map(|a| view! { <p class="text-sm text-gray-200">{t("Nombre aceptado: ", "Accepted name: ")} <i>{a}</i></p> })}
                         </div>
                         <dl class="grid grid-cols-2 gap-3">
-                            {fact("Family", s.family().to_string().into_any())}
-                            {fact("Genus", view! { <i>{s.genus.name.clone()}</i> }.into_any())}
-                            {fact("Habit", view! {
+                            {fact("Familia", "Family", s.family().to_string().into_any())}
+                            {fact("Género", "Genus", view! { <i>{s.genus.name.clone()}</i> }.into_any())}
+                            {fact("Hábito", "Habit", view! {
                                 <span class="inline-flex items-center gap-1">
-                                    {life_form_icon(&s.life_form, "h-6 w-6")}
-                                    {model::life_form_label(&s.life_form)}
+                                    {life_form_icon(l, &s.life_form, "h-6 w-6")}
+                                    {model::life_form_label(l, &s.life_form)}
                                 </span>
                             }.into_any())}
-                            {fact("Origin", model::origin_label(&s.origin).into_any())}
-                            {fact("Canopy shape", model::canopy_label(&s.canopy_shape).into_any())}
-                            {fact("Flower color", flower_swatch(&s.flower_color).into_any())}
+                            {fact("Origen", "Origin", model::origin_label(l, &s.origin).into_any())}
+                            {fact("Forma de la copa", "Canopy shape", model::canopy_label(l, &s.canopy_shape).into_any())}
+                            {fact("Color de la flor", "Flower color", flower_swatch(l, &s.flower_color).into_any())}
                         </dl>
                     </div>
                 </div>
 
                 <div class="rounded-lg border border-gray-200 p-4">
                     <div class="flex items-center gap-2 mb-1">
-                        <span class=LABEL>"IUCN Red List"</span>
-                        {iucn_badge(&s.iucn_status)}
+                        <span class=LABEL>{t("Lista Roja de la UICN", "IUCN Red List")}</span>
+                        {iucn_badge(l, &s.iucn_status)}
                     </div>
                     <p class="text-sm text-gray-700">{iucn_desc}</p>
                 </div>
@@ -116,25 +118,25 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx) -> impl IntoView {
                 <div>
                     <h4 class=format!("{LABEL} mb-2")>
                         {match s.group() {
-                            Some(g) => format!("Functional group {g} — traits"),
-                            None => "Functional-group traits".to_string(),
+                            Some(g) => pick(l, format!("Grupo funcional {g} — rasgos"), format!("Functional group {g} — traits")),
+                            None => t("Rasgos del grupo funcional", "Functional-group traits").to_string(),
                         }}
                     </h4>
                     {if s.functional_group.is_some() {
                         view! {
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {TRAITS.iter().map(|(ty, label)| view! {
+                                {TRAITS.iter().map(|(ty, es, en)| view! {
                                     <div class="rounded-lg border border-gray-200 px-3 py-2">
-                                        <div class="text-xs text-gray-500">{*label}</div>
+                                        <div class="text-xs text-gray-500">{t(es, en)}</div>
                                         <div class="text-lg font-semibold text-gray-900">{s.trait_value(ty)}</div>
                                     </div>
                                 }).collect_view()}
                             </div>
-                            <p class="mt-2 text-xs text-gray-400">"Ranges are the values recorded for the species' functional group."</p>
+                            <p class="mt-2 text-xs text-gray-400">{t("Los rangos son los valores registrados para el grupo funcional de la especie.", "Ranges are the values recorded for the species' functional group.")}</p>
                         }
                         .into_any()
                     } else {
-                        view! { <p class="text-sm text-gray-400 italic">"This species has no functional group assigned yet."</p> }.into_any()
+                        view! { <p class="text-sm text-gray-400 italic">{t("Esta especie aún no tiene grupo funcional asignado.", "This species has no functional group assigned yet.")}</p> }.into_any()
                     }}
                 </div>
 
@@ -144,7 +146,7 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx) -> impl IntoView {
                         {link(s.tropical_plants_url.clone(), "Tropical Plants")}
                     </div>
                     <span class="text-xs text-gray-400">
-                        {s.identified_by.clone().filter(|v| !v.is_empty()).map(|v| format!("Identified by {v}"))}
+                        {s.identified_by.clone().filter(|v| !v.is_empty()).map(|v| format!("{} {v}", t("Identificada por", "Identified by")))}
                     </span>
                 </div>
             </div>

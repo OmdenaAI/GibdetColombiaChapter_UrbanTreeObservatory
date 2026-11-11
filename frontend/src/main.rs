@@ -2,6 +2,7 @@
 
 mod api;
 mod app;
+mod i18n;
 mod interop;
 mod layout;
 mod pages;

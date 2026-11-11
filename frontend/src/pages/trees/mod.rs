@@ -17,6 +17,7 @@ use serde::Deserialize;
 use super::shared::{HEALTH, health_badge, health_label};
 use super::species::model::fmt_num;
 use crate::api::{API_BASE, console_error, fmt_thousands, get_json};
+use crate::i18n::{I18n, pick};
 
 fn inventory_url() -> String {
     format!("{API_BASE}/api/v1/biodiversity/inventory/")
@@ -93,6 +94,7 @@ enum Load {
 
 #[component]
 pub fn Trees() -> impl IntoView {
+    let i = I18n::use_ctx();
     // `draft` follows the inputs; `filters` is what was last sent to the API.
     let draft = RwSignal::new(Filters::default());
     let filters = RwSignal::new(Filters::default());
@@ -175,17 +177,21 @@ pub fn Trees() -> impl IntoView {
         exporting.set(true);
         export_error.set(None);
         spawn_local(async move {
-            let res = export::download_selected(&format!("{}export/", inventory_url()), &ids).await;
+            let url = format!("{}export/?lang={}", inventory_url(), i.lang_untracked().code());
+            let res = export::download_selected(&url, &ids).await;
             exporting.try_set(false);
             if let Err(e) = res {
                 console_error("CSV export failed:", &e);
-                export_error.try_set(Some(format!("Could not export the selection ({e}).")));
+                export_error.try_set(Some(e));
             }
         });
     };
     let export_all = move |_| {
         export_error.set(None);
-        export::download_filtered(&format!("{}export/", inventory_url()), &filters.get_untracked().query());
+        let query = filters.get_untracked().query();
+        let sep = if query.is_empty() { "" } else { "&" };
+        let query = format!("lang={}{sep}{query}", i.lang_untracked().code());
+        export::download_filtered(&format!("{}export/", inventory_url()), &query);
     };
 
     view! {
@@ -193,10 +199,10 @@ pub fn Trees() -> impl IntoView {
             // Header
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-primary-600">"Tree Inventory"</h1>
+                    <h1 class="text-2xl font-bold text-primary-600">{move || i.t("Inventario de árboles", "Tree Inventory")}</h1>
                     <p class="text-sm text-gray-500 mt-1">
-                        "Urban tree census of Ibagué (Cortolima). Read-only: trees are added and edited in the "
-                        <a href=format!("{API_BASE}/admin/") target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline">"administration site"</a>
+                        {move || i.t("Censo de arbolado urbano de Ibagué (Cortolima). Solo consulta: los árboles se agregan y editan en el ", "Urban tree census of Ibagué (Cortolima). Read-only: trees are added and edited in the ")}
+                        <a href=format!("{API_BASE}/admin/") target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline">{move || i.t("sitio de administración", "administration site")}</a>
                         "."
                     </p>
                 </div>
@@ -205,30 +211,36 @@ pub fn Trees() -> impl IntoView {
                         class=format!("{BTN} border border-primary-600 text-primary-700 hover:bg-primary-50")
                         disabled=move || selected.with(|s| s.is_empty()) || exporting.get()
                         on:click=export_selected
-                        title="Download the selected trees as CSV"
+                        title=move || i.t("Descargar los árboles seleccionados en CSV", "Download the selected trees as CSV")
                     >
                         {download_icon()}
                         {move || if exporting.get() {
-                            "Exporting…".to_string()
+                            i.t("Exportando…", "Exporting…").to_string()
                         } else {
-                            format!("Export selected ({})", fmt_thousands(selected.with(|s| s.len()) as i64))
+                            format!("{} ({})", i.t("Exportar selección", "Export selected"), fmt_thousands(selected.with(|s| s.len()) as i64))
                         }}
                     </button>
                     <button
                         class=format!("{BTN} bg-green-600 hover:bg-green-700 text-white")
                         disabled=move || count() == Some(0)
                         on:click=export_all
-                        title="Download every tree matching the filters as CSV"
+                        title=move || i.t("Descargar en CSV todos los árboles que cumplen los filtros", "Download every tree matching the filters as CSV")
                     >
                         {download_icon()}
                         {move || {
                             let n = count().map(|n| format!(" ({})", fmt_thousands(n as i64))).unwrap_or_default();
-                            if filters.with(Filters::is_active) { format!("Export filtered{n}") } else { format!("Export all{n}") }
+                            if filters.with(Filters::is_active) {
+                                format!("{}{n}", i.t("Exportar filtrados", "Export filtered"))
+                            } else {
+                                format!("{}{n}", i.t("Exportar todo", "Export all"))
+                            }
                         }}
                     </button>
                 </div>
             </div>
-            {move || export_error.get().map(|e| view! { <p class="text-sm text-red-600">{e}</p> })}
+            {move || export_error.get().map(|e| view! {
+                <p class="text-sm text-red-600">{format!("{} ({e}).", i.t("No se pudo exportar la selección", "Could not export the selection"))}</p>
+            })}
 
             // Filters
             <form
@@ -240,35 +252,35 @@ pub fn Trees() -> impl IntoView {
             >
                 <div>
                     <label for="filterId" class=LABEL>"ID"</label>
-                    <input id="filterId" type="number" min="1" inputmode="numeric" class=INPUT placeholder="e.g. 95817"
+                    <input id="filterId" type="number" min="1" inputmode="numeric" class=INPUT placeholder=move || i.t("ej. 95817", "e.g. 95817")
                         prop:value=move || draft.with(|d| d.id.clone())
                         on:input=move |ev| { let v = event_target_value(&ev); edit(Box::new(move |d| d.id = v), true) } />
                 </div>
                 <div class="col-span-2 md:col-span-1">
-                    <label for="filterSpecies" class=LABEL>"Species"</label>
-                    <input id="filterSpecies" type="search" class=INPUT placeholder="Scientific or common name"
+                    <label for="filterSpecies" class=LABEL>{move || i.t("Especie", "Species")}</label>
+                    <input id="filterSpecies" type="search" class=INPUT placeholder=move || i.t("Nombre científico o común", "Scientific or common name")
                         prop:value=move || draft.with(|d| d.species.clone())
                         on:input=move |ev| { let v = event_target_value(&ev); edit(Box::new(move |d| d.species = v), true) } />
                 </div>
                 <div>
-                    <label for="filterFamily" class=LABEL>"Family"</label>
-                    <input id="filterFamily" type="search" class=INPUT placeholder="e.g. Fabaceae"
+                    <label for="filterFamily" class=LABEL>{move || i.t("Familia", "Family")}</label>
+                    <input id="filterFamily" type="search" class=INPUT placeholder=move || i.t("ej. Fabaceae", "e.g. Fabaceae")
                         prop:value=move || draft.with(|d| d.family.clone())
                         on:input=move |ev| { let v = event_target_value(&ev); edit(Box::new(move |d| d.family = v), true) } />
                 </div>
                 <div>
-                    <label for="filterNeighborhood" class=LABEL>"Neighborhood"</label>
-                    <input id="filterNeighborhood" type="search" class=INPUT placeholder="e.g. Belen"
+                    <label for="filterNeighborhood" class=LABEL>{move || i.t("Barrio", "Neighborhood")}</label>
+                    <input id="filterNeighborhood" type="search" class=INPUT placeholder=move || i.t("ej. Belén", "e.g. Belen")
                         prop:value=move || draft.with(|d| d.neighborhood.clone())
                         on:input=move |ev| { let v = event_target_value(&ev); edit(Box::new(move |d| d.neighborhood = v), true) } />
                 </div>
                 <div>
-                    <label for="filterHealth" class=LABEL>"Health status"</label>
+                    <label for="filterHealth" class=LABEL>{move || i.t("Estado de salud", "Health status")}</label>
                     <select id="filterHealth" class=INPUT
                         prop:value=move || draft.with(|d| d.health.clone())
                         on:change=move |ev| { let v = event_target_value(&ev); edit(Box::new(move |d| d.health = v), false) }>
-                        <option value="">"All"</option>
-                        {HEALTH.iter().map(|(code, label, ..)| view! { <option value=*code>{*label}</option> }).collect_view()}
+                        <option value="">{move || i.t("Todos", "All")}</option>
+                        {HEALTH.iter().map(|(code, es, en, ..)| view! { <option value=*code>{move || i.t(es, en)}</option> }).collect_view()}
                     </select>
                 </div>
                 <div>
@@ -278,7 +290,7 @@ pub fn Trees() -> impl IntoView {
                         disabled=move || !draft.with(Filters::is_active)
                         on:click=move |_| edit(Box::new(|d| *d = Filters::default()), false)
                     >
-                        "Clear filters"
+                        {move || i.t("Limpiar filtros", "Clear filters")}
                     </button>
                 </div>
             </form>
@@ -288,8 +300,15 @@ pub fn Trees() -> impl IntoView {
                 let n = selected.with(|s| s.len());
                 (n > 0).then(|| view! {
                     <div class="flex items-center justify-between rounded-md bg-primary-50 border border-primary-100 px-3 py-2 text-sm text-primary-800">
-                        <span>{format!("{} tree{} selected (kept across pages and searches)", fmt_thousands(n as i64), if n == 1 { "" } else { "s" })}</span>
-                        <button class="font-medium hover:underline" on:click=move |_| selected.update(HashSet::clear)>"Clear selection"</button>
+                        <span>{move || {
+                            let n_txt = fmt_thousands(n as i64);
+                            if i.is_es() {
+                                format!("{n_txt} árbol{} seleccionado{} (se conservan entre páginas y búsquedas)", if n == 1 { "" } else { "es" }, if n == 1 { "" } else { "s" })
+                            } else {
+                                format!("{n_txt} tree{} selected (kept across pages and searches)", if n == 1 { "" } else { "s" })
+                            }
+                        }}</span>
+                        <button class="font-medium hover:underline" on:click=move |_| selected.update(HashSet::clear)>{move || i.t("Quitar selección", "Clear selection")}</button>
                     </div>
                 })
             }}
@@ -321,6 +340,7 @@ fn TreesTable(
     open_tree: RwSignal<Option<i64>>,
     retry: RwSignal<u32>,
 ) -> impl IntoView {
+    let i = I18n::use_ctx();
     let page_ids = move || match data.get() {
         Load::Ready(p) => p.results.iter().map(|r| r.id).collect::<Vec<_>>(),
         _ => Vec::new(),
@@ -342,11 +362,12 @@ fn TreesTable(
     let row = move |r: Row| {
         let id = r.id;
         let status = r.phytosanitary_status.clone().unwrap_or_else(|| "NR".into());
+        let badge = health_badge(&status);
         view! {
             <tr class="hover:bg-gray-50" class:bg-primary-50=move || selected.with(|s| s.contains(&id))>
                 <td class="pl-4 pr-2 py-2.5">
                     <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600"
-                        aria-label=format!("Select tree {id}")
+                        aria-label=move || format!("{} {id}", i.t("Seleccionar árbol", "Select tree"))
                         prop:checked=move || selected.with(|s| s.contains(&id))
                         on:change=move |_| selected.update(|s| if !s.remove(&id) { s.insert(id); }) />
                 </td>
@@ -363,13 +384,13 @@ fn TreesTable(
                 <td class=format!("{TD} text-right")>{opt_num(r.height_m)}</td>
                 <td class=format!("{TD} text-right")>{opt_num(r.dbh_cm)}</td>
                 <td class=TD>
-                    <span class=format!("px-2 inline-flex text-xs leading-5 font-semibold rounded-full {}", health_badge(&status))>
-                        {health_label(&status)}
+                    <span class=format!("px-2 inline-flex text-xs leading-5 font-semibold rounded-full {badge}")>
+                        {move || health_label(i.lang(), &status)}
                     </span>
                 </td>
                 <td class=TD>{r.date.clone().unwrap_or_else(|| "—".into())}</td>
                 <td class=TD>
-                    <button class="text-indigo-600 hover:text-indigo-900 font-medium" on:click=move |_| open_tree.set(Some(id))>"View"</button>
+                    <button class="text-indigo-600 hover:text-indigo-900 font-medium" on:click=move |_| open_tree.set(Some(id))>{move || i.t("Ver", "View")}</button>
                 </td>
             </tr>
         }
@@ -377,16 +398,16 @@ fn TreesTable(
 
     let body = move || match data.get() {
         Load::Loading => view! {
-            <tr><td colspan="10" class="px-3 py-10 text-center text-sm text-gray-500">"Loading trees…"</td></tr>
+            <tr><td colspan="10" class="px-3 py-10 text-center text-sm text-gray-500">{move || i.t("Cargando árboles…", "Loading trees…")}</td></tr>
         }.into_any(),
         Load::Failed => view! {
             <tr><td colspan="10" class="px-3 py-10 text-center text-sm text-red-600">
-                "Could not load the inventory. "
-                <button class="underline font-medium" on:click=move |_| retry.update(|n| *n += 1)>"Retry"</button>
+                {move || i.t("No se pudo cargar el inventario. ", "Could not load the inventory. ")}
+                <button class="underline font-medium" on:click=move |_| retry.update(|n| *n += 1)>{move || i.t("Reintentar", "Retry")}</button>
             </td></tr>
         }.into_any(),
         Load::Ready(p) if p.results.is_empty() => view! {
-            <tr><td colspan="10" class="px-3 py-10 text-center text-sm text-gray-500">"No trees match these filters."</td></tr>
+            <tr><td colspan="10" class="px-3 py-10 text-center text-sm text-gray-500">{move || i.t("Ningún árbol cumple estos filtros.", "No trees match these filters.")}</td></tr>
         }.into_any(),
         Load::Ready(p) => p.results.into_iter().map(row).collect_view().into_any(),
     };
@@ -398,18 +419,19 @@ fn TreesTable(
                     <tr>
                         <th scope="col" class="pl-4 pr-2 py-3 w-8">
                             <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600"
-                                title="Select all trees on this page" aria-label="Select all trees on this page"
+                                title=move || i.t("Seleccionar todos los árboles de esta página", "Select all trees on this page")
+                                aria-label=move || i.t("Seleccionar todos los árboles de esta página", "Select all trees on this page")
                                 prop:checked=all_on_page on:change=toggle_page />
                         </th>
                         <th scope="col" class=TH>"ID"</th>
-                        <th scope="col" class=TH>"Species"</th>
-                        <th scope="col" class=TH>"Family"</th>
-                        <th scope="col" class=TH>"Neighborhood"</th>
-                        <th scope="col" class=format!("{TH} text-right")>"Height (m)"</th>
-                        <th scope="col" class=format!("{TH} text-right")>"DBH (cm)"</th>
-                        <th scope="col" class=TH>"Health"</th>
-                        <th scope="col" class=TH>"Recorded"</th>
-                        <th scope="col" class=TH><span class="sr-only">"Actions"</span></th>
+                        <th scope="col" class=TH>{move || i.t("Especie", "Species")}</th>
+                        <th scope="col" class=TH>{move || i.t("Familia", "Family")}</th>
+                        <th scope="col" class=TH>{move || i.t("Barrio", "Neighborhood")}</th>
+                        <th scope="col" class=format!("{TH} text-right")>{move || i.t("Altura (m)", "Height (m)")}</th>
+                        <th scope="col" class=format!("{TH} text-right")>{move || i.t("DAP (cm)", "DBH (cm)")}</th>
+                        <th scope="col" class=TH>{move || i.t("Salud", "Health")}</th>
+                        <th scope="col" class=TH>{move || i.t("Registrado", "Recorded")}</th>
+                        <th scope="col" class=TH><span class="sr-only">{move || i.t("Acciones", "Actions")}</span></th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">{body}</tbody>
@@ -420,6 +442,7 @@ fn TreesTable(
 
 #[component]
 fn Pager(data: RwSignal<Load>, page: RwSignal<u64>) -> impl IntoView {
+    let i = I18n::use_ctx();
     // Keep the last known total while the next page loads, so the pager doesn't jump.
     let total = Memo::new(move |prev: Option<&u64>| match data.get() {
         Load::Ready(p) => p.count,
@@ -435,22 +458,23 @@ fn Pager(data: RwSignal<Load>, page: RwSignal<u64>) -> impl IntoView {
                 {move || {
                     let t = total.get();
                     if t == 0 {
-                        "No results".to_string()
+                        i.t("Sin resultados", "No results").to_string()
                     } else {
                         let from = (page.get() - 1) * PAGE_SIZE + 1;
                         let to = (page.get() * PAGE_SIZE).min(t);
-                        format!("Showing {} to {} of {} trees", fmt_thousands(from as i64), fmt_thousands(to as i64), fmt_thousands(t as i64))
+                        let (from, to, t) = (fmt_thousands(from as i64), fmt_thousands(to as i64), fmt_thousands(t as i64));
+                        pick(i.lang(), format!("Mostrando {from} a {to} de {t} árboles"), format!("Showing {from} to {to} of {t} trees"))
                     }
                 }}
             </p>
-            <nav class="flex items-center gap-2" aria-label="Pagination">
-                <button class=btn disabled={move || page.get() <= 1} on:click=move |_| go(1)>"First"</button>
-                <button class=btn disabled={move || page.get() <= 1} on:click=move |_| go(page.get_untracked() - 1)>"Previous"</button>
+            <nav class="flex items-center gap-2" aria-label=move || i.t("Paginación", "Pagination")>
+                <button class=btn disabled={move || page.get() <= 1} on:click=move |_| go(1)>{move || i.t("Primera", "First")}</button>
+                <button class=btn disabled={move || page.get() <= 1} on:click=move |_| go(page.get_untracked() - 1)>{move || i.t("Anterior", "Previous")}</button>
                 <span class="text-sm text-gray-700 px-1">
-                    {move || format!("Page {} of {}", fmt_thousands(page.get() as i64), fmt_thousands(pages() as i64))}
+                    {move || format!("{} {} {} {}", i.t("Página", "Page"), fmt_thousands(page.get() as i64), i.t("de", "of"), fmt_thousands(pages() as i64))}
                 </span>
-                <button class=btn disabled={move || page.get() >= pages()} on:click=move |_| go(page.get_untracked() + 1)>"Next"</button>
-                <button class=btn disabled={move || page.get() >= pages()} on:click=move |_| go(pages())>"Last"</button>
+                <button class=btn disabled={move || page.get() >= pages()} on:click=move |_| go(page.get_untracked() + 1)>{move || i.t("Siguiente", "Next")}</button>
+                <button class=btn disabled={move || page.get() >= pages()} on:click=move |_| go(pages())>{move || i.t("Última", "Last")}</button>
             </nav>
         </div>
     }
