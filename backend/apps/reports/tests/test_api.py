@@ -337,7 +337,7 @@ class TestAnalyticsAPI:
         neighborhood.locality.save()
         native = SpeciesFactory(genus=genus, name="nativa", origin="NT", life_form="TR", iucn_status="VU")
         exotic = SpeciesFactory(genus=genus, name="exotica", origin="CU", life_form="TR", iucn_status="LC")
-        # 3 native trees (one sick), 1 introduced; DBH 5, 15, 25, 90 cm.
+        # 3 native trees (one sick), 1 introduced.
         for species, dbh, health in [
             (native, 5.0, "HE"),
             (native, 15.0, "SI"),
@@ -356,14 +356,9 @@ class TestAnalyticsAPI:
         data = response.data
         assert data["total_trees"] == 4
         assert data["trees_per_1000_inhabitants"] == 4
-        assert data["native_percent"] == 75.0
         assert data["issues_percent"] == 25.0
-        rule = {r["level"]: r for r in data["concentration"]["rule"]}
-        assert rule["species"]["percent"] == 75.0
-        assert rule["species"]["limit"] == 10
-        assert rule["genus"]["percent"] == 100.0
-        classes = {c["from_cm"]: c["count"] for c in data["dbh_classes"]["classes"]}
-        assert (classes[0], classes[10], classes[20], classes[80]) == (1, 1, 1, 1)
+        origin = {o["group"]: o["percent"] for o in data["origin"]}
+        assert (origin["native"], origin["introduced"]) == (75.0, 25.0)
         # The factory boundaries contain the factory points: every tree is placed.
         comunas = data["comunas"]
         assert sum(c["trees"] for c in comunas["results"]) == 4

@@ -2,10 +2,7 @@
 
 Each block answers one management question about the census:
 
-- ``concentration``: is the tree population too dependent on a few taxa? (Santamour's
-  10-20-30 rule: at most 10% of one species, 20% of one genus, 30% of one family.)
 - ``origin``: how much of it is native?
-- ``dbh_classes``: size structure of the trees (life form "tree"), a proxy for age.
 - ``comunas``: where the trees are, per hectare and per 1,000 inhabitants. Trees are
   placed in a comuna by their coordinates (PostGIS point-in-polygon), not by the
   census' neighborhood field, which leaves ~6,700 trees in an "unknown" comuna.
@@ -21,14 +18,12 @@ from django.db import connection
 from django.db.models import Count, Q
 
 from apps.biodiversity.models import BiodiversityRecord
-from apps.taxonomy.models import Species
 
 from .models import Observation
 
-CACHE_KEY = "reports:analytics:v1"
+CACHE_KEY = "reports:analytics:v2"
 CACHE_SECONDS = 60 * 60
 
-RULE_LIMITS = {"species": 10, "genus": 20, "family": 30}
 TOP_SPECIES = 10
 
 ORIGIN_GROUPS = {
@@ -36,9 +31,6 @@ ORIGIN_GROUPS = {
     "introduced": ["CU", "NU", "NL"],
     "not_identified": ["NI"],
 }
-
-# Diameter at breast height classes, in cm: [low, high).
-DBH_CLASSES = [(0, 10), (10, 20), (20, 30), (30, 40), (40, 60), (60, 80), (80, None)]
 
 ISSUES = ["SI", "CR", "DE"]  # sick, critical, dead
 THREATENED = ["CR", "EN", "VU"]
@@ -55,43 +47,6 @@ def _fetch(sql, params=None):
         return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
 
 
-def _concentration(total):
-    def top(field, name_expr, limit):
-        return _fetch(
-            f"""
-            SELECT {name_expr} AS name, count(*) AS n
-            FROM biodiversity_biodiversityrecord r
-            JOIN taxonomy_species s ON s.id = r.species_id
-            JOIN taxonomy_genus g ON g.id = s.genus_id
-            JOIN taxonomy_family f ON f.id = g.family_id
-            GROUP BY {field} ORDER BY n DESC LIMIT %s
-            """,
-            [limit],
-        )
-
-    species = top("s.id, g.name, s.name", "g.name || ' ' || s.name", TOP_SPECIES)
-    levels = {
-        "species": species[0],
-        "genus": top("g.id, g.name", "g.name", 1)[0],
-        "family": top("f.id, f.name", "f.name", 1)[0],
-    }
-    return {
-        "rule": [
-            {
-                "level": level,
-                "name": row["name"],
-                "percent": _pct(row["n"], total),
-                "limit": RULE_LIMITS[level],
-            }
-            for level, row in levels.items()
-        ],
-        "top_species": [
-            {"name": r["name"], "count": r["n"], "percent": _pct(r["n"], total, 2)}
-            for r in species
-        ],
-    }
-
-
 def _origin(total):
     counts = dict(
         BiodiversityRecord.objects.values_list("species__origin")
@@ -106,30 +61,6 @@ def _origin(total):
         }
         for group, codes in ORIGIN_GROUPS.items()
     ]
-
-
-def _dbh_classes():
-    """Latest DBH of every record whose species is a tree (palms, shrubs excluded)."""
-    rows = _fetch(
-        """
-        SELECT DISTINCT ON (m.biodiversity_record_id) m.value
-        FROM reports_measurement m
-        JOIN biodiversity_biodiversityrecord r ON r.id = m.biodiversity_record_id
-        JOIN taxonomy_species s ON s.id = r.species_id
-        WHERE m.attribute = 'DBH' AND s.life_form = %s
-        ORDER BY m.biodiversity_record_id, m.date DESC NULLS LAST, m.created_at DESC
-        """,
-        [Species.LifeForm.TREE],
-    )
-    values = [r["value"] for r in rows]
-    total = len(values)
-    out = []
-    for low, high in DBH_CLASSES:
-        n = sum(1 for v in values if v >= low and (high is None or v < high))
-        out.append(
-            {"from_cm": low, "to_cm": high, "count": n, "percent": _pct(n, total)}
-        )
-    return {"trees_measured": total, "classes": out}
 
 
 def _comunas():
@@ -255,21 +186,14 @@ def _summary():
     origin = _origin(total)
     comunas = _comunas()
     population = sum(c["population"] or 0 for c in comunas["results"])
-    native = next(o for o in origin if o["group"] == "native")
     return {
         "total_trees": total,
-        "species_count": BiodiversityRecord.objects.values("species")
-        .distinct()
-        .count(),
         "population": population,
         "trees_per_1000_inhabitants": round(1000 * total / population)
         if population
         else None,
-        "native_percent": native["percent"],
         "issues_percent": _pct(issues, total),
-        "concentration": _concentration(total),
         "origin": origin,
-        "dbh_classes": _dbh_classes(),
         "comunas": comunas,
         "species_health": _species_health(),
         "threatened": _threatened(),
