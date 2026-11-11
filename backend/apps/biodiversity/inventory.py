@@ -9,6 +9,9 @@
 - ``export/``: CSV. ``GET`` with the list filters exports every matching tree; ``POST``
   ``{"ids": [...]}`` exports the selected ones.
 
+``?lang=es|en`` sets the language of the labels in the detail and of the category values
+in the CSV (default: English). The CSV header is always in English.
+
 Editing and deleting is left to the Django admin.
 """
 
@@ -45,6 +48,15 @@ OBSERVATION_SKIP = {"id", "uuid", "created_at", "updated_at", "biodiversity_reco
 
 EXPORT_CHUNK = 2000
 MAX_SELECTED = 10000
+
+LANGUAGES = {"es", "en"}
+DEFAULT_LANGUAGE = "en"
+
+
+def request_language(request):
+    """``?lang=`` if it is a supported language, else English."""
+    lang = request.query_params.get("lang", "").lower()
+    return lang if lang in LANGUAGES else DEFAULT_LANGUAGE
 
 
 def _latest_measurement(attribute):
@@ -259,12 +271,13 @@ def _display(model, field_name):
     return {code: str(label) for code, label in field.flatchoices}
 
 
-def _csv_rows(queryset):
-    with translation.override("en"):
-        yield from _csv_rows_en(queryset)
+def _csv_rows(queryset, lang):
+    # A generator: the override must be active while the rows are produced.
+    with translation.override(lang):
+        yield from _csv_rows_in_language(queryset)
 
 
-def _csv_rows_en(queryset):
+def _csv_rows_in_language(queryset):
     """``queryset`` only selects the trees. Their data is read in chunks with plain
     ``values_list`` queries: building model instances made a full export take minutes."""
     ids = list(queryset.order_by("id").values_list("id", flat=True))
@@ -342,9 +355,9 @@ def _csv_rows_en(queryset):
             ]
 
 
-def csv_response(queryset, name):
+def csv_response(queryset, name, lang=DEFAULT_LANGUAGE):
     writer = csv.writer(_Echo())
-    stream = (writer.writerow(row) for row in _csv_rows(queryset))
+    stream = (writer.writerow(row) for row in _csv_rows(queryset, lang))
     response = StreamingHttpResponse(
         _with_bom(stream), content_type="text/csv; charset=utf-8"
     )
@@ -384,8 +397,8 @@ class InventoryViewSet(viewsets.ReadOnlyModelViewSet):
         )
         if record is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        # The frontend is in English; labels come from the models' translations.
-        with translation.override("en"):
+        # Labels come from the models' translations.
+        with translation.override(request_language(request)):
             return Response(tree_detail(record))
 
     @action(detail=False, methods=["get", "post"])
@@ -403,6 +416,8 @@ class InventoryViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             queryset = BiodiversityRecord.objects.filter(id__in=ids)
-            return csv_response(queryset, "tree-inventory-selected")
+            return csv_response(
+                queryset, "tree-inventory-selected", request_language(request)
+            )
         queryset = self.filter_queryset(self.get_queryset())
-        return csv_response(queryset, "tree-inventory")
+        return csv_response(queryset, "tree-inventory", request_language(request))

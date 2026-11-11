@@ -321,6 +321,20 @@ class TestInventoryAPI:
         fields = {f["field"]: f for f in data["observations"][0]["fields"]}
         assert fields["phytosanitary_status"]["display"] == "healthy"
 
+    def test_detail_language(self, api_client, trees):
+        url = reverse("biodiversity:inventory-detail", args=[trees[0].id])
+
+        def labels(params):
+            data = api_client.get(url, params).data
+            height = next(m for m in data["measurements"] if m["attribute"] == "HT")
+            fields = {f["field"]: f for f in data["observations"][0]["fields"]}
+            return height["label"], fields["phytosanitary_status"]["display"]
+
+        assert labels({"lang": "es"}) == ("altura total", "saludable")
+        assert labels({"lang": "en"}) == ("total height", "healthy")
+        # Unsupported or missing: English.
+        assert labels({"lang": "fr"}) == ("total height", "healthy")
+
     def test_detail_not_found(self, api_client):
         response = api_client.get(reverse("biodiversity:inventory-detail", args=[999999]))
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -346,6 +360,26 @@ class TestInventoryAPI:
 
         selected = rows(api_client.post(url, {"ids": [trees[1].id]}, format="json"))
         assert [r["id"] for r in selected] == [str(trees[1].id)]
+
+    def test_export_language(self, api_client, trees):
+        import csv
+        import io
+
+        url = reverse("biodiversity:inventory-export")
+
+        def statuses(response):
+            text = b"".join(response.streaming_content).decode("utf-8-sig")
+            reader = csv.DictReader(io.StringIO(text))
+            # The header stays in English in every language.
+            assert "phytosanitary_status" in reader.fieldnames
+            return [r["phytosanitary_status"] for r in reader]
+
+        assert statuses(api_client.get(url, {"lang": "es"})) == ["saludable", "enfermo"]
+        assert statuses(api_client.get(url, {"lang": "en"})) == ["healthy", "sick"]
+        selected = api_client.post(
+            f"{url}?lang=es", {"ids": [trees[1].id]}, format="json"
+        )
+        assert statuses(selected) == ["enfermo"]
 
     def test_export_rejects_bad_ids(self, api_client):
         url = reverse("biodiversity:inventory-export")
