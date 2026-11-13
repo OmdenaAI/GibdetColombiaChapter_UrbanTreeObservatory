@@ -10,6 +10,7 @@ use serde_json::Value;
 use super::super::shared::{health_badge, health_label};
 use super::super::species::model::{self, fmt_num};
 use super::inventory_url;
+use super::minimap::MiniMap;
 use crate::api::{console_error, get_json};
 use crate::i18n::{I18n, Lang, pick};
 
@@ -36,7 +37,6 @@ const NOTES: [&str; 4] = ["field_notes", "recorded_by", "accompanying_collectors
 #[derive(Clone, Deserialize)]
 struct Tree {
     id: i64,
-    uuid: String,
     common_name: Option<String>,
     species: SpeciesInfo,
     neighborhood: String,
@@ -45,7 +45,6 @@ struct Tree {
     latitude: Option<f64>,
     longitude: Option<f64>,
     elevation_m: Option<f64>,
-    recorded_by: Option<String>,
     date: Option<String>,
     measurements: Vec<Measurement>,
     observations: Vec<Observation>,
@@ -128,6 +127,7 @@ pub(super) fn TreeDetail(id: i64, on_close: Callback<()>) -> impl IntoView {
     // language changes. The previous one stays on screen until the new one arrives.
     let i = I18n::use_ctx();
     let data = RwSignal::new(Load::Loading);
+    let pressed_backdrop = RwSignal::new(false);
     Effect::new(move |_| {
         let l = i.lang();
         spawn_local(async move {
@@ -157,13 +157,22 @@ pub(super) fn TreeDetail(id: i64, on_close: Callback<()>) -> impl IntoView {
     };
 
     view! {
-        <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" on:click=move |_| close()>
+        // Closes only when the press also started on the backdrop: dragging the mini map and
+        // releasing outside the dialog must not close it.
+        <div
+            class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+            on:mousedown=move |ev| pressed_backdrop.set(is_self(&ev))
+            on:click=move |ev| {
+                if pressed_backdrop.get_untracked() && is_self(&ev) {
+                    close();
+                }
+            }
+        >
             <div
                 class="relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6"
                 role="dialog"
                 aria-modal="true"
                 aria-label=move || format!("{} {id}", i.t("Árbol", "Tree"))
-                on:click=|ev| ev.stop_propagation()
             >
                 <button class="absolute top-3 right-3 p-1 rounded hover:bg-gray-100 text-gray-600" title=move || i.t("Cerrar", "Close") on:click=move |_| close()>
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -174,6 +183,11 @@ pub(super) fn TreeDetail(id: i64, on_close: Callback<()>) -> impl IntoView {
             </div>
         </div>
     }
+}
+
+/// The event happened on the element that has the handler, not on a child.
+fn is_self(ev: &leptos::ev::MouseEvent) -> bool {
+    ev.target().is_some() && ev.target() == ev.current_target()
 }
 
 fn fact(label: &'static str, value: String) -> impl IntoView {
@@ -198,10 +212,8 @@ fn tree_view(l: Lang, t: Tree) -> impl IntoView {
         .and_then(|f| f.value.as_str().map(str::to_string))
         .unwrap_or_else(|| "NR".into());
     let last_measured = t.measurements.iter().filter_map(|m| m.date.clone()).max();
-    let coords = match (t.latitude, t.longitude) {
-        (Some(lat), Some(lon)) => format!("{lat:.6}, {lon:.6}"),
-        _ => "—".into(),
-    };
+    let position = t.latitude.zip(t.longitude);
+    let coords = position.map(|(lat, lon)| format!("{lat:.6}, {lon:.6}")).unwrap_or_else(|| "—".into());
 
     view! {
         <div class="space-y-6">
@@ -241,9 +253,15 @@ fn tree_view(l: Lang, t: Tree) -> impl IntoView {
                         {fact(tr("Elevación", "Elevation"), t.elevation_m.map(|e| format!("{} m", fmt_num(e))).unwrap_or_else(|| "—".into()))}
                         {fact(tr("Coordenadas (lat, lon)", "Coordinates (lat, lon)"), coords)}
                         {fact(tr("Registrado", "Recorded"), dash(t.date.clone()))}
-                        {fact(tr("Registrado por", "Recorded by"), dash(t.recorded_by.clone()))}
-                        <div class="col-span-2">{fact("UUID", t.uuid.clone())}</div>
                     </dl>
+                    <div class="mt-3">
+                        {match position {
+                            Some((lat, lon)) => view! { <MiniMap lat lon l /> }.into_any(),
+                            None => view! {
+                                <p class="text-sm text-gray-500">{tr("Este árbol no tiene coordenadas.", "This tree has no coordinates.")}</p>
+                            }.into_any(),
+                        }}
+                    </div>
                 </section>
             </div>
 

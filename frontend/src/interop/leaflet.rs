@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 extern "C" {
     // ---- L.Map ----
+    #[derive(Clone)]
     pub type LMap;
 
     /// `L.map(element)`. `catch`: a Leaflet exception becomes an `Err` instead of
@@ -25,6 +26,23 @@ extern "C" {
     pub fn add_layer(this: &LMap, layer: &Layer) -> LMap;
     #[wasm_bindgen(method, js_name = removeLayer)]
     pub fn remove_layer(this: &LMap, layer: &Layer) -> LMap;
+    /// `L.map(element, options)`.
+    #[wasm_bindgen(catch, js_namespace = L, js_name = map)]
+    pub fn map_with(container: &JsValue, options: &JsValue) -> Result<LMap, JsValue>;
+    /// Destroys the map and its event listeners.
+    #[wasm_bindgen(method)]
+    pub fn remove(this: &LMap) -> LMap;
+    #[wasm_bindgen(method, js_name = invalidateSize)]
+    pub fn invalidate_size(this: &LMap) -> LMap;
+
+    // ---- L.Control ----
+    pub type Control;
+
+    /// `L.control.zoom(options)`.
+    #[wasm_bindgen(js_namespace = ["L", "control"], js_name = zoom)]
+    pub fn control_zoom(options: &JsValue) -> Control;
+    #[wasm_bindgen(method, js_name = addTo)]
+    pub fn add_to(this: &Control, map: &LMap) -> Control;
 
     // ---- L.Layer / LayerGroup / FeatureGroup / GeoJSON / Marker / Path ----
     #[derive(Clone)]

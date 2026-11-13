@@ -73,7 +73,9 @@ Read-only query page over the census (`/api/v1/biodiversity/inventory/`, public)
 editing and deleting trees is done in the Django admin. Filters (applied server-side; text
 filters after a short pause in typing): ID, species (scientific or common name), family,
 neighborhood (all case-insensitive, partial match) and health status. 25 trees per page with
-latest total height, DBH and health. "View" opens the tree's full record: species, location,
+latest total height, DBH and health. "View" opens the tree's full record: species, location
+with a mini map (OpenStreetMap at zoom 16 showing only that tree, zoom buttons and a "home" button
+that recenters on the tree; scroll-wheel zoom is off so the dialog still scrolls),
 every measurement with its method and date (older ones listed as history) and all fields of the
 census observation (the cryptic form codes are shown as recorded). CSV export, built by the
 backend: "Export selected" (checkboxes, kept across pages and searches; POST with the ids) and

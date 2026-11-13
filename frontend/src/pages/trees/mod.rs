@@ -6,6 +6,7 @@
 
 mod detail;
 mod export;
+mod minimap;
 
 use std::collections::HashSet;
 use std::time::Duration;
