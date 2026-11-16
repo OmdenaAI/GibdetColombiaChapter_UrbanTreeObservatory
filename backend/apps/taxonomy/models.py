@@ -318,8 +318,11 @@ class ManualEntry(BaseModel):
     """A species sheet of the "Manual de arborización para el departamento del Tolima"
     (Cortolima – Jardín Botánico San Jorge, 2017), stored verbatim.
 
-    ``sections`` keeps the sheet's sections in the manual's order as
-    ``[{"title": ..., "text": ...}]``; bold runs in the text are marked ``**…**``.
+    ``header`` keeps the fields under the name ("Familia", "Sinónimos", "Nombre común",
+    "Lugar de origen", "Procedencia", …) as ``[{"label": ..., "value": ...}]`` and
+    ``sections`` the sheet's sections as ``[{"title": ..., "text": ...}]``, both in the
+    manual's order and wording. In the text, bold runs are marked ``**…**`` and paragraphs
+    are separated by a blank line.
     Loaded with ``python manage.py load_manual_tolima``.
     """
 
@@ -336,9 +339,7 @@ class ManualEntry(BaseModel):
         max_length=200, help_text="Scientific name as written in the manual."
     )
     family = models.CharField(max_length=100, blank=True)
-    synonyms = models.TextField(blank=True)
-    common_names = models.TextField(blank=True)
-    origin = models.TextField(blank=True)
+    header = models.JSONField(default=list)
     sections = models.JSONField(default=list)
     page_start = models.PositiveSmallIntegerField()
     page_end = models.PositiveSmallIntegerField()

@@ -19,7 +19,7 @@ from django.db.models.functions import Concat
 from apps.taxonomy.models import ManualEntry, Species
 
 DEFAULT_FILE = Path(__file__).resolve().parents[2] / "data" / "manual_tolima.json"
-FIELDS = ["title", "scientific_name", "family", "synonyms", "common_names", "origin"]
+FIELDS = ["title", "scientific_name", "family"]
 
 
 class Command(BaseCommand):
@@ -51,6 +51,7 @@ class Command(BaseCommand):
                     species=species,
                     defaults={
                         **{f: e.get(f, "") for f in FIELDS},
+                        "header": e["header"],
                         "sections": e["sections"],
                         "page_start": e["pages"][0],
                         "page_end": e["pages"][1],

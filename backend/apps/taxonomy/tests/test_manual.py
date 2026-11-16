@@ -20,8 +20,10 @@ def entry_for(species, **extra):
         "title": "FICUS BENJAMINA",
         "scientific_name": f"{species.scientific_name} L.",
         "family": "Moraceae",
-        "common_names": "ficus",
-        "origin": "India",
+        "header": [
+            {"label": "Familia", "value": "Moraceae"},
+            {"label": "Nombre común", "value": "ficus"},
+        ],
         "pages": [184, 185],
         "sections": SECTIONS,
         **extra,
@@ -94,6 +96,7 @@ class TestLoadManualTolima:
         entry = ManualEntry.objects.get(species=species)
         assert ManualEntry.objects.count() == 1
         assert entry.sections == SECTIONS
+        assert [h["label"] for h in entry.header] == ["Familia", "Nombre común"]
         assert (entry.page_start, entry.page_end) == (184, 185)
         assert "1 created" in out and "1 updated" in out
         assert "Nonexistent sp" in out
@@ -105,6 +108,7 @@ class TestLoadManualTolima:
         assert entries
         for e in entries:
             assert e["species"] and e["scientific_name"] and e["sections"]
+            assert all(h["label"] and h["value"] for h in e["header"])
             assert 142 <= e["pages"][0] <= e["pages"][1] <= 255
             assert all(s["title"] and s["text"] for s in e["sections"])
             assert all(s["text"].count("**") % 2 == 0 for s in e["sections"])
