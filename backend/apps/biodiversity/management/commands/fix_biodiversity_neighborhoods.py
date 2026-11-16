@@ -51,7 +51,7 @@ class Command(BaseCommand):
     def _prepare_query(self, unknown_neighborhood_id, all_records):
         """Prepare the base query for records that need processing."""
         # Find all records with "Desconocido" neighborhood that need processing
-        base_query = BiodiversityRecord.objects.filter(
+        base_query = BiodiversityRecord.all_objects.filter(
             neighborhood_id=unknown_neighborhood_id,
             location__isnull=False,
         )
@@ -238,7 +238,7 @@ class Command(BaseCommand):
     def _bulk_update_records(self, records_to_update):
         """Perform a bulk update of records."""
         if records_to_update:
-            BiodiversityRecord.objects.bulk_update(
+            BiodiversityRecord.all_objects.bulk_update(
                 records_to_update, fields=["neighborhood", "system_comment"]
             )
 
@@ -283,7 +283,7 @@ class Command(BaseCommand):
             return 0
 
         # Fetch the full records for this batch
-        batch_records = list(BiodiversityRecord.objects.filter(id__in=batch_ids))
+        batch_records = list(BiodiversityRecord.all_objects.filter(id__in=batch_ids))
 
         # Process each record in the batch
         neighborhood_updates = {}  # record_id -> neighborhood
@@ -326,7 +326,7 @@ class Command(BaseCommand):
                 )
                 records_dict = {
                     record.id: record
-                    for record in BiodiversityRecord.objects.filter(id__in=affected_ids)
+                    for record in BiodiversityRecord.all_objects.filter(id__in=affected_ids)
                 }
 
                 # Update records with new neighborhoods

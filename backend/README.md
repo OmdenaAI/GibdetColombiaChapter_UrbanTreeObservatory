@@ -161,3 +161,21 @@ To run custom management commands:
 ```bash
 docker compose exec backend python manage.py [command_name]
 ```
+
+#### Trees that no longer exist
+
+A felled, fallen or moved tree is not deleted: it is marked as removed, with the date,
+reason and a note. Its census data stays in the database, but the API (map, statistics,
+dashboard, analytics, inventory and downloads) no longer shows or counts it.
+`BiodiversityRecord.objects` returns active trees only; `all_objects` returns every record.
+
+The removals are kept in `apps/biodiversity/data/removed_trees.csv`
+(`id, removed_on, reason, note`; reason: `felled`, `fallen`, `dead_standing`,
+`transplanted` or `other`). Add the rows there and apply them (it can be run again safely):
+
+```bash
+docker compose exec backend python manage.py load_removed_trees --dry-run
+docker compose exec backend python manage.py load_removed_trees
+```
+
+The Django admin can also mark selected trees as removed or active again.

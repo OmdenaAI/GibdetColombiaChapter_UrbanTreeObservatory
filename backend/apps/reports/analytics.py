@@ -10,7 +10,7 @@ Each block answers one management question about the census:
 - ``threatened``: trees of species in a threatened IUCN category.
 
 The whole payload is cached: the census changes rarely and the spatial join takes a
-few seconds.
+few seconds. The key includes the number of active trees (see ``analytics_summary``).
 """
 
 from django.core.cache import cache
@@ -73,6 +73,7 @@ def _comunas():
             FROM biodiversity_biodiversityrecord r
             JOIN places_locality l
               ON l.boundary IS NOT NULL AND ST_Intersects(l.boundary, r.location)
+            WHERE r.status = %s  -- active trees only
             ORDER BY r.id, l.id
         )
         SELECT l.id, l.name, l.population_2019 AS population,
@@ -86,7 +87,7 @@ def _comunas():
         GROUP BY l.id
         ORDER BY l.id
         """,
-        [ISSUES],
+        [BiodiversityRecord.Status.ACTIVE.value, ISSUES],
     )
     total = BiodiversityRecord.objects.count()
     placed = sum(r["trees"] for r in rows)
@@ -201,8 +202,11 @@ def _summary():
 
 
 def analytics_summary(refresh=False):
-    data = None if refresh else cache.get(CACHE_KEY)
+    # Keyed by the number of active trees: marking trees as removed (or active again)
+    # shows at once, whatever process cached the previous payload.
+    key = f"{CACHE_KEY}:{BiodiversityRecord.objects.count()}"
+    data = None if refresh else cache.get(key)
     if data is None:
         data = _summary()
-        cache.set(CACHE_KEY, data, CACHE_SECONDS)
+        cache.set(key, data, CACHE_SECONDS)
     return data
