@@ -178,12 +178,9 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx, l: Lang) -> impl Int
 /// header fields, then one collapsible block per section ("Descripción" open), then the source.
 fn manual_section(l: Lang, m: ManualEntry) -> impl IntoView {
     let t = move |es: &'static str, en: &'static str| pick(l, es, en);
-    let field = move |label: &'static str, value: String| {
-        (!value.is_empty()).then(|| view! {
-            <p><span class="font-semibold">{label}": "</span>{value}</p>
-        })
-    };
     let pages = m.pages();
+    let (binomial, author) = m.name_parts();
+    let (binomial, author) = (binomial.to_string(), author.to_string());
     view! {
         <section class="rounded-lg border border-gray-200 p-4 space-y-3" lang="es">
             <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -195,12 +192,12 @@ fn manual_section(l: Lang, m: ManualEntry) -> impl IntoView {
             <div class="text-sm text-gray-800 space-y-0.5">
                 <p>
                     <span class="font-semibold">"Nombre científico: "</span>
-                    <i>{m.scientific_name.clone()}</i>
+                    <i>{binomial}</i>
+                    {(!author.is_empty()).then(|| format!(" {author}"))}
                 </p>
-                {field("Familia", m.family.clone())}
-                {field("Sinónimos", m.synonyms.clone())}
-                {field("Nombre común", m.common_names.clone())}
-                {field("Lugar de origen", m.origin.clone())}
+                {m.header.into_iter().map(|f| view! {
+                    <p><span class="font-semibold">{f.label}": "</span>{f.value}</p>
+                }).collect_view()}
             </div>
             <div class="divide-y divide-gray-100 border-y border-gray-100">
                 {m.sections.into_iter().map(|sec| {
@@ -210,12 +207,16 @@ fn manual_section(l: Lang, m: ManualEntry) -> impl IntoView {
                             <summary class="cursor-pointer select-none text-sm font-semibold text-gray-900 marker:text-gray-400">
                                 {sec.title}
                             </summary>
-                            <p class="mt-1.5 text-sm text-gray-700 leading-relaxed text-justify">
-                                {model::bold_runs(&sec.text).into_iter().map(|(run, bold)| {
-                                    let run = run.to_string();
-                                    if bold { view! { <strong>{run}</strong> }.into_any() } else { run.into_any() }
+                            <div class="mt-1.5 space-y-2 text-sm text-gray-700 leading-relaxed">
+                                {sec.text.split("\n\n").map(|para| view! {
+                                    <p>
+                                        {model::bold_runs(para).into_iter().map(|(run, bold)| {
+                                            let run = run.to_string();
+                                            if bold { view! { <strong>{run}</strong> }.into_any() } else { run.into_any() }
+                                        }).collect_view()}
+                                    </p>
                                 }).collect_view()}
-                            </p>
+                            </div>
                         </details>
                     }
                 }).collect_view()}

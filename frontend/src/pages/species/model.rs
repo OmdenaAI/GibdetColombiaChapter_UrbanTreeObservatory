@@ -107,22 +107,23 @@ pub async fn fetch_all_species() -> Result<Catalog, String> {
 }
 
 /// The species' sheet in the "Manual de arborización para el departamento del Tolima",
-/// verbatim (Spanish only). Bold runs in `sections[].text` are marked `**…**`.
+/// verbatim (Spanish only), header and sections in the manual's order and wording. In
+/// `sections[].text` bold runs are marked `**…**` and paragraphs are separated by a blank line.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct ManualEntry {
     pub scientific_name: String,
     #[serde(default)]
-    pub family: String,
-    #[serde(default)]
-    pub synonyms: String,
-    #[serde(default)]
-    pub common_names: String,
-    #[serde(default)]
-    pub origin: String,
+    pub header: Vec<ManualField>,
     pub sections: Vec<ManualSection>,
     pub page_start: u16,
     pub page_end: u16,
     pub source: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct ManualField {
+    pub label: String,
+    pub value: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -132,6 +133,15 @@ pub struct ManualSection {
 }
 
 impl ManualEntry {
+    /// The scientific name split into (binomial, author), to italicize only the binomial.
+    pub fn name_parts(&self) -> (&str, &str) {
+        let name = self.scientific_name.trim();
+        match name.match_indices(' ').nth(1) {
+            Some((i, _)) => (&name[..i], name[i..].trim_start()),
+            None => (name, ""),
+        }
+    }
+
     /// "p. 184" or "pp. 184–185".
     pub fn pages(&self) -> String {
         if self.page_end > self.page_start {
@@ -607,6 +617,21 @@ mod tests {
         assert!(plate.page.starts_with("https://commons.wikimedia.org/wiki/File:"));
         assert!(!plate.license.is_empty());
         assert_eq!(species(serde_json::json!({"scientific_name": "Pithecellobium"})).plate(), None);
+    }
+
+    #[test]
+    fn manual_name_parts_keep_the_author_apart() {
+        let m = |n: &str| ManualEntry {
+            scientific_name: n.into(),
+            header: vec![],
+            sections: vec![],
+            page_start: 1,
+            page_end: 1,
+            source: String::new(),
+        };
+        assert_eq!(m("Ficus benjamina L.").name_parts(), ("Ficus benjamina", "L."));
+        assert_eq!(m("Cordia alliodora (Ruiz & Pav.) Oken").name_parts(), ("Cordia alliodora", "(Ruiz & Pav.) Oken"));
+        assert_eq!(m("Plumeria alba").name_parts(), ("Plumeria alba", ""));
     }
 
     #[test]
