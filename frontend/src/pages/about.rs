@@ -142,7 +142,7 @@ const fn same(s: &'static str) -> Text {
 
 /// Studies on the urban trees of Ibagué and Tolima that inspired the platform and fed its
 /// development, in APA 7 style, oldest first. Each one: segments, then the link if any.
-const REFERENCES: [(&[Seg], Option<&str>); 6] = [
+const REFERENCES: [(&[Seg], Option<&str>); 8] = [
     (
         &[
             (same("Corporación Autónoma Regional del Tolima [Cortolima]. (2016). "), false),
@@ -163,6 +163,16 @@ const REFERENCES: [(&[Seg], Option<&str>); 6] = [
             (same("."), false),
         ],
         None,
+    ),
+    (
+        &[
+            (same("Núñez-Florez, R., Pérez-Gómez, U."), false),
+            ((" y ", ", & "), false),
+            (same("Fernández-Méndez, F. (2019). Functional diversity criteria for selecting urban trees. "), false),
+            (same("Urban Forestry & Urban Greening, 38"), true),
+            (same(", 251–266. "), false),
+        ],
+        Some("https://doi.org/10.1016/j.ufug.2019.01.005"),
     ),
     (
         &[
@@ -198,6 +208,17 @@ const REFERENCES: [(&[Seg], Option<&str>); 6] = [
             ((" [Trabajo de grado, Universidad del Tolima].", " [Undergraduate thesis, Universidad del Tolima]."), false),
         ],
         None,
+    ),
+    (
+        &[
+            (
+                same("Medina Mora, E. (2023). La Ciudadela Comfenalco y su pequeño bosque urbano: La infraestructura verde como aliada en la creación del paisaje ambiental, social y económico. "),
+                false,
+            ),
+            (same("Revista B33 Arquitectura y Urbanismo"), true),
+            (same(", (9). "), false),
+        ],
+        Some("https://revistas.ut.edu.co/index.php/B33/article/view/3239"),
     ),
     (
         &[
