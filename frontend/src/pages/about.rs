@@ -148,11 +148,11 @@ const REFERENCES: [(&[Seg], Option<&str>); 6] = [
             (same("Corporación Autónoma Regional del Tolima [Cortolima]. (2016). "), false),
             (same("Formulación del plan maestro de silvicultura urbana para la ciudad de Ibagué"), true),
             (
-                (" [Versión final; Contrato 507 de 2016, operado por Constructo Co S.A.S.].", " [Final version; Contract 507 of 2016, operated by Constructo Co S.A.S.]."),
+                (" [Versión final; Contrato 507 de 2016, operado por Constructo Co S.A.S.]. ", " [Final version; Contract 507 of 2016, operated by Constructo Co S.A.S.]. "),
                 false,
             ),
         ],
-        None,
+        Some("https://binet.cortolima.gov.co/images/estudio/bosques/PLAN_MAESTRO_SILVICULTURA_IBAGUE_2016.pdf"),
     ),
     (
         &[
