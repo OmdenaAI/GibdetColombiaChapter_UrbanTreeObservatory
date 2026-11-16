@@ -3,13 +3,15 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 use super::card::{
     BookmarkButton, ILLUSTRATION_BG, NAME_BAR, SCI_BAR, illustration_img, plate_credit, flower_swatch, group_tag, iucn_badge, life_form_icon,
     photo_placeholder, svg,
 };
-use super::model::{self, Species, TRAITS};
+use super::model::{self, ManualEntry, Species, TRAITS};
 use super::{Ctx, ICON_X};
+use crate::api::console_error;
 use crate::i18n::{Lang, pick};
 
 const ICON_EXTERNAL: &str = "M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14";
@@ -34,6 +36,19 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx, l: Lang) -> impl Int
     let common = s.common_name().map(str::to_string);
     let illustration = s.illustration();
     let image_bg = if illustration.is_some() { ILLUSTRATION_BG } else { "bg-[#DFE1E6]" };
+
+    // Sheet in the Tolima manual, fetched only for species that have one.
+    let manual = RwSignal::new(None::<ManualEntry>);
+    if s.has_manual_entry {
+        let id = s.id;
+        spawn_local(async move {
+            match model::fetch_manual(id).await {
+                // The sheet may have been closed before the answer arrived.
+                Ok(m) => drop(manual.try_set(Some(m))),
+                Err(e) => console_error("Manual entry", &e),
+            }
+        });
+    }
 
     let t = move |es: &'static str, en: &'static str| pick(l, es, en);
     let fact = move |es: &'static str, en: &'static str, value: AnyView| {
@@ -118,6 +133,8 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx, l: Lang) -> impl Int
                     <p class="text-sm text-gray-700">{iucn_desc}</p>
                 </div>
 
+                {move || manual.get().map(|m| manual_section(l, m))}
+
                 <div>
                     <h4 class=format!("{LABEL} mb-2")>
                         {match s.group() {
@@ -154,5 +171,58 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx, l: Lang) -> impl Int
                 </div>
             </div>
         </div>
+    }
+}
+
+/// The species' sheet in the Tolima arborization manual, verbatim and in the manual's order:
+/// header fields, then one collapsible block per section ("Descripción" open), then the source.
+fn manual_section(l: Lang, m: ManualEntry) -> impl IntoView {
+    let t = move |es: &'static str, en: &'static str| pick(l, es, en);
+    let field = move |label: &'static str, value: String| {
+        (!value.is_empty()).then(|| view! {
+            <p><span class="font-semibold">{label}": "</span>{value}</p>
+        })
+    };
+    let pages = m.pages();
+    view! {
+        <section class="rounded-lg border border-gray-200 p-4 space-y-3" lang="es">
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <h4 class=LABEL>{t("Manual de arborización del Tolima", "Tolima arborization manual")}</h4>
+                {(l != Lang::Es).then(|| view! {
+                    <span class="text-xs text-gray-400 italic" lang="en">"Original text in Spanish"</span>
+                })}
+            </div>
+            <div class="text-sm text-gray-800 space-y-0.5">
+                <p>
+                    <span class="font-semibold">"Nombre científico: "</span>
+                    <i>{m.scientific_name.clone()}</i>
+                </p>
+                {field("Familia", m.family.clone())}
+                {field("Sinónimos", m.synonyms.clone())}
+                {field("Nombre común", m.common_names.clone())}
+                {field("Lugar de origen", m.origin.clone())}
+            </div>
+            <div class="divide-y divide-gray-100 border-y border-gray-100">
+                {m.sections.into_iter().map(|sec| {
+                    let open = sec.title == "Descripción";
+                    view! {
+                        <details class="group py-2" open=open>
+                            <summary class="cursor-pointer select-none text-sm font-semibold text-gray-900 marker:text-gray-400">
+                                {sec.title}
+                            </summary>
+                            <p class="mt-1.5 text-sm text-gray-700 leading-relaxed text-justify">
+                                {model::bold_runs(&sec.text).into_iter().map(|(run, bold)| {
+                                    let run = run.to_string();
+                                    if bold { view! { <strong>{run}</strong> }.into_any() } else { run.into_any() }
+                                }).collect_view()}
+                            </p>
+                        </details>
+                    }
+                }).collect_view()}
+            </div>
+            <p class="text-xs text-gray-500">
+                {t("Fuente: ", "Source: ")}{m.source}", "<span class="whitespace-nowrap">{pages}"."</span>
+            </p>
+        </section>
     }
 }

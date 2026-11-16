@@ -25,6 +25,9 @@ pub struct Species {
     /// Most frequent common name in the species' biodiversity records (annotated by the API).
     #[serde(default)]
     pub common_name: Option<String>,
+    /// Whether the species has a sheet in the Tolima arborization manual (`manual/` endpoint).
+    #[serde(default)]
+    pub has_manual_entry: bool,
     pub genus: Genus,
     #[serde(default)]
     pub functional_group: Option<FunctionalGroup>,
@@ -101,6 +104,60 @@ pub async fn fetch_all_species() -> Result<Catalog, String> {
         all.extend(page.results.into_iter().map(Arc::new));
     }
     Ok(Arc::new(all))
+}
+
+/// The species' sheet in the "Manual de arborización para el departamento del Tolima",
+/// verbatim (Spanish only). Bold runs in `sections[].text` are marked `**…**`.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct ManualEntry {
+    pub scientific_name: String,
+    #[serde(default)]
+    pub family: String,
+    #[serde(default)]
+    pub synonyms: String,
+    #[serde(default)]
+    pub common_names: String,
+    #[serde(default)]
+    pub origin: String,
+    pub sections: Vec<ManualSection>,
+    pub page_start: u16,
+    pub page_end: u16,
+    pub source: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct ManualSection {
+    pub title: String,
+    pub text: String,
+}
+
+impl ManualEntry {
+    /// "p. 184" or "pp. 184–185".
+    pub fn pages(&self) -> String {
+        if self.page_end > self.page_start {
+            format!("pp. {}–{}", self.page_start, self.page_end)
+        } else {
+            format!("p. {}", self.page_start)
+        }
+    }
+}
+
+pub async fn fetch_manual(id: i64) -> Result<ManualEntry, String> {
+    parse(get_json(&format!("{API_BASE}/api/v1/taxonomy/species/{id}/manual/")).await?)
+}
+
+/// Splits manual text on `**` into (text, bold) runs; an unpaired `**` stays literal.
+pub fn bold_runs(text: &str) -> Vec<(&str, bool)> {
+    let parts: Vec<&str> = text.split("**").collect();
+    if parts.len().is_multiple_of(2) {
+        return vec![(text, false)];
+    }
+    parts
+        .into_iter()
+        .enumerate()
+        .filter(|(_, p)| !p.is_empty())
+        .map(|(i, p)| (p, i % 2 == 1))
+        .collect()
 }
 
 fn parse<T: for<'de> Deserialize<'de>>(v: serde_json::Value) -> Result<T, String> {
@@ -550,6 +607,14 @@ mod tests {
         assert!(plate.page.starts_with("https://commons.wikimedia.org/wiki/File:"));
         assert!(!plate.license.is_empty());
         assert_eq!(species(serde_json::json!({"scientific_name": "Pithecellobium"})).plate(), None);
+    }
+
+    #[test]
+    fn bold_runs_split_on_paired_markers() {
+        assert_eq!(bold_runs("a **b** c"), vec![("a ", false), ("b", true), (" c", false)]);
+        assert_eq!(bold_runs("**todo**"), vec![("todo", true)]);
+        assert_eq!(bold_runs("sin marcas"), vec![("sin marcas", false)]);
+        assert_eq!(bold_runs("impar ** suelto"), vec![("impar ** suelto", false)]);
     }
 
     #[test]
