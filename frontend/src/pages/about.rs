@@ -381,14 +381,17 @@ pub fn About() -> impl IntoView {
                 </p>
                 <ul class="mt-4 space-y-3 text-sm text-gray-700 leading-relaxed">
                     {REFERENCES.into_iter().map(|(segs, url)| view! {
-                        // Hanging indent, as in an APA reference list.
-                        <li class="pl-8 -indent-8">
-                            {segs.iter().map(|&(text, italic)| {
-                                if italic { view! { <i>{t(text)}</i> }.into_any() } else { view! { <span>{t(text)}</span> }.into_any() }
-                            }).collect_view()}
-                            {url.map(|u| view! {
-                                <a href=u target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline break-all">{u}</a>
-                            })}
+                        // One translucent box per reference, in the page's green palette.
+                        <li class="rounded-md border border-primary-200 border-l-4 border-l-primary-600 bg-primary-50/70 px-4 py-3 transition-colors hover:bg-primary-100/70">
+                            // Hanging indent, as in an APA reference list.
+                            <div class="pl-8 -indent-8">
+                                {segs.iter().map(|&(text, italic)| {
+                                    if italic { view! { <i>{t(text)}</i> }.into_any() } else { view! { <span>{t(text)}</span> }.into_any() }
+                                }).collect_view()}
+                                {url.map(|u| view! {
+                                    <a href=u target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline break-all">{u}</a>
+                                })}
+                            </div>
                         </li>
                     }).collect_view()}
                 </ul>
