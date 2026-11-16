@@ -219,6 +219,20 @@ pub(crate) fn illustration_img(l: Lang, src: String, scientific_name: &str) -> i
     }
 }
 
+/// "Plate: author, year · license · Wikimedia Commons ↗" under an illustration.
+pub(crate) fn plate_credit(l: Lang, p: &'static model::Plate) -> impl IntoView + use<> {
+    view! {
+        <p class="text-[11px] leading-snug text-gray-500">
+            {format!("{}: {}", pick(l, "Lámina", "Plate"), p.byline(l))}
+            " · " {p.license} " · "
+            <a href=p.page title=p.title target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline"
+                on:click=|ev| ev.stop_propagation()>
+                "Wikimedia Commons ↗"
+            </a>
+        </p>
+    }
+}
+
 /// Gray "image" placeholder from the template (no species photos in the API yet).
 pub(crate) fn photo_placeholder() -> impl IntoView {
     view! {
@@ -258,7 +272,10 @@ pub(super) fn SpeciesCard(species: Arc<Species>, ctx: Ctx, l: Lang) -> impl Into
                 {group_tag(l, s.group())}
             </div>
 
-            <div class=format!("relative h-48 flex items-center justify-center overflow-hidden {image_bg}")>
+            <div
+                class=format!("relative h-48 flex items-center justify-center overflow-hidden {image_bg}")
+                title=s.plate().map(|p| format!("{}: {} · {} · Wikimedia Commons", pick(l, "Lámina", "Plate"), p.byline(l), p.license))
+            >
                 {match illustration {
                     Some(src) => illustration_img(l, src, &s.scientific_name).into_any(),
                     None => photo_placeholder().into_any(),

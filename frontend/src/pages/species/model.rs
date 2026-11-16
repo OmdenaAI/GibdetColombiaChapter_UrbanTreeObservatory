@@ -111,28 +111,12 @@ fn parse<T: for<'de> Deserialize<'de>>(v: serde_json::Value) -> Result<T, String
 // Derived values
 // ---------------------------------------------------------------------------
 
-/// Species with a cover illustration in `public/assets/species/<genus-epithet>.webp`
-/// (640×640 WebP). Matched against the scientific name or the accepted name, because some
-/// records differ (e.g. "Aiouea Cinnamomum triplinerve", accepted "Cinnamomum triplinerve …").
-pub const ILLUSTRATIONS: [&str; 17] = [
-    "Amyris balsamifera",
-    "Anacardium excelsum",
-    "Bursera graveolens",
-    "Cedrela odorata",
-    "Cinnamomum triplinerve",
-    "Cordia alliodora",
-    "Cupania cinerea",
-    "Erythroxylum amazonicum",
-    "Euphorbia cotinifolia",
-    "Hura crepitans",
-    "Lacistema aggregatum",
-    "Myrcia cucullata",
-    "Pachira insignis",
-    "Pithecellobium dulce",
-    "Senna reticulata",
-    "Thevetia ahouai",
-    "Xylosma intermedia",
-];
+pub use super::plates::{PLATES, Plate};
+
+/// The botanical plate chosen for a species (by exact scientific name), if any.
+pub fn plate_for(scientific_name: &str) -> Option<&'static Plate> {
+    PLATES.iter().find(|p| p.species == scientific_name)
+}
 
 /// Functional-group traits shown on cards: carbon sequestration, shade, canopy, height.
 /// (code, Spanish, English)
@@ -148,17 +132,14 @@ impl Species {
         self.common_name.as_deref().map(str::trim).filter(|n| !n.is_empty())
     }
 
+    /// Historical botanical plate (Wikimedia Commons) shown as the species' cover, if any.
+    pub fn plate(&self) -> Option<&'static Plate> {
+        plate_for(&self.scientific_name)
+    }
+
     /// URL of the cover illustration, if there is one.
     pub fn illustration(&self) -> Option<String> {
-        let accepted = self.accepted_scientific_name.as_deref().unwrap_or("");
-        ILLUSTRATIONS
-            .iter()
-            .find(|n| {
-                self.scientific_name == **n
-                    || accepted == **n
-                    || accepted.strip_prefix(**n).is_some_and(|rest| rest.starts_with(' '))
-            })
-            .map(|n| format!("/assets/species/{}.webp", n.to_lowercase().replace(' ', "-")))
+        self.plate().map(Plate::src)
     }
 
     pub fn family(&self) -> &str {
@@ -562,16 +543,22 @@ mod tests {
     }
 
     #[test]
-    fn illustration_matches_scientific_or_accepted_name() {
-        let direct = species(serde_json::json!({"scientific_name": "Hura crepitans"}));
-        assert_eq!(direct.illustration().as_deref(), Some("/assets/species/hura-crepitans.webp"));
-        let accepted = species(serde_json::json!({
-            "scientific_name": "Aiouea Cinnamomum triplinerve",
-            "accepted_scientific_name": "Cinnamomum triplinerve (Ruiz & Pav.) Kosterm."
-        }));
-        assert_eq!(accepted.illustration().as_deref(), Some("/assets/species/cinnamomum-triplinerve.webp"));
-        let prefix_only = species(serde_json::json!({"accepted_scientific_name": "Hura crepitansoides"}));
-        assert_eq!(prefix_only.illustration(), None);
+    fn plate_matches_the_exact_scientific_name() {
+        let s = species(serde_json::json!({"scientific_name": "Pithecellobium dulce"}));
+        let plate = s.plate().expect("plate for Pithecellobium dulce");
+        assert_eq!(s.illustration().as_deref(), Some("/assets/species/pithecellobium-dulce.webp"));
+        assert!(plate.page.starts_with("https://commons.wikimedia.org/wiki/File:"));
+        assert!(!plate.license.is_empty());
+        assert_eq!(species(serde_json::json!({"scientific_name": "Pithecellobium"})).plate(), None);
+    }
+
+    #[test]
+    fn plates_are_unique_and_safe() {
+        let mut seen = HashSet::new();
+        for p in PLATES.iter() {
+            assert!(seen.insert(p.species), "duplicate plate for {}", p.species);
+            assert!(p.image.ends_with(".webp") && p.image.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '.'));
+        }
     }
 
     #[test]

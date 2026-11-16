@@ -152,12 +152,20 @@ can run before the page's elements are in the document. Any code that needs a re
 
 ### Species illustrations
 
-Cover illustrations live in `public/assets/species/<genus>-<epithet>.webp` (lowercase, 640×640
-WebP, ~30 KB each) and are listed in `ILLUSTRATIONS` in `src/pages/species/model.rs`. A species
-matches by scientific name or accepted name. Species without one show a placeholder; the sidebar
-has a "With illustration only" filter. To add one:
+Species covers are **historical botanical plates from Wikimedia Commons** (e.g. Blanco's *Flora de
+Filipinas*, Köhler's *Medizinal-Pflanzen*, Descourtilz's *Flore médicale des Antilles*, Karsten's
+*Florae Columbiae*), one per species, chosen by hand. They replace the earlier AI-generated images.
 
-```bash
-convert "Genus epithet.png" -resize 640x640 -strip -quality 80 public/assets/species/genus-epithet.webp
-# then add "Genus epithet" to ILLUSTRATIONS
-```
+- Images: `public/assets/species/<genus>-<epithet>.webp` (longest side 800 px, WebP q80).
+- Credits: `src/pages/species/plates.rs` (`PLATES`: author, year, license, Commons page) drives
+  the covers and the credit line shown under the image in the species sheet and the map panel
+  (tooltip on the cards). `public/assets/species/CREDITS.csv` keeps the full Commons data
+  (original URL, license URL, attribution required).
+- A species matches by its exact scientific name; species without a plate show a placeholder,
+  and the sidebar has a "With illustration only" filter.
+- Most plates are public domain; the CC BY / CC BY-SA ones require the credit, so it must stay
+  visible wherever the image is shown.
+
+To change or add plates: build the review page from the Commons survey, pick one plate per
+species, export `seleccion-laminas.csv`, then regenerate the images, `plates.rs` and
+`CREDITS.csv` from it.

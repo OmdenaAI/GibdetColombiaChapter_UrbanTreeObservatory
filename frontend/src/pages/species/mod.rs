@@ -7,6 +7,7 @@ pub(crate) mod card;
 mod export;
 mod modal;
 pub(crate) mod model;
+mod plates;
 mod sidebar;
 
 use std::collections::HashSet;

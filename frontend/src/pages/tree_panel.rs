@@ -11,7 +11,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use serde::Deserialize;
 
-use super::species::card::{ILLUSTRATION_BG, illustration_img, photo_placeholder};
+use super::species::card::{ILLUSTRATION_BG, illustration_img, photo_placeholder, plate_credit};
 use super::species::model::{self, Species, fmt_num};
 use crate::api::{API_BASE, console_error, get_json};
 use crate::i18n::I18n;
@@ -149,7 +149,7 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
     let scientific = tree.scientific_name.clone();
     let illustration = move || {
         species.with(|s| match s {
-            Load::Ready(s) => s.illustration().map(|src| (src, s.scientific_name.clone())),
+            Load::Ready(s) => s.plate().map(|p| (p, s.scientific_name.clone())),
             _ => None,
         })
     };
@@ -233,11 +233,12 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
                 let bg = if img.is_some() { ILLUSTRATION_BG } else { "bg-[#DFE1E6]" };
                 view! {
                     <div class=format!("relative h-56 overflow-hidden rounded border-2 border-gray-900 flex items-center justify-center {bg}")>
-                        {match img {
-                            Some((src, name)) => illustration_img(i.lang(), src, &name).into_any(),
+                        {match &img {
+                            Some((p, name)) => illustration_img(i.lang(), p.src(), name).into_any(),
                             None => photo_placeholder().into_any(),
                         }}
                     </div>
+                    {img.map(|(p, _)| plate_credit(i.lang(), p))}
                 }
             }}
 

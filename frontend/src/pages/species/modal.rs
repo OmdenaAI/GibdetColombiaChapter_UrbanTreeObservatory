@@ -5,7 +5,7 @@ use std::sync::Arc;
 use leptos::prelude::*;
 
 use super::card::{
-    BookmarkButton, ILLUSTRATION_BG, NAME_BAR, SCI_BAR, illustration_img, flower_swatch, group_tag, iucn_badge, life_form_icon,
+    BookmarkButton, ILLUSTRATION_BG, NAME_BAR, SCI_BAR, illustration_img, plate_credit, flower_swatch, group_tag, iucn_badge, life_form_icon,
     photo_placeholder, svg,
 };
 use super::model::{self, Species, TRAITS};
@@ -80,11 +80,14 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx, l: Lang) -> impl Int
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-[2fr_3fr]">
-                    <div class=format!("relative overflow-hidden h-64 sm:h-auto sm:min-h-[16rem] flex items-center justify-center {image_bg}")>
-                        {match illustration {
-                            Some(src) => illustration_img(l, src, &s.scientific_name).into_any(),
-                            None => photo_placeholder().into_any(),
-                        }}
+                    <div class="flex flex-col gap-1">
+                        <div class=format!("relative overflow-hidden h-64 sm:h-auto sm:min-h-[16rem] sm:flex-1 flex items-center justify-center {image_bg}")>
+                            {match illustration {
+                                Some(src) => illustration_img(l, src, &s.scientific_name).into_any(),
+                                None => photo_placeholder().into_any(),
+                            }}
+                        </div>
+                        {s.plate().map(|p| plate_credit(l, p))}
                     </div>
                     <div class="space-y-3">
                         <div class=format!("{SCI_BAR} rounded px-3 py-1.5 text-white")>
