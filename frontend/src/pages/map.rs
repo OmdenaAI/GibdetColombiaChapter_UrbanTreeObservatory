@@ -1,6 +1,8 @@
 //! Map page: Leaflet map with zoom-dependent layers (comunas < 17, barrios 17-18,
 //! tree points >= 19) and a side panel with statistics. Clicking a tree point replaces the
 //! statistics with that tree's sheet (`tree_panel::TreePanel`) and highlights the point.
+//! The toolbar at the bottom (`map_tools`) queries trees by filters and area of interest;
+//! this page draws its area, the polygon being drawn and the matching trees.
 //!
 //! KNOWN ISSUES (inherited behaviour, kept until decided; marked `KNOWN ISSUE:` below):
 //!
@@ -29,6 +31,7 @@ use crate::i18n::{I18n, Lang, pick};
 use crate::interop::leaflet::{self as L, LMap, Layer};
 use crate::interop::{to_js, when_connected};
 
+use super::map_tools::{MapToolbar, PANEL_ID, QueryResult, ToolSignals, Zone};
 use super::tree_panel::{TreePanel, TreeRecord};
 
 #[derive(Clone)]
@@ -151,6 +154,13 @@ struct MapState {
     selected_region: RwSignal<Region>,
     selected_tree: RwSignal<Option<TreeRecord>>,
     highlight: Highlight,
+    tools: ToolSignals,
+    /// Area of interest, polygon being drawn (pane `zone`) and query result (pane `results`,
+    /// drawn on a canvas: up to 20,000 points).
+    zone_layer: Layer,
+    draft_layer: Layer,
+    result_layer: Layer,
+    result_renderer: JsValue,
 }
 
 #[component]
@@ -162,6 +172,10 @@ pub fn MapPage() -> impl IntoView {
     });
     let selected_tree = RwSignal::new(None::<TreeRecord>);
     let highlight: Highlight = StoredValue::new_local(None);
+    let tools = ToolSignals::new();
+    // The Leaflet side, once created (for the Effects that draw the toolbar's state).
+    let map_state: StoredValue<Option<Rc<MapState>>, LocalStorage> = StoredValue::new_local(None);
+    let map_ready = RwSignal::new(false);
 
     // Closing the tree sheet (or clicking a region) un-highlights the point.
     Effect::new(move |_| {
@@ -178,8 +192,37 @@ pub fn MapPage() -> impl IntoView {
         if let Some(el) = map_ref.get() {
             let container: web_sys::HtmlElement = el.into();
             let c = container.clone();
-            when_connected(container, move || init_map(&c, selected_region, selected_tree, highlight));
+            when_connected(container, move || {
+                if let Some(st) = init_map(&c, selected_region, selected_tree, highlight, tools) {
+                    map_state.try_update_value(|s| *s = Some(st));
+                    map_ready.try_set(true);
+                }
+            });
         }
+    });
+
+    // Draw the toolbar's state. Each Effect also tracks `map_ready`, so what was set before
+    // the map existed is drawn once it does.
+    let with_map = move |f: &dyn Fn(&MapState)| {
+        if map_ready.get() {
+            map_state.with_value(|s| {
+                if let Some(s) = s {
+                    f(s);
+                }
+            });
+        }
+    };
+    Effect::new(move |_| {
+        let zone = tools.zone.get();
+        with_map(&|st| draw_zone(st, zone.as_ref()));
+    });
+    Effect::new(move |_| {
+        let draft = tools.draft.get();
+        with_map(&|st| draw_draft(st, draft.as_deref()));
+    });
+    Effect::new(move |_| {
+        let result = tools.result.get();
+        with_map(&|st| draw_result(st, result.as_ref()));
     });
 
     let i = I18n::use_ctx();
@@ -251,7 +294,10 @@ pub fn MapPage() -> impl IntoView {
                         None => summary().into_any(),
                     }}
                 </div>
-                <div node_ref=map_ref id="map" class="flex-1 rounded-lg shadow-lg border border-gray-200 min-h-[500px]"></div>
+                <div class="relative flex-1 min-h-[500px]">
+                    <div node_ref=map_ref id="map" class="absolute inset-0 rounded-lg shadow-lg border border-gray-200"></div>
+                    <MapToolbar tools />
+                </div>
             </div>
         </div>
     }
@@ -282,10 +328,14 @@ fn init_map(
     selected_region: RwSignal<Region>,
     selected_tree: RwSignal<Option<TreeRecord>>,
     highlight: Highlight,
-) {
+    tools: ToolSignals,
+) -> Option<Rc<MapState>> {
     let map = match L::map(container) {
         Ok(map) => map,
-        Err(e) => return web_sys::console::error_2(&"Error initializing map:".into(), &e),
+        Err(e) => {
+            web_sys::console::error_2(&"Error initializing map:".into(), &e);
+            return None;
+        }
     };
     map.set_view(&to_js(&json!([4.4389, -75.2322])), 14.0);
 
@@ -303,6 +353,20 @@ fn init_map(
     )
     .add_to(&map);
 
+    // Above the comunas / barrios (overlayPane, 400) and below the markers (600). Not
+    // clickable: clicks reach the layers underneath (and the map, while drawing).
+    for (pane, z) in [("zone", "440"), ("results", "450")] {
+        let style = map.create_pane(pane).style();
+        let _ = style.set_property("z-index", z);
+        let _ = style.set_property("pointer-events", "none");
+    }
+    let zone_layer = L::feature_group();
+    let draft_layer = L::layer_group();
+    let result_layer = L::layer_group();
+    for layer in [&zone_layer, &draft_layer, &result_layer] {
+        layer.add_to(&map);
+    }
+
     let st = Rc::new(MapState {
         map,
         shown_labels: RefCell::new(HashSet::new()),
@@ -316,9 +380,36 @@ fn init_map(
         selected_region,
         selected_tree,
         highlight,
+        tools,
+        zone_layer,
+        draft_layer,
+        result_layer,
+        result_renderer: L::canvas(&to_js(&json!({ "pane": "results" }))),
     });
 
     load_localities(st.clone());
+
+    // Drawing the area of interest: each click adds a vertex, a double click closes it.
+    st.map.on(
+        "click",
+        &js_fn1(move |e| {
+            if tools.is_drawing() {
+                let latlng = Reflect::get(&e, &"latlng".into()).unwrap_or(JsValue::UNDEFINED);
+                let coord = |k: &str| Reflect::get(&latlng, &k.into()).ok().and_then(|v| v.as_f64());
+                if let (Some(lat), Some(lng)) = (coord("lat"), coord("lng")) {
+                    tools.add_vertex(lat, lng);
+                }
+            }
+        }),
+    );
+    st.map.on(
+        "dblclick",
+        &js_fn1(move |_| {
+            if tools.is_drawing() {
+                tools.finish_drawing();
+            }
+        }),
+    );
 
     {
         let st = st.clone();
@@ -333,6 +424,101 @@ fn init_map(
                 load_points_by_zoom(st.clone());
             }),
         );
+    }
+    Some(st)
+}
+
+// ---------------------------------------------------------------------------
+// Toolbar: area of interest, polygon being drawn, query result
+// ---------------------------------------------------------------------------
+
+const ZONE_STYLE: &str = r##"{"pane": "zone", "interactive": false, "color": "#1D4ED8", "weight": 3, "fillColor": "#3B82F6", "fillOpacity": 0.08}"##;
+const DRAFT_LINE: &str = r##"{"pane": "zone", "interactive": false, "color": "#1D4ED8", "weight": 2, "dashArray": "6 6", "fillColor": "#3B82F6", "fillOpacity": 0.1}"##;
+const DRAFT_VERTEX: &str = r##"{"pane": "zone", "interactive": false, "radius": 5, "color": "#1D4ED8", "weight": 2, "fillColor": "#FFFFFF", "fillOpacity": 1}"##;
+
+fn draw_zone(st: &MapState, zone: Option<&Zone>) {
+    st.zone_layer.clear_layers();
+    let Some(zone) = zone else { return };
+    let opts = Object::new();
+    set(&opts, "style", &style(ZONE_STYLE));
+    let layer = L::geo_json(&to_js(&zone.geometry), &opts);
+    layer.add_to(&st.zone_layer);
+    let bounds = layer.get_bounds();
+    if bounds.is_valid() {
+        fit_above_toolbar(st, &bounds, 19.0);
+    }
+}
+
+/// Frame `bounds` in the part of the map not covered by the toolbar and its open panel
+/// (bottom center), keeping at least 200 px of map.
+fn fit_above_toolbar(st: &MapState, bounds: &L::LatLngBounds, max_zoom: f64) {
+    let map_height = f64::from(st.map.get_container().client_height());
+    let panel = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.get_element_by_id(PANEL_ID))
+        .map_or(0.0, |p| f64::from(p.client_height()) + 12.0);
+    // Toolbar: 24 px from the bottom + ~50 px high, plus a margin.
+    let bottom = (panel + 100.0).min((map_height - 200.0).max(60.0));
+    st.map.fit_bounds(
+        bounds,
+        &to_js(&json!({ "paddingTopLeft": [40, 40], "paddingBottomRight": [40, bottom], "maxZoom": max_zoom })),
+    );
+}
+
+/// Dashed outline (closed once there are three vertices) and a dot per vertex.
+fn draw_draft(st: &MapState, draft: Option<&[[f64; 2]]>) {
+    st.draft_layer.clear_layers();
+    // While drawing, a double click closes the polygon instead of zooming, and the cursor
+    // marks the drawing mode.
+    let drawing = draft.is_some();
+    toggle_map_handler(&st.map, "doubleClickZoom", !drawing);
+    let css = st.map.get_container().style();
+    let _ = if drawing { css.set_property("cursor", "crosshair") } else { css.remove_property("cursor").map(|_| ()) };
+
+    let Some(vertices) = draft else { return };
+    let latlngs = to_js(&json!(vertices));
+    if vertices.len() >= 3 {
+        L::polygon(&latlngs, &style(DRAFT_LINE)).add_to(&st.draft_layer);
+    } else if vertices.len() == 2 {
+        L::polyline(&latlngs, &style(DRAFT_LINE)).add_to(&st.draft_layer);
+    }
+    for [lat, lng] in vertices {
+        L::circle_marker(&L::lat_lng(*lat, *lng), &style(DRAFT_VERTEX)).add_to(&st.draft_layer);
+    }
+}
+
+/// `map.<handler>.enable()` / `.disable()` (e.g. `doubleClickZoom`).
+fn toggle_map_handler(map: &LMap, handler: &str, enable: bool) {
+    let Ok(h) = Reflect::get(map, &handler.into()) else { return };
+    let method = if enable { "enable" } else { "disable" };
+    if let Ok(f) = Reflect::get(&h, &method.into()).and_then(|f| f.dyn_into::<js_sys::Function>()) {
+        let _ = f.call0(&h);
+    }
+}
+
+/// The matching trees as amber dots; a single tree (a search by code) larger. Without an
+/// area of interest the map moves to the result (the area already framed it otherwise).
+fn draw_result(st: &MapState, result: Option<&QueryResult>) {
+    st.result_layer.clear_layers();
+    let Some(result) = result else { return };
+    let single = result.count == 1;
+    let opts = style(&json!({
+        "pane": "results",
+        "interactive": false,
+        "radius": if single { 10 } else { 4 },
+        "color": "#78350F",
+        "weight": if single { 2 } else { 1 },
+        "fillColor": "#FBBF24",
+        "fillOpacity": 0.9
+    }).to_string());
+    set(opts.unchecked_ref(), "renderer", &st.result_renderer);
+    for (_, lat, lon) in &result.points {
+        L::circle_marker(&L::lat_lng(*lat, *lon), &opts).add_to(&st.result_layer);
+    }
+    let framed_by_zone = st.tools.zone.with_untracked(Option::is_some);
+    if let (Some([w, s, e, n]), false) = (result.bbox, framed_by_zone) {
+        let bounds = L::lat_lng_bounds(&to_js(&json!([[s, w], [n, e]])));
+        fit_above_toolbar(st, &bounds, 20.0);
     }
 }
 
@@ -467,6 +653,10 @@ fn on_each_locality(st: &Rc<MapState>, data: &Value, props: &Value, layer: Layer
     let st = st.clone();
     let props = props.clone();
     layer.on("click", &js_fn1(move |e| {
+        // While drawing, clicks only add vertices (the map's own handler).
+        if st.tools.is_drawing() {
+            return;
+        }
         let l = event_target(&e);
         let bounds = l.get_bounds();
         st.map.fit_bounds(&bounds, &to_js(&json!({ "padding": [10, 10], "maxZoom": 16 })));
@@ -570,8 +760,11 @@ fn on_neighborhood_events(st: &Rc<MapState>, layer: &Layer, name: String, statis
         event_target(&e).set_style(&to_js(&json!({ "fillOpacity": 0.3 })));
     }));
 
-    let (region, tree) = (st.selected_region, st.selected_tree);
+    let (region, tree, tools) = (st.selected_region, st.selected_tree, st.tools);
     layer.on("click", &js_fn1(move |_| {
+        if tools.is_drawing() {
+            return;
+        }
         let statistics = statistics.clone().unwrap_or_else(|| {
             json!({ "totalTrees": "N/A", "speciesCount": "N/A", "avgHeight": "N/A", "healthIndex": "N/A" })
         });
@@ -664,8 +857,11 @@ fn load_points_by_zoom(st: Rc<MapState>) {
                 highlight(st.highlight, id, &marker);
             }
 
-            let (selected_tree, h, m) = (st.selected_tree, st.highlight, marker.clone());
+            let (selected_tree, h, m, tools) = (st.selected_tree, st.highlight, marker.clone(), st.tools);
             marker.on("click", &js_fn1(move |_| {
+                if tools.is_drawing() {
+                    return;
+                }
                 highlight(h, id, &m);
                 selected_tree.try_set(Some(tree.clone()));
             }));

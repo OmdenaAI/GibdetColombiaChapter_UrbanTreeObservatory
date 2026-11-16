@@ -11,13 +11,14 @@ leptos_router = "0.8"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "Node", "HtmlElement", "HtmlDivElement", "HtmlAnchorElement", "HtmlInputElement", "Blob", "BlobPropertyBag", "Url", "KeyboardEvent", "Storage", "console"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "Node", "HtmlElement", "HtmlDivElement", "HtmlAnchorElement", "HtmlInputElement", "Blob", "BlobPropertyBag", "Url", "KeyboardEvent", "Storage", "console", "File", "FileList", "HtmlSelectElement"] }
 gloo-net = { version = "0.6", default-features = false, features = ["http", "json"] }
 futures = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde-wasm-bindgen = "0.6"
 console_error_panic_hook = "0.1"
+roxmltree = "0.20"
 
 [features]
 # Reports and Alerts pages (and the navbar bell). Meant for administrators and partner

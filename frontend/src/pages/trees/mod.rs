@@ -5,7 +5,7 @@
 //! Data: `/api/v1/biodiversity/inventory/` (paginated list, detail, CSV export).
 
 mod detail;
-mod export;
+pub(crate) mod export;
 mod minimap;
 
 use std::collections::HashSet;

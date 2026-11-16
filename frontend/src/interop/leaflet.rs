@@ -34,6 +34,10 @@ extern "C" {
     pub fn remove(this: &LMap) -> LMap;
     #[wasm_bindgen(method, js_name = invalidateSize)]
     pub fn invalidate_size(this: &LMap) -> LMap;
+    #[wasm_bindgen(method, js_name = createPane)]
+    pub fn create_pane(this: &LMap, name: &str) -> web_sys::HtmlElement;
+    #[wasm_bindgen(method, js_name = getContainer)]
+    pub fn get_container(this: &LMap) -> web_sys::HtmlElement;
 
     // ---- L.Control ----
     pub type Control;
@@ -81,6 +85,17 @@ extern "C" {
     pub fn div_icon(options: &JsValue) -> JsValue;
     #[wasm_bindgen(js_namespace = L, js_name = latLng)]
     pub fn lat_lng(lat: f64, lng: f64) -> JsValue;
+    /// `latlngs`: `[[lat, lng], ...]` (or rings of them).
+    #[wasm_bindgen(js_namespace = L, js_name = polygon)]
+    pub fn polygon(latlngs: &JsValue, options: &JsValue) -> Layer;
+    #[wasm_bindgen(js_namespace = L, js_name = polyline)]
+    pub fn polyline(latlngs: &JsValue, options: &JsValue) -> Layer;
+    /// `L.canvas(options)`: a renderer, passed as a path's `renderer` option.
+    #[wasm_bindgen(js_namespace = L, js_name = canvas)]
+    pub fn canvas(options: &JsValue) -> JsValue;
+    /// `L.latLngBounds([[south, west], [north, east]])`.
+    #[wasm_bindgen(js_namespace = L, js_name = latLngBounds)]
+    pub fn lat_lng_bounds(corners: &JsValue) -> LatLngBounds;
 
     // ---- L.LatLngBounds ----
     pub type LatLngBounds;
