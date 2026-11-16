@@ -8,6 +8,8 @@
 - retrieve: the tree with every measurement and observation (all census fields).
 - ``export/``: CSV. ``GET`` with the list filters exports every matching tree; ``POST``
   ``{"ids": [...]}`` exports the selected ones.
+- ``query/`` (POST) and ``options/``: the map's queries by filters and area of interest,
+  with CSV, Excel and GeoJSON downloads (see ``query.py``).
 
 ``?lang=es|en`` sets the language of the labels in the detail and of the category values
 in the CSV (default: English). The CSV header is always in English.
@@ -31,6 +33,7 @@ from rest_framework.response import Response
 
 from apps.reports.models import Measurement, Observation
 
+from . import query
 from .models import BiodiversityRecord
 
 # Measured attributes in display / CSV order.
@@ -421,3 +424,28 @@ class InventoryViewSet(viewsets.ReadOnlyModelViewSet):
             )
         queryset = self.filter_queryset(self.get_queryset())
         return csv_response(queryset, "tree-inventory", request_language(request))
+
+    @action(detail=False, methods=["post"], url_path="query")
+    def query(self, request):
+        """Trees matching the map's filters and area of interest: summary or download."""
+        try:
+            params = query.parse(request.data)
+        except query.QueryError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        queryset = query.filter_trees(inventory_queryset(), params)
+        fmt = params["format"]
+        if fmt == "json":
+            return Response(query.summary(queryset))
+        lang = query.language(request.data, request_language(request))
+        name = "tree-query"
+        if fmt == "csv":
+            return csv_response(queryset, name, lang)
+        rows = _csv_rows(queryset, lang)
+        if fmt == "xlsx":
+            return query.xlsx_response(rows, name)
+        return query.geojson_response(rows, name)
+
+    @action(detail=False, methods=["get"])
+    def options(self, request):
+        """Comunas and barrios with trees (id, name), for the map's filter lists."""
+        return Response(query.options())
