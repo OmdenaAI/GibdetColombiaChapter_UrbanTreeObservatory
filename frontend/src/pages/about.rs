@@ -1,5 +1,6 @@
-//! About page (static content): what an urban forest is, what this platform offers and
-//! who develops it. Figures belong to the Dashboard, Map and Analytics pages, not here.
+//! About page (static content): what an urban forest is, what this platform offers, who
+//! develops it and the studies it builds on. Figures belong to the Dashboard, Map and
+//! Analytics pages, not here.
 
 use leptos::prelude::*;
 
@@ -7,7 +8,8 @@ use crate::i18n::I18n;
 
 const REPO_URL: &str = "https://github.com/legut00/GibdetColombiaChapter_UrbanTreeObservatory/tree/main";
 const LEGUT_URL: &str = "https://www.legut.org/";
-const OMDENA_URL: &str = "https://www.omdena.com/";
+const OMDENA_URL: &str =
+    "https://www.omdena.com/chapter-challenges/urban-tree-observatory-data-driven-monitoring-conservation-in-ibague-colombia";
 
 const CARD: &str = "bg-white rounded-lg shadow border border-gray-200 p-6";
 const H2: &str = "text-xl font-semibold text-gray-900";
@@ -129,6 +131,90 @@ const SECTIONS: [(&str, Text, Text); 5] = [
     ),
 ];
 
+/// A piece of a reference: text (Spanish, English) and whether it is italic. APA joins the
+/// last author with " y " in Spanish and ", & " in English.
+type Seg = (Text, bool);
+
+/// Same text in both languages (titles, names, journals stay as published).
+const fn same(s: &'static str) -> Text {
+    (s, s)
+}
+
+/// Studies on the urban trees of Ibagué and Tolima that inspired the platform and fed its
+/// development, in APA 7 style, oldest first. Each one: segments, then the link if any.
+const REFERENCES: [(&[Seg], Option<&str>); 6] = [
+    (
+        &[
+            (same("Corporación Autónoma Regional del Tolima [Cortolima]"), false),
+            ((" y ", ", & "), false),
+            (same("Jardín Botánico San Jorge. (2017). "), false),
+            (same("Manual de arborización para el departamento del Tolima"), true),
+            (same("."), false),
+        ],
+        None,
+    ),
+    (
+        &[
+            (same("Corporación Autónoma Regional del Tolima [Cortolima]. (2019). "), false),
+            (same("Formulación del plan maestro de silvicultura urbana para la ciudad de Ibagué"), true),
+            (
+                (" [Versión final; Contrato 507 de 2016, operado por Constructo Co S.A.S.].", " [Final version; Contract 507 of 2016, operated by Constructo Co S.A.S.]."),
+                false,
+            ),
+        ],
+        None,
+    ),
+    (
+        &[
+            (same("Acuña-Simbaqueva, L. M., Andrade, H. J., Segura, M. A., Sierra-Ramírez, E., Canal-Daza, D. S."), false),
+            ((" y ", ", & "), false),
+            (same("Greñas-Corrales, O. E. (2021). Mitigación de emisiones de gases de efecto invernadero de hogares por arbolado urbano en Ibagué-Colombia. "),
+                false,
+            ),
+            (same("Ambiente & Sociedade, 24"), true),
+            ((", Artículo e01911. ", ", Article e01911. "), false),
+        ],
+        Some("https://doi.org/10.1590/1809-4422asoc20200191vu2021L3AO"),
+    ),
+    (
+        &[
+            (same("Aragón Mora, D. J."), false),
+            ((" y ", ", & "), false),
+            (same("Valencia Vera, W. (2022). "), false),
+            (same("Oferta de servicios ecosistémicos de especies del arbolado urbano de la ciudad de Ibagué, Tolima, Colombia"), true),
+            ((" [Trabajo de grado, Universidad del Tolima]. ", " [Undergraduate thesis, Universidad del Tolima]. "), false),
+        ],
+        Some("https://repository.ut.edu.co/entities/publication/3a83cc95-87b7-488b-ae06-014cc5ff329e"),
+    ),
+    (
+        &[
+            (same("Campos Pérez, W. F."), false),
+            ((" y ", ", & "), false),
+            (same("Vargas Salgado, W. S. (2022). "), false),
+            (same("Crecimiento diamétrico y captura de carbono de árboles individuales de "), true),
+            // APA: a species name inside an italic title goes back to roman.
+            (same("Tabebuia rosea"), false),
+            (same(" (Bertol) D.C en el arbolado urbano de Ibagué, Colombia"), true),
+            ((" [Trabajo de grado, Universidad del Tolima].", " [Undergraduate thesis, Universidad del Tolima]."), false),
+        ],
+        None,
+    ),
+    (
+        &[
+            (same("Torres Payares, L. E. (2025). "), false),
+            (
+                same("Evaluación instrumental del arbolado urbano a través de ensayos no destructivos en el marco del proyecto “Análisis del riesgo de árboles urbanos y sus servicios ecosistémicos”, en la ciudad de Ibagué, Tolima"),
+                true,
+            ),
+            (
+                (" [Informe final de servicio social, Universidad del Tolima].", " [Final report of social service, Universidad del Tolima]."),
+                false,
+            ),
+        ],
+        None,
+    ),
+];
+
 fn external(href: &'static str, label: &'static str) -> impl IntoView {
     view! {
         <a href=href target="_blank" rel="noopener noreferrer" class=format!("{LINK} inline-flex items-center gap-1")>
@@ -172,7 +258,7 @@ pub fn About() -> impl IntoView {
                                 " (GibdetColombia Chapter), where volunteers built the first version of the observatory.",
                             ))}
                         </p>
-                        <p class="mt-2">{external(OMDENA_URL, "omdena.com")}</p>
+                        <p class="mt-2">{external(OMDENA_URL, "Omdena · Urban Tree Observatory")}</p>
                     </div>
                     <div>
                         <p class=KICKER>{t(("Mantenido y desarrollado por", "Maintained and developed by"))}</p>
@@ -282,6 +368,30 @@ pub fn About() -> impl IntoView {
                         </li>
                     </ul>
                 </div>
+            </div>
+
+            // References
+            <div class=CARD>
+                <h2 class=H2>{t(("Referencias", "References"))}</h2>
+                <p class=format!("{P} mt-3")>
+                    {t((
+                        "Agradecemos a los autores de estos estudios sobre el arbolado urbano de Ibagué y el Tolima, que fueron fuente de inspiración y parte del desarrollo de esta plataforma.",
+                        "We thank the authors of these studies on the urban trees of Ibagué and Tolima, which inspired this platform and were part of its development.",
+                    ))}
+                </p>
+                <ul class="mt-4 space-y-3 text-sm text-gray-700 leading-relaxed">
+                    {REFERENCES.into_iter().map(|(segs, url)| view! {
+                        // Hanging indent, as in an APA reference list.
+                        <li class="pl-8 -indent-8">
+                            {segs.iter().map(|&(text, italic)| {
+                                if italic { view! { <i>{t(text)}</i> }.into_any() } else { view! { <span>{t(text)}</span> }.into_any() }
+                            }).collect_view()}
+                            {url.map(|u| view! {
+                                <a href=u target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline break-all">{u}</a>
+                            })}
+                        </li>
+                    }).collect_view()}
+                </ul>
             </div>
         </div>
     }
