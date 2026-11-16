@@ -132,16 +132,14 @@ pub struct ManualSection {
     pub text: String,
 }
 
-impl ManualEntry {
-    /// The scientific name split into (binomial, author), to italicize only the binomial.
-    pub fn name_parts(&self) -> (&str, &str) {
-        let name = self.scientific_name.trim();
-        match name.match_indices(' ').nth(1) {
-            Some((i, _)) => (&name[..i], name[i..].trim_start()),
-            None => (name, ""),
-        }
-    }
+/// Header fields of a manual sheet that are not shown: family and synonyms ("Familia",
+/// "Sinónimos", "Sinonimo", "Sinonimia", …), since the catalog's taxonomy is curated.
+pub fn is_taxonomy_label(label: &str) -> bool {
+    let l = label.trim().to_lowercase().replace('ó', "o");
+    l.starts_with("familia") || l.starts_with("sinonim")
+}
 
+impl ManualEntry {
     /// "p. 184" or "pp. 184–185".
     pub fn pages(&self) -> String {
         if self.page_end > self.page_start {
@@ -620,18 +618,13 @@ mod tests {
     }
 
     #[test]
-    fn manual_name_parts_keep_the_author_apart() {
-        let m = |n: &str| ManualEntry {
-            scientific_name: n.into(),
-            header: vec![],
-            sections: vec![],
-            page_start: 1,
-            page_end: 1,
-            source: String::new(),
-        };
-        assert_eq!(m("Ficus benjamina L.").name_parts(), ("Ficus benjamina", "L."));
-        assert_eq!(m("Cordia alliodora (Ruiz & Pav.) Oken").name_parts(), ("Cordia alliodora", "(Ruiz & Pav.) Oken"));
-        assert_eq!(m("Plumeria alba").name_parts(), ("Plumeria alba", ""));
+    fn taxonomy_labels_of_the_manual_are_hidden() {
+        for l in ["Familia", "Sinónimos", "Sinónimo", "Sinonimo", "Sinonimia"] {
+            assert!(is_taxonomy_label(l), "{l}");
+        }
+        for l in ["Nombre común", "Nombre vulgar", "Lugar de origen", "Procedencia", "Origen"] {
+            assert!(!is_taxonomy_label(l), "{l}");
+        }
     }
 
     #[test]

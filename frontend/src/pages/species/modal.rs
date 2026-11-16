@@ -179,8 +179,6 @@ pub(super) fn SpeciesModal(species: Arc<Species>, ctx: Ctx, l: Lang) -> impl Int
 fn manual_section(l: Lang, m: ManualEntry) -> impl IntoView {
     let t = move |es: &'static str, en: &'static str| pick(l, es, en);
     let pages = m.pages();
-    let (binomial, author) = m.name_parts();
-    let (binomial, author) = (binomial.to_string(), author.to_string());
     view! {
         <section class="rounded-lg border border-gray-200 p-4 space-y-3" lang="es">
             <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -190,12 +188,7 @@ fn manual_section(l: Lang, m: ManualEntry) -> impl IntoView {
                 })}
             </div>
             <div class="text-sm text-gray-800 space-y-0.5">
-                <p>
-                    <span class="font-semibold">"Nombre científico: "</span>
-                    <i>{binomial}</i>
-                    {(!author.is_empty()).then(|| format!(" {author}"))}
-                </p>
-                {m.header.into_iter().map(|f| view! {
+                {m.header.into_iter().filter(|f| !model::is_taxonomy_label(&f.label)).map(|f| view! {
                     <p><span class="font-semibold">{f.label}": "</span>{f.value}</p>
                 }).collect_view()}
             </div>
