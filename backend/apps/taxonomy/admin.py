@@ -1,7 +1,15 @@
 from django.contrib import admin
 from django.utils.html import format_html, format_html_join
 
-from .models import Family, FunctionalGroup, Genus, Species, Trait, TraitValue
+from .models import (
+    Family,
+    FunctionalGroup,
+    Genus,
+    ManualEntry,
+    Species,
+    Trait,
+    TraitValue,
+)
 
 
 @admin.register(Family)
@@ -150,3 +158,16 @@ class SpeciesAdmin(admin.ModelAdmin):
                 obj.tropical_plants_url,
             )
         return "-"
+
+
+@admin.register(ManualEntry)
+class ManualEntryAdmin(admin.ModelAdmin):
+    list_display = ("scientific_name", "species", "family", "page_start", "page_end")
+    search_fields = (
+        "scientific_name",
+        "species__name",
+        "species__genus__name",
+        "title",
+    )
+    autocomplete_fields = ("species",)
+    readonly_fields = ("id", "created_at", "updated_at", "uuid")

@@ -1,6 +1,14 @@
 from rest_framework import serializers
 
-from .models import Family, FunctionalGroup, Genus, Species, Trait, TraitValue
+from .models import (
+    Family,
+    FunctionalGroup,
+    Genus,
+    ManualEntry,
+    Species,
+    Trait,
+    TraitValue,
+)
 
 
 class FamilySerializer(serializers.ModelSerializer):
@@ -83,6 +91,8 @@ class SpeciesSerializer(serializers.ModelSerializer):
     scientific_name = serializers.CharField(read_only=True)
     # Annotated by SpeciesViewSet (most frequent name in biodiversity records).
     common_name = serializers.CharField(read_only=True, allow_null=True)
+    # Annotated by SpeciesViewSet: whether ``species/{id}/manual/`` has a sheet.
+    has_manual_entry = serializers.BooleanField(read_only=True, default=False)
     gbif_url = serializers.URLField(read_only=True)
     tropical_plants_url = serializers.URLField(read_only=True)
 
@@ -111,6 +121,7 @@ class SpeciesSerializer(serializers.ModelSerializer):
             "scientific_name",
             "accepted_scientific_name",
             "common_name",
+            "has_manual_entry",
             "functional_group",
             "origin",
             "origin_display",
@@ -140,3 +151,25 @@ class SpeciesLightSerializer(serializers.ModelSerializer):
     class Meta:
         model = Species
         fields = ["id", "scientific_name", "life_form"]
+
+
+class ManualEntrySerializer(serializers.ModelSerializer):
+    source = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ManualEntry
+        fields = [
+            "title",
+            "scientific_name",
+            "family",
+            "synonyms",
+            "common_names",
+            "origin",
+            "sections",
+            "page_start",
+            "page_end",
+            "source",
+        ]
+
+    def get_source(self, obj):
+        return ManualEntry.SOURCE

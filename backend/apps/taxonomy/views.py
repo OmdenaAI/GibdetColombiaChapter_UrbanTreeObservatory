@@ -1,4 +1,4 @@
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count, Exists, OuterRef, Subquery
 from django.views.generic import TemplateView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
@@ -8,11 +8,12 @@ from rest_framework.response import Response
 
 from apps.biodiversity.models import BiodiversityRecord
 
-from .models import Family, FunctionalGroup, Genus, Species, Trait
+from .models import Family, FunctionalGroup, Genus, ManualEntry, Species, Trait
 from .serializers import (
     FamilySerializer,
     FunctionalGroupSerializer,
     GenusSerializer,
+    ManualEntrySerializer,
     SpeciesSerializer,
     TraitSerializer,
 )
@@ -98,7 +99,8 @@ class SpeciesViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for Species model.
 
     Each species carries ``common_name``: the most frequent non-empty common name among its
-    biodiversity records (ties broken alphabetically), or ``null`` if it has none.
+    biodiversity records (ties broken alphabetically), or ``null`` if it has none; and
+    ``has_manual_entry``: whether ``manual/`` returns its sheet in the Tolima manual.
     """
 
     queryset = Species.objects.select_related(
@@ -112,7 +114,8 @@ class SpeciesViewSet(viewsets.ReadOnlyModelViewSet):
             .annotate(n=Count("id"))
             .order_by("-n", "common_name")
             .values("common_name")[:1]
-        )
+        ),
+        has_manual_entry=Exists(ManualEntry.objects.filter(species=OuterRef("pk"))),
     )
     serializer_class = SpeciesSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
@@ -134,6 +137,16 @@ class SpeciesViewSet(viewsets.ReadOnlyModelViewSet):
     }
     ordering_fields = ["genus__name", "name", "life_form", "iucn_status", "created_at"]
     ordering = ["genus__name", "name"]
+
+    @action(detail=True, methods=["get"])
+    def manual(self, request, pk=None):
+        """The species' sheet in the Tolima arborization manual; 404 when it has none."""
+        entry = ManualEntry.objects.filter(species_id=pk).first()
+        if entry is None:
+            return Response(
+                {"detail": "This species has no entry in the manual."}, status=404
+            )
+        return Response(ManualEntrySerializer(entry).data)
 
 
 class FunctionalGroupViewSet(viewsets.ReadOnlyModelViewSet):
