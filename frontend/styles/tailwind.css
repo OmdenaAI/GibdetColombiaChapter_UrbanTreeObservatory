@@ -32,3 +32,18 @@
 .statistics {
   font-size: 14px;
 }
+
+/* Barrio labels (zoom 17-18): dark text, as in the project's Figure 5. */
+.neighborhood-label .label-content {
+  color: #111827;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff;
+}
+
+.neighborhood-label .region-name {
+  font-size: 13px;
+  margin-bottom: 0;
+}
+
+.neighborhood-label .statistics {
+  font-size: 13px;
+}

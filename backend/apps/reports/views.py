@@ -1,8 +1,12 @@
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .analytics import analytics_summary
+from .dashboard import dashboard_summary
 from .models import Measurement, Observation
 from .serializers import MeasurementSerializer, ObservationSerializer
 
@@ -132,3 +136,22 @@ class ObservationViewSet(viewsets.ReadOnlyModelViewSet):
             return queryset.filter(id__in=latest_ids)
 
         return queryset
+
+
+class DashboardView(APIView):
+    """Aggregated figures for the frontend dashboard (read-only, public)."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(dashboard_summary())
+
+
+class AnalyticsView(APIView):
+    """Urban forest indicators (species concentration, origin, size structure, density
+    per comuna, health by species, threatened species). Cached for an hour."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(analytics_summary())

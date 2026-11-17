@@ -4,14 +4,31 @@ use leptos::prelude::*;
 use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::path;
 
+use crate::i18n::I18n;
 use crate::layout::Layout;
 use crate::pages::{
     about::About, alerts::Alerts, analytics::Analytics, dashboard::Dashboard, map::MapPage,
-    reports::Reports, trees::Trees,
+    reports::Reports, species::SpeciesCatalog, trees::Trees,
 };
+
+/// Reports and Alerts are for administrators and partner institutions (public and private
+/// entities that manage urban trees). The demo has no login yet, so they are hidden: not in
+/// the sidebar, and their URLs redirect to the dashboard.
+/// TODO(restricted-pages): show them to logged-in, privileged users once the platform's
+/// login and roles are defined with those institutions. See README "Future work".
+pub const RESTRICTED_PAGES: bool = cfg!(feature = "restricted-pages");
+
+fn restricted(page: fn() -> AnyView) -> AnyView {
+    if RESTRICTED_PAGES {
+        page()
+    } else {
+        view! { <Redirect path="/dashboard" /> }.into_any()
+    }
+}
 
 #[component]
 pub fn App() -> impl IntoView {
+    I18n::provide();
     view! {
         <Router>
             <Layout>
@@ -21,8 +38,9 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/dashboard") view=Dashboard />
                     <Route path=path!("/map") view=MapPage />
                     <Route path=path!("/trees") view=Trees />
-                    <Route path=path!("/reports") view=Reports />
-                    <Route path=path!("/alerts") view=Alerts />
+                    <Route path=path!("/species") view=SpeciesCatalog />
+                    <Route path=path!("/reports") view=|| restricted(|| view! { <Reports /> }.into_any()) />
+                    <Route path=path!("/alerts") view=|| restricted(|| view! { <Alerts /> }.into_any()) />
                     <Route path=path!("/analytics") view=Analytics />
                     <Route path=path!("/about") view=About />
                 </Routes>

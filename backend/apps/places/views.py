@@ -1,6 +1,11 @@
+import json
+
+from django.contrib.gis.geos import Polygon
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
 
 from .models import Country, Department, Locality, Municipality, Neighborhood, Site
 from .serializers import (
@@ -16,6 +21,10 @@ from .serializers import (
     NeighborhoodSerializer,
     SiteSerializer,
 )
+from .statistics import EMPTY, statistics_response, tree_statistics
+
+# Upper bound for one /neighborhoods/bbox/ response (the city has ~710 barrios).
+BBOX_LIMIT = 400
 
 
 class CountryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -123,6 +132,13 @@ class LocalityViewSet(viewsets.ReadOnlyModelViewSet):
             return LocalityGeoSerializer
         return LocalitySerializer
 
+    @action(detail=False, methods=["get"])
+    def statistics(self, request):
+        """Tree count, distinct species and average height for every locality (one
+        entry per locality, filters apply), plus city-wide totals under ``overall``."""
+        ids = self.filter_queryset(self.get_queryset()).values_list("id", flat=True)
+        return Response(statistics_response(list(ids), "neighborhood__locality_id"))
+
 
 class NeighborhoodViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for Neighborhood model."""
@@ -153,6 +169,70 @@ class NeighborhoodViewSet(viewsets.ReadOnlyModelViewSet):
         if format_param == "geojson":
             return NeighborhoodGeoSerializer
         return NeighborhoodSerializer
+
+    @action(detail=False, methods=["get"])
+    def statistics(self, request):
+        """Tree count, distinct species and average height for every neighborhood (one
+        entry per neighborhood, filters apply), plus city-wide totals under ``overall``."""
+        ids = self.filter_queryset(self.get_queryset()).values_list("id", flat=True)
+        return Response(statistics_response(list(ids), "neighborhood_id"))
+
+    @action(detail=False, methods=["get"])
+    def bbox(self, request):
+        """Neighborhoods whose boundary intersects a bounding box, with their tree
+        statistics, in one response (the map loads only what is on screen).
+
+        Query parameters: ``min_lon``, ``min_lat``, ``max_lon``, ``max_lat`` (required);
+        ``exclude``: comma-separated ids the client already has.
+        Returns ``{"results": [{id, name, locality, boundary (GeoJSON), total_trees,
+        species_count, avg_height_m}], "truncated": bool}``.
+        """
+        try:
+            box = [
+                float(request.query_params[k])
+                for k in ("min_lon", "min_lat", "max_lon", "max_lat")
+            ]
+            exclude = [
+                int(i) for i in request.query_params.get("exclude", "").split(",") if i
+            ]
+        except (KeyError, ValueError):
+            return Response(
+                {
+                    "error": "min_lon, min_lat, max_lon and max_lat are required and "
+                    "numeric; exclude is a comma-separated list of ids."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        polygon = Polygon.from_bbox(box)
+        polygon.srid = 4326
+        rows = list(
+            Neighborhood.objects.filter(
+                boundary__isnull=False, boundary__intersects=polygon
+            )
+            .exclude(id__in=exclude)
+            .select_related("locality")
+            .order_by("id")[: BBOX_LIMIT + 1]
+        )
+        truncated = len(rows) > BBOX_LIMIT
+        rows = rows[:BBOX_LIMIT]
+        stats = tree_statistics(
+            "neighborhood_id", {"neighborhood_id__in": [n.id for n in rows]}
+        )
+        return Response(
+            {
+                "results": [
+                    {
+                        "id": n.id,
+                        "name": n.name,
+                        "locality": n.locality.name,
+                        "boundary": json.loads(n.boundary.geojson),
+                        **stats.get(n.id, EMPTY),
+                    }
+                    for n in rows
+                ],
+                "truncated": truncated,
+            }
+        )
 
 
 class SiteViewSet(viewsets.ReadOnlyModelViewSet):

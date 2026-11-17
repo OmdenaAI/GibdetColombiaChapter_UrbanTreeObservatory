@@ -237,3 +237,96 @@ class TestSiteEndpoints:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["name"] == site.name
+
+
+@pytest.mark.django_db
+class TestTreeStatistics:
+    """Tree statistics per locality / neighborhood."""
+
+    @pytest.fixture
+    def trees(self, neighborhood, species):
+        from apps.biodiversity.factories import BiodiversityRecordFactory
+        from apps.places.factories import NeighborhoodFactory
+        from apps.reports.factories import MeasurementFactory
+        from apps.taxonomy.factories import SpeciesFactory
+
+        other_species = SpeciesFactory()
+        records = [
+            BiodiversityRecordFactory(neighborhood=neighborhood, species=species),
+            BiodiversityRecordFactory(neighborhood=neighborhood, species=species),
+            BiodiversityRecordFactory(neighborhood=neighborhood, species=other_species),
+        ]
+        for record, height in zip(records, [10.0, 20.0, 30.0], strict=True):
+            MeasurementFactory(
+                biodiversity_record=record, attribute="HT", value=height, unit="m"
+            )
+            MeasurementFactory(
+                biodiversity_record=record, attribute="DBH", value=99.0, unit="cm"
+            )
+        empty = NeighborhoodFactory(locality=neighborhood.locality)
+        return neighborhood, empty
+
+    def test_neighborhood_statistics(self, api_client, trees):
+        neighborhood, empty = trees
+        url = reverse("places:neighborhood-statistics")
+        response = api_client.get(url, {"locality": neighborhood.locality_id})
+
+        assert response.status_code == status.HTTP_200_OK
+        by_id = {r["id"]: r for r in response.data["results"]}
+        assert by_id[neighborhood.id] == {
+            "id": neighborhood.id,
+            "total_trees": 3,
+            "species_count": 2,
+            "avg_height_m": 20.0,
+        }
+        assert by_id[empty.id]["total_trees"] == 0
+        assert by_id[empty.id]["avg_height_m"] is None
+        assert response.data["overall"]["total_trees"] == 3
+
+    def test_neighborhood_bbox(self, api_client, trees):
+        from django.contrib.gis.geos import MultiPolygon, Polygon
+
+        from apps.places.factories import NeighborhoodFactory
+
+        neighborhood, empty = trees  # factory boundaries cover most of Colombia
+        far = NeighborhoodFactory(
+            locality=neighborhood.locality,
+            boundary=MultiPolygon(
+                Polygon.from_bbox((10.0, 10.0, 10.1, 10.1)), srid=4326
+            ),
+        )
+        url = reverse("places:neighborhood-bbox")
+        box = {"min_lon": -75.3, "min_lat": 4.4, "max_lon": -75.2, "max_lat": 4.5}
+
+        response = api_client.get(url, box)
+
+        assert response.status_code == status.HTTP_200_OK
+        by_id = {r["id"]: r for r in response.data["results"]}
+        assert set(by_id) == {neighborhood.id, empty.id}  # not `far`
+        row = by_id[neighborhood.id]
+        assert row["total_trees"] == 3
+        assert row["avg_height_m"] == 20.0
+        assert row["locality"] == neighborhood.locality.name
+        assert row["boundary"]["type"] == "MultiPolygon"
+        assert by_id[empty.id]["total_trees"] == 0
+        assert response.data["truncated"] is False
+
+        excluded = api_client.get(url, {**box, "exclude": f"{neighborhood.id}"})
+        assert [r["id"] for r in excluded.data["results"]] == [empty.id]
+        assert far.id not in by_id
+
+    def test_neighborhood_bbox_requires_numbers(self, api_client):
+        url = reverse("places:neighborhood-bbox")
+        assert api_client.get(url, {"min_lon": "x"}).status_code == 400
+        bad = {"min_lon": 0, "min_lat": 0, "max_lon": 1, "max_lat": 1, "exclude": "a"}
+        assert api_client.get(url, bad).status_code == 400
+
+    def test_locality_statistics(self, api_client, trees):
+        neighborhood, _ = trees
+        url = reverse("places:locality-statistics")
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        by_id = {r["id"]: r for r in response.data["results"]}
+        assert by_id[neighborhood.locality_id]["total_trees"] == 3
+        assert by_id[neighborhood.locality_id]["species_count"] == 2

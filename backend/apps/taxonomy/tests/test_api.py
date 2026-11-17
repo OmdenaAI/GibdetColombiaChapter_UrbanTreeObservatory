@@ -161,6 +161,30 @@ class TestSpeciesAPI:
         assert "gbif_url" in response.data
         assert "tropical_plants_url" in response.data
 
+    def test_species_common_name_is_most_frequent(self, authenticated_client, species):
+        """common_name is the most frequent non-empty name among the species' records."""
+        from apps.biodiversity.factories import BiodiversityRecordFactory
+
+        BiodiversityRecordFactory.create_batch(
+            2, species=species, common_name="Guayacán"
+        )
+        BiodiversityRecordFactory(species=species, common_name="Chicalá")
+        BiodiversityRecordFactory.create_batch(3, species=species, common_name="")
+
+        url = reverse("taxonomy:species-detail", args=[species.id])
+        response = authenticated_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["common_name"] == "Guayacán"
+
+    def test_species_without_records_has_null_common_name(
+        self, authenticated_client, species
+    ):
+        url = reverse("taxonomy:species-detail", args=[species.id])
+        response = authenticated_client.get(url)
+
+        assert response.data["common_name"] is None
+
     def test_species_filter_by_genus(self, authenticated_client, species):
         """Test filtering species by genus."""
         url = reverse("taxonomy:species-list") + f"?genus={species.genus.id}"

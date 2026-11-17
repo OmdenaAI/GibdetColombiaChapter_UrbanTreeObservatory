@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 extern "C" {
     // ---- L.Map ----
+    #[derive(Clone)]
     pub type LMap;
 
     /// `L.map(element)`. `catch`: a Leaflet exception becomes an `Err` instead of
@@ -25,6 +26,27 @@ extern "C" {
     pub fn add_layer(this: &LMap, layer: &Layer) -> LMap;
     #[wasm_bindgen(method, js_name = removeLayer)]
     pub fn remove_layer(this: &LMap, layer: &Layer) -> LMap;
+    /// `L.map(element, options)`.
+    #[wasm_bindgen(catch, js_namespace = L, js_name = map)]
+    pub fn map_with(container: &JsValue, options: &JsValue) -> Result<LMap, JsValue>;
+    /// Destroys the map and its event listeners.
+    #[wasm_bindgen(method)]
+    pub fn remove(this: &LMap) -> LMap;
+    #[wasm_bindgen(method, js_name = invalidateSize)]
+    pub fn invalidate_size(this: &LMap) -> LMap;
+    #[wasm_bindgen(method, js_name = createPane)]
+    pub fn create_pane(this: &LMap, name: &str) -> web_sys::HtmlElement;
+    #[wasm_bindgen(method, js_name = getContainer)]
+    pub fn get_container(this: &LMap) -> web_sys::HtmlElement;
+
+    // ---- L.Control ----
+    pub type Control;
+
+    /// `L.control.zoom(options)`.
+    #[wasm_bindgen(js_namespace = ["L", "control"], js_name = zoom)]
+    pub fn control_zoom(options: &JsValue) -> Control;
+    #[wasm_bindgen(method, js_name = addTo)]
+    pub fn add_to(this: &Control, map: &LMap) -> Control;
 
     // ---- L.Layer / LayerGroup / FeatureGroup / GeoJSON / Marker / Path ----
     #[derive(Clone)]
@@ -42,6 +64,10 @@ extern "C" {
     pub fn set_style(this: &Layer, style: &JsValue) -> Layer;
     #[wasm_bindgen(method)]
     pub fn on(this: &Layer, event: &str, f: &JsValue) -> Layer;
+    #[wasm_bindgen(method, js_name = setRadius)]
+    pub fn set_radius(this: &Layer, radius: f64) -> Layer;
+    #[wasm_bindgen(method, js_name = bringToFront)]
+    pub fn bring_to_front(this: &Layer) -> Layer;
 
     #[wasm_bindgen(js_namespace = L, js_name = tileLayer)]
     pub fn tile_layer(url: &str, options: &JsValue) -> Layer;
@@ -59,6 +85,17 @@ extern "C" {
     pub fn div_icon(options: &JsValue) -> JsValue;
     #[wasm_bindgen(js_namespace = L, js_name = latLng)]
     pub fn lat_lng(lat: f64, lng: f64) -> JsValue;
+    /// `latlngs`: `[[lat, lng], ...]` (or rings of them).
+    #[wasm_bindgen(js_namespace = L, js_name = polygon)]
+    pub fn polygon(latlngs: &JsValue, options: &JsValue) -> Layer;
+    #[wasm_bindgen(js_namespace = L, js_name = polyline)]
+    pub fn polyline(latlngs: &JsValue, options: &JsValue) -> Layer;
+    /// `L.canvas(options)`: a renderer, passed as a path's `renderer` option.
+    #[wasm_bindgen(js_namespace = L, js_name = canvas)]
+    pub fn canvas(options: &JsValue) -> JsValue;
+    /// `L.latLngBounds([[south, west], [north, east]])`.
+    #[wasm_bindgen(js_namespace = L, js_name = latLngBounds)]
+    pub fn lat_lng_bounds(corners: &JsValue) -> LatLngBounds;
 
     // ---- L.LatLngBounds ----
     pub type LatLngBounds;
@@ -75,4 +112,7 @@ extern "C" {
     pub fn get_west(this: &LatLngBounds) -> f64;
     #[wasm_bindgen(method, js_name = getEast)]
     pub fn get_east(this: &LatLngBounds) -> f64;
+    /// Bounds extended by `ratio` of their size on every side.
+    #[wasm_bindgen(method)]
+    pub fn pad(this: &LatLngBounds, ratio: f64) -> LatLngBounds;
 }

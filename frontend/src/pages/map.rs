@@ -1,16 +1,21 @@
 //! Map page: Leaflet map with zoom-dependent layers (comunas < 17, barrios 17-18,
-//! tree points >= 19) and a side panel with statistics.
+//! tree points >= 19) and a side panel with statistics. Clicking a tree point replaces the
+//! statistics with that tree's sheet (`tree_panel::TreePanel`) and highlights the point.
+//! The toolbar at the bottom (`map_tools`) queries trees by filters and area of interest;
+//! this page draws its area, the polygon being drawn and the matching trees.
 //!
 //! KNOWN ISSUES (inherited behaviour, kept until decided; marked `KNOWN ISSUE:` below):
-//!  - 687 neighborhood requests fired up-front with all-or-nothing semantics (the DB has 710).
-//!  - points are requested on both `zoomend` and `moveend` (double request on zoom), with no
-//!    cancellation of in-flight requests.
-//!  - panel fallbacks use JS `||`, so 0 / missing stats show the hardcoded city-wide numbers
-//!    (the API currently returns no `statistics`).
+//!
+//! Barrios (zoom 17-18) and tree points (zoom >= 19) are loaded for the visible area only,
+//! once per `moveend` (Leaflet also fires it after every zoom). Barrios are kept once drawn;
+//! points are replaced on every move and stale responses are dropped.
+//!  - panel fallbacks use JS `||`, so missing stats show hardcoded city-wide numbers. Tree
+//!    count, species count and average height now come from `/places/*/statistics/`; the
+//!    tree-per-capita index and the environmental figures are still placeholders.
 //!  - no cleanup of the Leaflet map / listeners when leaving the route.
 
-use std::cell::RefCell;
-use std::collections::HashSet;
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use futures::future::try_join_all;
@@ -21,9 +26,13 @@ use serde_json::{Value, json};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-use crate::api::{API_BASE, console_error, get_json, js_or, js_string, truthy};
+use crate::api::{API_BASE, console_error, fmt_thousands, get_json, js_or, js_string, truthy};
+use crate::i18n::{I18n, Lang, pick};
 use crate::interop::leaflet::{self as L, LMap, Layer};
 use crate::interop::{to_js, when_connected};
+
+use super::map_tools::{MapToolbar, PANEL_ID, QueryResult, ToolSignals, Zone};
+use super::tree_panel::{TreePanel, TreeRecord};
 
 #[derive(Clone)]
 struct Region {
@@ -32,12 +41,85 @@ struct Region {
     environmental: Value,
 }
 
-#[derive(Clone)]
-struct SelectedTree {
-    common_name: String,
-    scientific_name: String,
-    life_form: String,
-    neighborhood: String,
+/// Tree point styles: normal and selected (larger, light green, drawn on top).
+const POINT_STYLE: &str = r##"{"radius": 5, "color": "#000000", "weight": 1, "fillColor": "#006400", "fillOpacity": 0.6}"##;
+const SELECTED_STYLE: &str = r##"{"color": "#14532D", "weight": 2, "fillColor": "#4ADE80", "fillOpacity": 1}"##;
+const SELECTED_RADIUS: f64 = 12.0;
+
+/// The highlighted point (record id + its Leaflet marker). Local storage: `Layer` is a JS
+/// object and not `Send`.
+type Highlight = StoredValue<Option<(i64, Layer)>, LocalStorage>;
+
+fn style(json_str: &str) -> JsValue {
+    to_js(&serde_json::from_str::<Value>(json_str).unwrap_or_default())
+}
+
+fn highlight(h: Highlight, id: i64, marker: &Layer) {
+    unhighlight(h);
+    marker.set_style(&style(SELECTED_STYLE));
+    marker.set_radius(SELECTED_RADIUS);
+    marker.bring_to_front();
+    h.set_value(Some((id, marker.clone())));
+}
+
+fn unhighlight(h: Highlight) {
+    if let Some((_, m)) = h.try_update_value(Option::take).flatten() {
+        m.set_style(&style(POINT_STYLE));
+        m.set_radius(5.0);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tree statistics (count, species, average height) per comuna / barrio
+// ---------------------------------------------------------------------------
+
+const OVERVIEW: &str = "Ibagué Overview";
+
+/// API entry -> the panel's `statistics` shape. Only the three computed metrics are set;
+/// `healthIndex` keeps its previous placeholder (`fallback_health`).
+fn panel_stats(s: &Value, fallback_health: Value) -> Value {
+    json!({
+        "totalTrees": fmt_thousands(s["total_trees"].as_i64().unwrap_or(0)),
+        "speciesCount": s["species_count"].as_i64().unwrap_or(0).to_string(),
+        "avgHeight": s["avg_height_m"].as_f64().map(|h| format!("{h:.2}")).unwrap_or_else(|| "N/A".into()),
+        "healthIndex": fallback_health,
+    })
+}
+
+/// `{id: panel statistics}` + city-wide totals from `/places/<kind>/statistics/`.
+/// Failures are logged and leave the map without counts (labels then read "N/A").
+async fn load_statistics(kind: &str) -> (HashMap<i64, Value>, Option<Value>) {
+    let url = format!("{API_BASE}/api/v1/places/{kind}/statistics/");
+    match get_json(&url).await {
+        Ok(data) => {
+            let by_id = data["results"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|r| Some((r["id"].as_i64()?, panel_stats(r, json!("N/A")))))
+                .collect();
+            (by_id, data.get("overall").cloned())
+        }
+        Err(e) => {
+            console_error(&format!("Error loading {kind} statistics:"), &e);
+            (HashMap::new(), None)
+        }
+    }
+}
+
+/// `"8.14" + "m"` -> `"8.14 m"`; `"N/A"` stays without a unit (and is shown as "N/D" in
+/// Spanish).
+fn with_unit(l: Lang, value: String, unit: &str) -> String {
+    if value == "N/A" { na(l, value) } else { format!("{value} {unit}") }
+}
+
+/// The panel keeps "N/A" as its "no data" marker; this is how it reads on screen.
+fn na(l: Lang, value: String) -> String {
+    if value == "N/A" { pick(l, "N/D", "N/A").into() } else { value }
+}
+
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
 /// Manually tuned label positions per comuna id.
@@ -64,18 +146,43 @@ struct MapState {
     locality_layer: Layer,
     neighborhood_layer: Layer,
     locality_labels: Layer,
+    neighborhood_labels: Layer,
+    /// Barrios already drawn (sent as `exclude` so their geometry is not downloaded again).
+    loaded_neighborhoods: RefCell<HashSet<i64>>,
+    /// Sequence number of the latest point request; older responses are ignored.
+    point_seq: Cell<u64>,
     selected_region: RwSignal<Region>,
-    selected_tree: RwSignal<Option<SelectedTree>>,
+    selected_tree: RwSignal<Option<TreeRecord>>,
+    highlight: Highlight,
+    tools: ToolSignals,
+    /// Area of interest, polygon being drawn (pane `zone`) and query result (pane `results`,
+    /// drawn on a canvas: up to 20,000 points).
+    zone_layer: Layer,
+    draft_layer: Layer,
+    result_layer: Layer,
+    result_renderer: JsValue,
 }
 
 #[component]
 pub fn MapPage() -> impl IntoView {
     let selected_region = RwSignal::new(Region {
-        name: "Ibagué Overview".into(),
+        name: OVERVIEW.into(),
         statistics: json!({ "totalTrees": 0, "speciesCount": 0, "avgHeight": 0, "healthIndex": 0 }),
         environmental: json!({ "co2Absorption": 0, "oxygenProduction": 0 }),
     });
-    let selected_tree = RwSignal::new(None::<SelectedTree>);
+    let selected_tree = RwSignal::new(None::<TreeRecord>);
+    let highlight: Highlight = StoredValue::new_local(None);
+    let tools = ToolSignals::new();
+    // The Leaflet side, once created (for the Effects that draw the toolbar's state).
+    let map_state: StoredValue<Option<Rc<MapState>>, LocalStorage> = StoredValue::new_local(None);
+    let map_ready = RwSignal::new(false);
+
+    // Closing the tree sheet (or clicking a region) un-highlights the point.
+    Effect::new(move |_| {
+        if selected_tree.with(Option::is_none) {
+            unhighlight(highlight);
+        }
+    });
 
     // On client-side navigation leptos_router builds the route view asynchronously, so an
     // Effect can run before `<div id="map">` is attached to the document. Wait for the
@@ -85,75 +192,112 @@ pub fn MapPage() -> impl IntoView {
         if let Some(el) = map_ref.get() {
             let container: web_sys::HtmlElement = el.into();
             let c = container.clone();
-            when_connected(container, move || init_map(&c, selected_region, selected_tree));
+            when_connected(container, move || {
+                if let Some(st) = init_map(&c, selected_region, selected_tree, highlight, tools) {
+                    map_state.try_update_value(|s| *s = Some(st));
+                    map_ready.try_set(true);
+                }
+            });
         }
     });
 
-    let name = move || selected_region.with(|r| js_or(&json!(r.name), "Ibagué Overview"));
+    // Draw the toolbar's state. Each Effect also tracks `map_ready`, so what was set before
+    // the map existed is drawn once it does.
+    let with_map = move |f: &dyn Fn(&MapState)| {
+        if map_ready.get() {
+            map_state.with_value(|s| {
+                if let Some(s) = s {
+                    f(s);
+                }
+            });
+        }
+    };
+    Effect::new(move |_| {
+        let zone = tools.zone.get();
+        with_map(&|st| draw_zone(st, zone.as_ref()));
+    });
+    Effect::new(move |_| {
+        let draft = tools.draft.get();
+        with_map(&|st| draw_draft(st, draft.as_deref()));
+    });
+    Effect::new(move |_| {
+        let result = tools.result.get();
+        with_map(&|st| draw_result(st, result.as_ref()));
+    });
+
+    let i = I18n::use_ctx();
+    let name = move || {
+        let n = selected_region.with(|r| js_or(&json!(r.name), OVERVIEW));
+        if n == OVERVIEW { i.t("Resumen de Ibagué", "Ibagué Overview").to_string() } else { n }
+    };
     let stat = move |k: &'static str, fb: &'static str| {
-        move || selected_region.with(|r| js_or(&r.statistics[k], fb))
+        move || na(i.lang(), selected_region.with(|r| js_or(&r.statistics[k], fb)))
     };
     let env = move |k: &'static str, fb: &'static str| {
         move || selected_region.with(|r| js_or(&r.environmental[k], fb))
     };
 
+    // Region / city summary, shown while no tree is selected.
+    let summary = move || {
+        view! {
+            <div class="grid grid-cols-1 gap-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">{name}</h2>
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-semibold text-gray-700">{move || i.t("Estadísticas de árboles", "Tree Statistics")}</h3>
+                        <div class="grid grid-cols-2 gap-x-8 gap-y-4">
+                            <div>
+                                <p class="text-2xl font-bold text-green-700">{stat("totalTrees", "101,283")}</p>
+                                <p class="text-sm text-gray-600">{move || i.t("Total de árboles", "Total Trees")}</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-green-700">{stat("speciesCount", "407")}</p>
+                                <p class="text-sm text-gray-600">{move || i.t("Número de especies", "Species Count")}</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), stat("avgHeight", "17.30")(), "m")}</p>
+                                <p class="text-sm text-gray-600">{move || i.t("Altura promedio", "Average Height")}</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-green-700">{stat("healthIndex", "0.18")}</p>
+                                <p class="text-sm text-gray-600">{move || i.t("Índice de árboles por habitante", "Tree-per-capita index")}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">{move || i.t("Impacto ambiental", "Environmental Impact")}</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), env("co2Absorption", "646,867.27")(), "t")}</p>
+                            <p class="text-sm text-gray-600">{move || i.t("Absorción de CO₂", "CO₂ Absorption")}</p>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), env("oxygenProduction", "1,727,135.62")(), i.t("t/año", "t/year"))}</p>
+                            <p class="text-sm text-gray-600">{move || i.t("Producción de oxígeno", "Oxygen Production")}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    };
+
     view! {
         <div style="display: block; width: 100%; height: 100%;">
             <div class="flex flex-row h-full gap-4">
-                <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-4 w-[16rem]">
-                    <div class="grid grid-cols-1 gap-6">
-                        <div>
-                            <h2 class="text-2xl font-bold text-gray-800 mb-4">{name}</h2>
-                            <div class="space-y-4">
-                                <h3 class="text-lg font-semibold text-gray-700">"Tree Statistics"</h3>
-                                <div class="grid grid-cols-2 gap-x-8 gap-y-4">
-                                    <div>
-                                        <p class="text-2xl font-bold text-green-700">{stat("totalTrees", "101,283")}</p>
-                                        <p class="text-sm text-gray-600">"Total Trees"</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-2xl font-bold text-green-700">{stat("speciesCount", "407")}</p>
-                                        <p class="text-sm text-gray-600">"Species Count"</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-2xl font-bold text-green-700">{move || format!("{} m", stat("avgHeight", "17.30")())}</p>
-                                        <p class="text-sm text-gray-600">"Average Height"</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-2xl font-bold text-green-700">{stat("healthIndex", "0.18")}</p>
-                                        <p class="text-sm text-gray-600">"Tree-per-capita index"</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-700 mb-4">"Environmental Impact"</h3>
-                            <div class="space-y-4">
-                                <div>
-                                    <p class="text-2xl font-bold text-green-700">{move || format!("{} Ton", env("co2Absorption", "646,867.27")())}</p>
-                                    <p class="text-sm text-gray-600">"CO₂ Absorption"</p>
-                                </div>
-                                <div>
-                                    <p class="text-2xl font-bold text-green-700">{move || format!("{} Ton/year", env("oxygenProduction", "1,727,135.62")())}</p>
-                                    <p class="text-sm text-gray-600">"Oxygen Production"</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {move || selected_tree.get().map(|t| view! {
-                            <div class="mt-6 border-t pt-4">
-                                <h3 class="text-lg font-semibold text-gray-700 mb-4">"Selected Tree"</h3>
-                                <div class="space-y-2">
-                                    <p><span class="font-semibold text-gray-700">"Common Name:"</span> {format!(" {}", t.common_name)}</p>
-                                    <p><span class="font-semibold text-gray-700">"Scientific Name:"</span> " " <em>{t.scientific_name}</em></p>
-                                    <p><span class="font-semibold text-gray-700">"Life Form:"</span> {format!(" {}", t.life_form)}</p>
-                                    <p><span class="font-semibold text-gray-700">"Neighborhood:"</span> {format!(" {}", t.neighborhood)}</p>
-                                </div>
-                            </div>
-                        })}
-                    </div>
+                <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-4 w-[16rem] shrink-0 overflow-y-auto">
+                    {move || match selected_tree.get() {
+                        Some(tree) => view! {
+                            <TreePanel tree on_close=Callback::new(move |_| selected_tree.set(None)) />
+                        }
+                        .into_any(),
+                        None => summary().into_any(),
+                    }}
                 </div>
-                <div node_ref=map_ref id="map" class="flex-1 rounded-lg shadow-lg border border-gray-200 min-h-[500px]"></div>
+                <div class="relative flex-1 min-h-[500px]">
+                    <div node_ref=map_ref id="map" class="absolute inset-0 rounded-lg shadow-lg border border-gray-200"></div>
+                    <MapToolbar tools />
+                </div>
             </div>
         </div>
     }
@@ -182,24 +326,46 @@ fn event_target(e: &JsValue) -> Layer {
 fn init_map(
     container: &web_sys::HtmlElement,
     selected_region: RwSignal<Region>,
-    selected_tree: RwSignal<Option<SelectedTree>>,
-) {
+    selected_tree: RwSignal<Option<TreeRecord>>,
+    highlight: Highlight,
+    tools: ToolSignals,
+) -> Option<Rc<MapState>> {
     let map = match L::map(container) {
         Ok(map) => map,
-        Err(e) => return web_sys::console::error_2(&"Error initializing map:".into(), &e),
+        Err(e) => {
+            web_sys::console::error_2(&"Error initializing map:".into(), &e);
+            return None;
+        }
     };
     map.set_view(&to_js(&json!([4.4389, -75.2322])), 14.0);
 
+    // OSM publishes tiles up to zoom 19. `maxNativeZoom` makes Leaflet upscale the z19 tiles
+    // for zooms 20-23 (where the tree points are) instead of requesting tiles that do not
+    // exist. A tile that really fails to load is left empty.
     L::tile_layer(
         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         &to_js(&json!({
             "maxZoom": 23,
+            "maxNativeZoom": 19,
             "attribution": "© OpenStreetMap contributors",
-            "errorTileUrl": "https://upload.wikimedia.org/wikipedia/commons/a/ac/No_image_available.svg",
             "keepBuffer": 10
         })),
     )
     .add_to(&map);
+
+    // Above the comunas / barrios (overlayPane, 400) and below the markers (600). Not
+    // clickable: clicks reach the layers underneath (and the map, while drawing).
+    for (pane, z) in [("zone", "440"), ("results", "450")] {
+        let style = map.create_pane(pane).style();
+        let _ = style.set_property("z-index", z);
+        let _ = style.set_property("pointer-events", "none");
+    }
+    let zone_layer = L::feature_group();
+    let draft_layer = L::layer_group();
+    let result_layer = L::layer_group();
+    for layer in [&zone_layer, &draft_layer, &result_layer] {
+        layer.add_to(&map);
+    }
 
     let st = Rc::new(MapState {
         map,
@@ -208,27 +374,151 @@ fn init_map(
         locality_layer: L::feature_group(),
         neighborhood_layer: L::feature_group(),
         locality_labels: L::layer_group(),
+        neighborhood_labels: L::layer_group(),
+        loaded_neighborhoods: RefCell::new(HashSet::new()),
+        point_seq: Cell::new(0),
         selected_region,
         selected_tree,
+        highlight,
+        tools,
+        zone_layer,
+        draft_layer,
+        result_layer,
+        result_renderer: L::canvas(&to_js(&json!({ "pane": "results" }))),
     });
 
     load_localities(st.clone());
-    load_neighborhoods(st.clone());
-    st.map.remove_layer(&st.neighborhood_layer);
+
+    // Drawing the area of interest: each click adds a vertex, a double click closes it.
+    st.map.on(
+        "click",
+        &js_fn1(move |e| {
+            if tools.is_drawing() {
+                let latlng = Reflect::get(&e, &"latlng".into()).unwrap_or(JsValue::UNDEFINED);
+                let coord = |k: &str| Reflect::get(&latlng, &k.into()).ok().and_then(|v| v.as_f64());
+                if let (Some(lat), Some(lng)) = (coord("lat"), coord("lng")) {
+                    tools.add_vertex(lat, lng);
+                }
+            }
+        }),
+    );
+    st.map.on(
+        "dblclick",
+        &js_fn1(move |_| {
+            if tools.is_drawing() {
+                tools.finish_drawing();
+            }
+        }),
+    );
 
     {
         let st = st.clone();
+        st.clone().map.on("zoomend", &js_fn1(move |_| toggle_layers_by_zoom(&st)));
+    }
+    {
+        let st = st.clone();
         st.clone().map.on(
-            "zoomend",
+            "moveend",
             &js_fn1(move |_| {
-                toggle_layers_by_zoom(&st);
+                load_neighborhoods_in_view(st.clone());
                 load_points_by_zoom(st.clone());
             }),
         );
     }
-    {
-        let st = st.clone();
-        st.clone().map.on("moveend", &js_fn1(move |_| load_points_by_zoom(st.clone())));
+    Some(st)
+}
+
+// ---------------------------------------------------------------------------
+// Toolbar: area of interest, polygon being drawn, query result
+// ---------------------------------------------------------------------------
+
+const ZONE_STYLE: &str = r##"{"pane": "zone", "interactive": false, "color": "#1D4ED8", "weight": 3, "fillColor": "#3B82F6", "fillOpacity": 0.08}"##;
+const DRAFT_LINE: &str = r##"{"pane": "zone", "interactive": false, "color": "#1D4ED8", "weight": 2, "dashArray": "6 6", "fillColor": "#3B82F6", "fillOpacity": 0.1}"##;
+const DRAFT_VERTEX: &str = r##"{"pane": "zone", "interactive": false, "radius": 5, "color": "#1D4ED8", "weight": 2, "fillColor": "#FFFFFF", "fillOpacity": 1}"##;
+
+fn draw_zone(st: &MapState, zone: Option<&Zone>) {
+    st.zone_layer.clear_layers();
+    let Some(zone) = zone else { return };
+    let opts = Object::new();
+    set(&opts, "style", &style(ZONE_STYLE));
+    let layer = L::geo_json(&to_js(&zone.geometry), &opts);
+    layer.add_to(&st.zone_layer);
+    let bounds = layer.get_bounds();
+    if bounds.is_valid() {
+        fit_above_toolbar(st, &bounds, 19.0);
+    }
+}
+
+/// Frame `bounds` in the part of the map not covered by the toolbar and its open panel
+/// (bottom center), keeping at least 200 px of map.
+fn fit_above_toolbar(st: &MapState, bounds: &L::LatLngBounds, max_zoom: f64) {
+    let map_height = f64::from(st.map.get_container().client_height());
+    let panel = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.get_element_by_id(PANEL_ID))
+        .map_or(0.0, |p| f64::from(p.client_height()) + 12.0);
+    // Toolbar: 24 px from the bottom + ~50 px high, plus a margin.
+    let bottom = (panel + 100.0).min((map_height - 200.0).max(60.0));
+    st.map.fit_bounds(
+        bounds,
+        &to_js(&json!({ "paddingTopLeft": [40, 40], "paddingBottomRight": [40, bottom], "maxZoom": max_zoom })),
+    );
+}
+
+/// Dashed outline (closed once there are three vertices) and a dot per vertex.
+fn draw_draft(st: &MapState, draft: Option<&[[f64; 2]]>) {
+    st.draft_layer.clear_layers();
+    // While drawing, a double click closes the polygon instead of zooming, and the cursor
+    // marks the drawing mode.
+    let drawing = draft.is_some();
+    toggle_map_handler(&st.map, "doubleClickZoom", !drawing);
+    let css = st.map.get_container().style();
+    let _ = if drawing { css.set_property("cursor", "crosshair") } else { css.remove_property("cursor").map(|_| ()) };
+
+    let Some(vertices) = draft else { return };
+    let latlngs = to_js(&json!(vertices));
+    if vertices.len() >= 3 {
+        L::polygon(&latlngs, &style(DRAFT_LINE)).add_to(&st.draft_layer);
+    } else if vertices.len() == 2 {
+        L::polyline(&latlngs, &style(DRAFT_LINE)).add_to(&st.draft_layer);
+    }
+    for [lat, lng] in vertices {
+        L::circle_marker(&L::lat_lng(*lat, *lng), &style(DRAFT_VERTEX)).add_to(&st.draft_layer);
+    }
+}
+
+/// `map.<handler>.enable()` / `.disable()` (e.g. `doubleClickZoom`).
+fn toggle_map_handler(map: &LMap, handler: &str, enable: bool) {
+    let Ok(h) = Reflect::get(map, &handler.into()) else { return };
+    let method = if enable { "enable" } else { "disable" };
+    if let Ok(f) = Reflect::get(&h, &method.into()).and_then(|f| f.dyn_into::<js_sys::Function>()) {
+        let _ = f.call0(&h);
+    }
+}
+
+/// The matching trees as amber dots; a single tree (a search by code) larger. Without an
+/// area of interest the map moves to the result (the area already framed it otherwise).
+fn draw_result(st: &MapState, result: Option<&QueryResult>) {
+    st.result_layer.clear_layers();
+    let Some(result) = result else { return };
+    let single = result.count == 1;
+    let opts = style(&json!({
+        "pane": "results",
+        "interactive": false,
+        "radius": if single { 10 } else { 4 },
+        "color": "#78350F",
+        "weight": if single { 2 } else { 1 },
+        "fillColor": "#FBBF24",
+        "fillOpacity": 0.9
+    }).to_string());
+    set(opts.unchecked_ref(), "renderer", &st.result_renderer);
+    for (_, lat, lon) in &result.points {
+        L::circle_marker(&L::lat_lng(*lat, *lon), &opts).add_to(&st.result_layer);
+    }
+    let framed_by_zone = st.tools.zone.with_untracked(Option::is_some);
+    if let (Some([w, s, e, n]), false) = (result.bbox, framed_by_zone) {
+        let bounds = L::lat_lng_bounds(&to_js(&json!([[s, w], [n, e]])));
+        fit_above_toolbar(st, &bounds, 20.0);
     }
 }
 
@@ -238,7 +528,20 @@ fn load_localities(st: Rc<MapState>) {
             .map(|id| format!("{API_BASE}/api/v1/places/localities/{id}/"))
             .collect::<Vec<_>>();
         // KNOWN ISSUE: all-or-nothing, one failed request discards every comuna.
-        let result = try_join_all(requests.iter().map(|u| get_json(u))).await;
+        let (result, (stats, overall)) = futures::join!(
+            try_join_all(requests.iter().map(|u| get_json(u))),
+            load_statistics("localities"),
+        );
+
+        // City-wide totals for the default panel (only while it is still showing).
+        if let Some(overall) = overall {
+            st.selected_region.try_update(|r| {
+                if r.name == OVERVIEW {
+                    // healthIndex 0 keeps the panel's tree-per-capita placeholder.
+                    r.statistics = panel_stats(&overall, json!(0));
+                }
+            });
+        }
 
         let responses = match result {
             Ok(r) => r,
@@ -258,7 +561,10 @@ fn load_localities(st: Rc<MapState>) {
             } else {
                 format!("Comuna {}", js_string(data.get("id")))
             };
-            let statistics = if truthy(&data["statistics"]) { data["statistics"].clone() } else { json!({}) };
+            let statistics = data["id"]
+                .as_i64()
+                .and_then(|id| stats.get(&id).cloned())
+                .unwrap_or_else(|| json!({}));
             let environmental = if truthy(&data["environmental"]) { data["environmental"].clone() } else { json!({}) };
 
             let feature = json!({
@@ -347,6 +653,10 @@ fn on_each_locality(st: &Rc<MapState>, data: &Value, props: &Value, layer: Layer
     let st = st.clone();
     let props = props.clone();
     layer.on("click", &js_fn1(move |e| {
+        // While drawing, clicks only add vertices (the map's own handler).
+        if st.tools.is_drawing() {
+            return;
+        }
         let l = event_target(&e);
         let bounds = l.get_bounds();
         st.map.fit_bounds(&bounds, &to_js(&json!({ "padding": [10, 10], "maxZoom": 16 })));
@@ -362,32 +672,47 @@ fn on_each_locality(st: &Rc<MapState>, data: &Value, props: &Value, layer: Layer
             json!({ "co2Absorption": "N/A", "oxygenProduction": "N/A" })
         };
         st.selected_region.try_set(Region { name: comuna.clone(), statistics, environmental });
+        st.selected_tree.try_set(None);
     }));
 }
 
-fn load_neighborhoods(st: Rc<MapState>) {
+/// Fetch the barrios intersecting the visible area (plus a margin, so small pans need no
+/// request) that are not drawn yet, with their statistics, in one request.
+fn load_neighborhoods_in_view(st: Rc<MapState>) {
+    let zoom = st.map.get_zoom();
+    if !(17.0..19.0).contains(&zoom) {
+        return;
+    }
+    let b = st.map.get_bounds().pad(0.25);
+    let exclude = {
+        let mut ids: Vec<i64> = st.loaded_neighborhoods.borrow().iter().copied().collect();
+        ids.sort_unstable();
+        ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",")
+    };
+    let url = format!(
+        "{API_BASE}/api/v1/places/neighborhoods/bbox/?min_lon={}&min_lat={}&max_lon={}&max_lat={}&exclude={exclude}",
+        b.get_west(),
+        b.get_south(),
+        b.get_east(),
+        b.get_north()
+    );
+
     spawn_local(async move {
-        // KNOWN ISSUE: 687 parallel requests, all-or-nothing.
-        let requests = (1..=687)
-            .map(|id| format!("{API_BASE}/api/v1/places/neighborhoods/{id}/"))
-            .collect::<Vec<_>>();
-        let responses = match try_join_all(requests.iter().map(|u| get_json(u))).await {
-            Ok(r) => r,
+        let data = match get_json(&url).await {
+            Ok(d) => d,
             Err(e) => return console_error("Error loading neighborhoods:", &e),
         };
-
-        for data in responses {
-            if !truthy(&data["boundary"]["coordinates"]) {
+        for n in data["results"].as_array().into_iter().flatten() {
+            let Some(id) = n["id"].as_i64() else { continue };
+            // Two overlapping requests may both return a barrio: draw it once.
+            if !truthy(&n["boundary"]["coordinates"]) || !st.loaded_neighborhoods.borrow_mut().insert(id) {
                 continue;
             }
-            let name = if truthy(&data["name"]) {
-                js_string(Some(&data["name"]))
-            } else {
-                format!("Barrio {}", js_string(data.get("id")))
-            };
+            let name = if truthy(&n["name"]) { js_string(Some(&n["name"])) } else { format!("Barrio {id}") };
+            let statistics = panel_stats(n, json!("N/A"));
             let feature = json!({
                 "type": "Feature",
-                "geometry": data["boundary"],
+                "geometry": n["boundary"],
                 "properties": { "name": name }
             });
             let geo_layer = L::geo_json(
@@ -397,8 +722,59 @@ fn load_neighborhoods(st: Rc<MapState>) {
                 })),
             );
             geo_layer.add_to(&st.neighborhood_layer);
+            add_neighborhood_label(&st, &geo_layer, &name, Some(&statistics));
+            on_neighborhood_events(&st, &geo_layer, name, Some(statistics));
         }
     });
+}
+
+/// "Name / tree count" label at the barrio's center (shown with the barrios, zoom 17-18).
+fn add_neighborhood_label(st: &MapState, layer: &Layer, name: &str, statistics: Option<&Value>) {
+    let bounds = layer.get_bounds();
+    if !bounds.is_valid() {
+        return;
+    }
+    let count = statistics.map(|s| js_or(&s["totalTrees"], "N/A")).unwrap_or_else(|| "N/A".into());
+    let icon = L::div_icon(&to_js(&json!({
+        "className": "region-label neighborhood-label",
+        "html": format!(
+            r#"<div class="label-content"><div class="region-name">{}</div><div class="statistics">{}</div></div>"#,
+            escape_html(name),
+            count
+        ),
+        "iconSize": [160, 40],
+        "iconAnchor": [80, 20]
+    })));
+    let marker_opts = Object::new();
+    set(&marker_opts, "icon", &icon);
+    set(&marker_opts, "interactive", &JsValue::FALSE);
+    st.neighborhood_labels.add_child(&L::marker(&bounds.get_center(), &marker_opts));
+}
+
+/// Hover highlight; click shows the barrio's statistics in the side panel.
+fn on_neighborhood_events(st: &Rc<MapState>, layer: &Layer, name: String, statistics: Option<Value>) {
+    layer.on("mouseover", &js_fn1(|e| {
+        event_target(&e).set_style(&to_js(&json!({ "fillOpacity": 0.5 })));
+    }));
+    layer.on("mouseout", &js_fn1(|e| {
+        event_target(&e).set_style(&to_js(&json!({ "fillOpacity": 0.3 })));
+    }));
+
+    let (region, tree, tools) = (st.selected_region, st.selected_tree, st.tools);
+    layer.on("click", &js_fn1(move |_| {
+        if tools.is_drawing() {
+            return;
+        }
+        let statistics = statistics.clone().unwrap_or_else(|| {
+            json!({ "totalTrees": "N/A", "speciesCount": "N/A", "avgHeight": "N/A", "healthIndex": "N/A" })
+        });
+        region.try_set(Region {
+            name: name.clone(),
+            statistics,
+            environmental: json!({ "co2Absorption": "N/A", "oxygenProduction": "N/A" }),
+        });
+        tree.try_set(None);
+    }));
 }
 
 fn toggle_layers_by_zoom(st: &MapState) {
@@ -407,14 +783,17 @@ fn toggle_layers_by_zoom(st: &MapState) {
         st.map.remove_layer(&st.locality_layer);
         st.map.remove_layer(&st.locality_labels);
         st.map.remove_layer(&st.neighborhood_layer);
+        st.map.remove_layer(&st.neighborhood_labels);
     } else if zoom >= 17.0 {
         st.map.add_layer(&st.neighborhood_layer);
+        st.map.add_layer(&st.neighborhood_labels);
         st.map.remove_layer(&st.locality_layer);
         st.map.remove_layer(&st.locality_labels);
     } else {
         st.map.add_layer(&st.locality_layer);
         st.map.add_layer(&st.locality_labels);
         st.map.remove_layer(&st.neighborhood_layer);
+        st.map.remove_layer(&st.neighborhood_labels);
     }
 }
 
@@ -425,6 +804,8 @@ fn load_points_by_zoom(st: Rc<MapState>) {
         return;
     }
 
+    let seq = st.point_seq.get() + 1;
+    st.point_seq.set(seq);
     let b = st.map.get_bounds();
     let url = format!(
         "{API_BASE}/api/v1/biodiversity/records/bbox/?min_lon={}&min_lat={}&max_lon={}&max_lat={}",
@@ -439,6 +820,10 @@ fn load_points_by_zoom(st: Rc<MapState>) {
             Ok(d) => d,
             Err(e) => return console_error("Error loading points:", &e),
         };
+        // The map moved again while this request was in flight.
+        if st.point_seq.get() != seq || st.map.get_zoom() < 19.0 {
+            return;
+        }
 
         st.point_layer.clear_layers();
 
@@ -452,23 +837,32 @@ fn load_points_by_zoom(st: Rc<MapState>) {
             }
             let marker = L::circle_marker(
                 &to_js(&json!([record["latitude"], record["longitude"]])),
-                &to_js(&json!({
-                    "radius": 5,
-                    "color": "#000000",
-                    "weight": 1,
-                    "fillColor": "#006400",
-                    "fillOpacity": 0.6
-                })),
+                &style(POINT_STYLE),
             );
 
-            let tree = SelectedTree {
-                common_name: js_or(&record["common_name"], "N/A"),
-                scientific_name: js_or(&record["species"]["scientific_name"], "N/A"),
-                life_form: js_or(&record["species"]["life_form"], "N/A"),
-                neighborhood: js_or(&record["neighborhood"]["name"], "N/A"),
+            let Some(id) = record["id"].as_i64() else { continue };
+            let text = |v: &Value| v.as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+            let tree = TreeRecord {
+                id,
+                common_name: text(&record["common_name"]),
+                scientific_name: text(&record["species"]["scientific_name"]).unwrap_or_else(|| "N/A".into()),
+                species_id: record["species"]["id"].as_i64(),
+                life_form: text(&record["species"]["life_form"]).unwrap_or_default(),
+                neighborhood: text(&record["neighborhood"]["name"]),
+                site: text(&record["site"]["name"]),
             };
-            let selected_tree = st.selected_tree;
+
+            // Points are rebuilt on every pan/zoom: keep the selected one highlighted.
+            if st.selected_tree.with_untracked(|t| t.as_ref().map(|t| t.id)) == Some(id) {
+                highlight(st.highlight, id, &marker);
+            }
+
+            let (selected_tree, h, m, tools) = (st.selected_tree, st.highlight, marker.clone(), st.tools);
             marker.on("click", &js_fn1(move |_| {
+                if tools.is_drawing() {
+                    return;
+                }
+                highlight(h, id, &m);
                 selected_tree.try_set(Some(tree.clone()));
             }));
 
@@ -477,4 +871,28 @@ fn load_points_by_zoom(st: Rc<MapState>) {
 
         st.point_layer.add_to(&st.map);
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn thousands_separator() {
+        assert_eq!(fmt_thousands(0), "0");
+        assert_eq!(fmt_thousands(936), "936");
+        assert_eq!(fmt_thousands(6646), "6,646");
+        assert_eq!(fmt_thousands(101228), "101,228");
+        assert_eq!(fmt_thousands(1234567), "1,234,567");
+    }
+
+    #[test]
+    fn panel_stats_shape() {
+        let s = panel_stats(&json!({"total_trees": 7759, "species_count": 240, "avg_height_m": 8.1}), json!("N/A"));
+        assert_eq!(s["totalTrees"], "7,759");
+        assert_eq!(s["speciesCount"], "240");
+        assert_eq!(s["avgHeight"], "8.10");
+        let empty = panel_stats(&json!({"total_trees": 0, "species_count": 0, "avg_height_m": null}), json!("N/A"));
+        assert_eq!(empty["avgHeight"], "N/A");
+    }
 }

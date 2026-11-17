@@ -2,7 +2,38 @@
 
 use leptos::prelude::*;
 
+use crate::i18n::{Lang, pick};
+
 pub const TH: &str = "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider";
+/// Phytosanitary status: (code, Spanish label, English label, legend dot, chart color),
+/// in display order.
+pub const HEALTH: [(&str, &str, &str, &str, &str); 5] = [
+    ("HE", "Sano", "Healthy", "bg-green-500", "#10b981"),
+    ("SI", "Enfermo", "Sick", "bg-yellow-500", "#f59e0b"),
+    ("CR", "Crítico", "Critical", "bg-red-500", "#ef4444"),
+    ("DE", "Muerto", "Dead", "bg-gray-700", "#374151"),
+    ("NR", "No reportado", "Not reported", "bg-gray-300", "#d1d5db"),
+];
+
+pub fn health_label(lang: Lang, code: &str) -> &'static str {
+    HEALTH
+        .iter()
+        .find(|(c, ..)| *c == code)
+        .map(|(_, es, en, ..)| pick(lang, *es, *en))
+        .unwrap_or_else(|| pick(lang, "Desconocido", "Unknown"))
+}
+
+/// Pill colors for a phytosanitary status code.
+pub fn health_badge(code: &str) -> &'static str {
+    match code {
+        "HE" => "bg-green-100 text-green-800",
+        "SI" => "bg-yellow-100 text-yellow-800",
+        "CR" => "bg-red-100 text-red-800",
+        "DE" => "bg-gray-200 text-gray-800",
+        _ => "bg-gray-100 text-gray-600",
+    }
+}
+
 pub const SEARCH_ICON: &str = "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z";
 
 /// `<input placeholder=".."> + magnifier icon` block used by Reports and Alerts.

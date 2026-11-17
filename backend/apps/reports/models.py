@@ -5,6 +5,18 @@ from apps.biodiversity.models import BiodiversityRecord
 from apps.core.models import BaseModel
 
 
+class OfActiveTreeManager(models.Manager):
+    """Measurements / observations of trees that still exist (see
+    ``BiodiversityRecord.Status``); ``all_objects`` keeps every row."""
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .filter(biodiversity_record__status=BiodiversityRecord.Status.ACTIVE)
+        )
+
+
 class Measurement(BaseModel):
     """Records quantifiable attributes like trunk height or total height for trees.
 
@@ -60,6 +72,9 @@ class Measurement(BaseModel):
         default=MeasurementMethod.NOT_REPORTED,
     )
     date = models.DateField(_("measurement date"), null=True, blank=True)
+
+    objects = OfActiveTreeManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = _("measurement")
@@ -365,6 +380,9 @@ class Observation(BaseModel):
         _("accompanying collectors"), max_length=255, blank=True
     )
     date = models.DateField(_("observation date"), null=True, blank=True)
+
+    objects = OfActiveTreeManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = _("observation")

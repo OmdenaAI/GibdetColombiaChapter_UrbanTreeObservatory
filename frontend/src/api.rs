@@ -29,6 +29,22 @@ pub async fn get_json(url: &str) -> Result<Value, String> {
     resp.json::<Value>().await.map_err(|e| e.to_string())
 }
 
+/// POST a JSON body, JSON answer. A non-2xx status is an error: the server's
+/// `{"error": ...}` message when it sends one.
+pub async fn post_json(url: &str, body: &Value) -> Result<Value, String> {
+    let resp = gloo_net::http::Request::post(url)
+        .json(body)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.ok() {
+        let detail = resp.json::<Value>().await.ok().and_then(|v| v["error"].as_str().map(str::to_string));
+        return Err(detail.unwrap_or_else(|| format!("Http failure response for {url}: {} {}", resp.status(), resp.status_text())));
+    }
+    resp.json::<Value>().await.map_err(|e| e.to_string())
+}
+
 /// JavaScript truthiness of a JSON value (`undefined`/missing is represented as `Null`).
 pub fn truthy(v: &Value) -> bool {
     match v {
@@ -74,4 +90,17 @@ pub fn js_or(v: &Value, fallback: &str) -> String {
 
 pub fn console_error(msg: &str, err: &str) {
     web_sys::console::error_2(&msg.into(), &err.into());
+}
+
+/// `1234567` -> `"1,234,567"`.
+pub fn fmt_thousands(n: i64) -> String {
+    let s = n.abs().to_string();
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    if n < 0 { format!("-{out}") } else { out }
 }

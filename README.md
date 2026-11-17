@@ -107,7 +107,7 @@ Rust + WebAssembly single-page app built with [Leptos](https://book.leptos.dev/)
   - `src/layout.rs` - Navbar and sidebar
   - `src/api.rs` - HTTP client for the Django API
   - `src/interop/` - Bindings to Leaflet (map) and Chart.js (charts)
-  - `src/pages/` - One module per page: dashboard, map, trees, reports, alerts, analytics, about
+  - `src/pages/` - One module per page: dashboard, map, trees, species (catalog from the taxonomy API), reports, alerts, analytics, about
 
 ### Database
 

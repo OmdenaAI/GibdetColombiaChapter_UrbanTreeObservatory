@@ -275,3 +275,115 @@ class TestObservationAPI:
         response = authenticated_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+class TestDashboardAPI:
+    """GET /api/v1/reports/dashboard/ aggregates census, taxonomy and climate data."""
+
+    def test_dashboard_summary(self, api_client, neighborhood, species):
+        import datetime
+
+        from apps.biodiversity.factories import BiodiversityRecordFactory
+        from apps.climate.factories import ClimateFactory
+        from apps.reports.factories import MeasurementFactory, ObservationFactory
+
+        neighborhood.locality.population_2019 = 100
+        neighborhood.locality.save()
+        for i, (height, status_code) in enumerate(
+            [(3.0, "HE"), (12.0, "HE"), (30.0, "SI")]
+        ):
+            record = BiodiversityRecordFactory(
+                neighborhood=neighborhood,
+                species=species,
+                date=datetime.date(2017, 1, 1 + i),
+            )
+            MeasurementFactory(
+                biodiversity_record=record, attribute="HT", value=height, unit="m"
+            )
+            ObservationFactory(
+                biodiversity_record=record, phytosanitary_status=status_code
+            )
+        BiodiversityRecordFactory(
+            neighborhood=neighborhood, species=species, date=datetime.date(1899, 1, 1)
+        )
+        ClimateFactory(date=datetime.date(2025, 4, 1), value=20.0)
+
+        response = api_client.get(reverse("reports:dashboard"))
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.data
+        assert data["overall"]["total_trees"] == 4
+        assert data["trees_per_capita"] == {"population": 100, "value": 0.04}
+        assert data["phytosanitary_status"] == {"HE": 2, "SI": 1}
+        assert data["top_species"][0]["count"] == 4
+        assert data["records_by_year"] == {
+            "years": [{"year": 2017, "count": 3}],
+            "invalid_dates": 1,
+        }
+        bins = {b["from_m"]: b["count"] for b in data["height_distribution"]}
+        assert (bins[0], bins[10], bins[25]) == (1, 1, 1)
+        temperature = data["monthly_temperature"]
+        assert temperature["months"] == ["2025-04"]
+        assert [s["values"] for s in temperature["stations"]] == [[20.0]]
+        assert data["recent_records"][0]["height_m"] == 30.0
+        assert data["recent_records"][0]["phytosanitary_status"] == "SI"
+
+
+@pytest.mark.django_db
+class TestAnalyticsAPI:
+    """GET /api/v1/reports/analytics/: urban forest indicators."""
+
+    def test_analytics_summary(self, api_client, neighborhood, genus):
+        import datetime
+
+        from django.core.cache import cache
+
+        from apps.biodiversity.factories import BiodiversityRecordFactory
+        from apps.reports.factories import MeasurementFactory, ObservationFactory
+        from apps.taxonomy.factories import SpeciesFactory
+
+        cache.clear()
+        neighborhood.locality.population_2019 = 1000
+        neighborhood.locality.save()
+        native = SpeciesFactory(
+            genus=genus, name="nativa", origin="NT", life_form="TR", iucn_status="VU"
+        )
+        exotic = SpeciesFactory(
+            genus=genus, name="exotica", origin="CU", life_form="TR", iucn_status="LC"
+        )
+        # 3 native trees (one sick), 1 introduced.
+        for species, dbh, health in [
+            (native, 5.0, "HE"),
+            (native, 15.0, "SI"),
+            (native, 25.0, "HE"),
+            (exotic, 90.0, "HE"),
+        ]:
+            record = BiodiversityRecordFactory(
+                neighborhood=neighborhood,
+                species=species,
+                date=datetime.date(2017, 1, 1),
+            )
+            MeasurementFactory(
+                biodiversity_record=record, attribute="DBH", value=dbh, unit="cm"
+            )
+            ObservationFactory(biodiversity_record=record, phytosanitary_status=health)
+
+        response = api_client.get(reverse("reports:analytics"))
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.data
+        assert data["total_trees"] == 4
+        assert data["trees_per_1000_inhabitants"] == 4
+        assert data["issues_percent"] == 25.0
+        origin = {o["group"]: o["percent"] for o in data["origin"]}
+        assert (origin["native"], origin["introduced"]) == (75.0, 25.0)
+        # The factory boundaries contain the factory points: every tree is placed.
+        comunas = data["comunas"]
+        assert sum(c["trees"] for c in comunas["results"]) == 4
+        assert comunas["outside_comunas"] == 0
+        health = {s["name"]: s for s in data["species_health"]}
+        assert health[native.scientific_name]["sick_percent"] == 33.3
+        threatened = data["threatened"]
+        assert {s["status"]: s["count"] for s in threatened["by_status"]}["VU"] == 3
+        cache.clear()

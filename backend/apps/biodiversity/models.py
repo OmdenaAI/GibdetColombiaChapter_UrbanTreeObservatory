@@ -9,9 +9,34 @@ from apps.places.models import Neighborhood, Site
 from apps.taxonomy.models import Species
 
 
+class ActiveRecordManager(models.Manager):
+    """Only the trees that still exist (``status`` active)."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(status=BiodiversityRecord.Status.ACTIVE)
+
+
 class BiodiversityRecord(BaseModel):
     """Represents a record of biodiversity, including species, location,
-    common name, and other attributes."""
+    common name, and other attributes.
+
+    A tree that no longer exists (felled, fallen...) is kept with ``status`` removed and
+    the date, reason and a note of the removal: the census data stays in the database,
+    but the platform does not show it. ``objects`` (the default manager, also used by
+    related managers such as ``species.biodiversity_records``) returns active trees only;
+    ``all_objects`` returns every record (admin, data maintenance).
+    """
+
+    class Status(models.TextChoices):
+        ACTIVE = "AC", _("active")
+        REMOVED = "RE", _("removed")
+
+    class RemovalReason(models.TextChoices):
+        FELLED = "FE", _("felled")
+        FALLEN = "FA", _("fallen")
+        DEAD_STANDING = "DS", _("dead standing")
+        TRANSPLANTED = "TR", _("transplanted")
+        OTHER = "OT", _("other")
 
     common_name = models.CharField(
         _("common name"), max_length=100, null=True, blank=True
@@ -45,6 +70,21 @@ class BiodiversityRecord(BaseModel):
     system_comment = models.TextField(
         _("system comment"), null=True, blank=True, editable=False
     )
+    status = models.CharField(
+        _("status"),
+        max_length=2,
+        choices=Status,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
+    removed_on = models.DateField(_("removal date"), null=True, blank=True)
+    removal_reason = models.CharField(
+        _("removal reason"), max_length=2, choices=RemovalReason, blank=True
+    )
+    removal_note = models.TextField(_("removal note"), blank=True)
+
+    objects = ActiveRecordManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = _("biodiversity record")

@@ -6,6 +6,10 @@ from .models import Measurement, Observation
 
 @admin.register(Measurement)
 class MeasurementAdmin(admin.ModelAdmin):
+    def get_queryset(self, request):
+        # Also the rows of removed trees (the default manager hides them).
+        return Measurement.all_objects.select_related("biodiversity_record")
+
     list_display = (
         "id",
         "biodiversity_record_display",
@@ -38,6 +42,10 @@ class MeasurementAdmin(admin.ModelAdmin):
 
 @admin.register(Observation)
 class ObservationAdmin(admin.ModelAdmin):
+    def get_queryset(self, request):
+        # Also the rows of removed trees (the default manager hides them).
+        return Observation.all_objects.select_related("biodiversity_record")
+
     list_display = (
         "id",
         "biodiversity_record_display",

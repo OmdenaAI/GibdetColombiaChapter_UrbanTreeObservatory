@@ -7,7 +7,7 @@ volumes:
 services:
   # PostgreSQL database with PostGIS extension (multi-architecture support)
   db:
-    image: nickblah/postgis:latest
+    image: postgis/postgis:15-3.4
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
@@ -15,7 +15,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -45,7 +45,7 @@ services:
 
   # Database reset service - use this to reset the database
   db-reset:
-    image: nickblah/postgis:latest
+    image: postgis/postgis:15-3.4
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:

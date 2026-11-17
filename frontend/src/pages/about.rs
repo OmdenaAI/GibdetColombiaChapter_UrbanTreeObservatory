@@ -1,186 +1,421 @@
-//! About page (static content).
+//! About page (static content): what an urban forest is, what this platform offers, who
+//! develops it and the studies it builds on. Figures belong to the Dashboard, Map and
+//! Analytics pages, not here.
 
 use leptos::prelude::*;
 
-const CHECK_ICON: &str = "M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z";
+use crate::i18n::I18n;
 
-const FEATURES: [(&str, &str); 5] = [
-    ("Interactive Tree Mapping", "Visualize and explore urban trees with detailed geospatial data"),
-    ("Comprehensive Tree Database", "Detailed records of species, health status, and maintenance history"),
-    ("Environmental Monitoring", "Track climate data and assess environmental impacts"),
-    ("Analytics and Reports", "Generate insights through data visualization and analysis"),
-    ("Alert System", "Get notified about critical tree health issues and maintenance needs"),
+const REPO_URL: &str = "https://github.com/legut00/GibdetColombiaChapter_UrbanTreeObservatory/tree/main";
+const LEGUT_URL: &str = "https://www.legut.org/";
+const OMDENA_URL: &str =
+    "https://www.omdena.com/chapter-challenges/urban-tree-observatory-data-driven-monitoring-conservation-in-ibague-colombia";
+
+const CARD: &str = "bg-white rounded-lg shadow border border-gray-200 p-6";
+const H2: &str = "text-xl font-semibold text-gray-900";
+const P: &str = "text-gray-700 leading-relaxed";
+const LINK: &str = "text-primary-700 font-medium hover:underline";
+const KICKER: &str = "text-xs font-semibold uppercase tracking-wider text-primary-700";
+const ICON_EXTERNAL: &str = "M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14";
+
+/// A text in Spanish and English.
+type Text = (&'static str, &'static str);
+
+/// What urban trees do for a city (well-established benefits, no local figures).
+const TREE_BENEFITS: [(Text, Text); 6] = [
+    (
+        ("Calles más frescas", "Cooler streets"),
+        (
+            "La sombra y la evapotranspiración bajan la temperatura del aire y de las superficies y atenúan las islas de calor urbanas.",
+            "Shade and evapotranspiration lower surface and air temperatures and soften urban heat islands.",
+        ),
+    ),
+    (
+        ("Aire más limpio", "Cleaner air"),
+        (
+            "Las hojas retienen polvo y material particulado y absorben parte de los contaminantes gaseosos.",
+            "Leaves trap dust and particulate matter and absorb part of the gaseous pollutants.",
+        ),
+    ),
+    (
+        ("Regulación del agua", "Water regulation"),
+        (
+            "Las copas interceptan la lluvia y las raíces ayudan a que el suelo la absorba, reduciendo la escorrentía y las inundaciones.",
+            "Canopies intercept rain and roots help the soil absorb it, reducing runoff and flooding.",
+        ),
+    ),
+    (
+        ("Biodiversidad", "Biodiversity"),
+        (
+            "Los árboles dan alimento y refugio a aves, polinizadores y otra fauna urbana, en especial las especies nativas.",
+            "Trees give food and shelter to birds, pollinators and other urban wildlife, especially native species.",
+        ),
+    ),
+    (
+        ("Salud y bienestar", "Health and well-being"),
+        (
+            "Las calles arborizadas y los parques invitan a caminar, reducen el estrés y hacen los barrios más habitables.",
+            "Green streets and parks invite walking, reduce stress and make neighborhoods more liveable.",
+        ),
+    ),
+    (
+        ("Almacenamiento de carbono", "Carbon storage"),
+        (
+            "Al crecer, los árboles guardan carbono en su madera: un aporte pequeño pero duradero contra el cambio climático.",
+            "Trees store carbon in their wood as they grow, a small but lasting contribution against climate change.",
+        ),
+    ),
 ];
 
-const USE_CASES: [(&str, &str); 4] = [
-    ("Urban Planning", "City planners use our platform to assess tree coverage, identify areas requiring more green spaces, and plan sustainable urban development."),
-    ("Environmental Research", "Researchers analyze tree data and climate information to study urban heat islands, air quality, and biodiversity patterns."),
-    ("Maintenance Management", "Municipal tree care teams use alerts and health indicators to prioritize maintenance activities and prevent tree damage."),
-    ("Public Education", "Schools and community organizations access tree data to educate about urban ecology, biodiversity, and environmental stewardship."),
+/// What the platform is for.
+const PLATFORM_BENEFITS: [(Text, Text); 4] = [
+    (
+        ("Saber qué tenemos", "Know what we have"),
+        (
+            "Un inventario público de los árboles de la ciudad: especie, ubicación, tamaño y estado, en lugar de hojas de cálculo dispersas.",
+            "One public inventory of the city's trees: species, location, size and condition, instead of scattered spreadsheets.",
+        ),
+    ),
+    (
+        ("Planificar con evidencia", "Plan with evidence"),
+        (
+            "Ver qué comunas tienen menos árboles y qué tan diverso y nativo es el arbolado, para decidir dónde y qué sembrar.",
+            "See which comunas lack trees and how diverse and native the urban forest is, to decide where and what to plant.",
+        ),
+    ),
+    (
+        ("Cuidar los árboles a tiempo", "Care for trees in time"),
+        (
+            "Identificar árboles enfermos, en estado crítico o muertos y las especies más afectadas, para priorizar el mantenimiento.",
+            "Spot sick, critical or dead trees and the species most affected, to prioritize maintenance.",
+        ),
+    ),
+    (
+        ("Abierta y compartida", "Open and shared"),
+        (
+            "Código abierto y datos exportables, para que instituciones, investigadores y ciudadanos los usen y mejoren.",
+            "Open-source code and exportable data, so institutions, researchers and citizens can use and improve them.",
+        ),
+    ),
 ];
+
+/// The platform's sections: (route, name, what it is for).
+const SECTIONS: [(&str, Text, Text); 5] = [
+    (
+        "/dashboard",
+        ("Panel", "Dashboard"),
+        ("Resumen del censo: árboles, salud, campañas y clima.", "Summary of the census: trees, health, campaigns and climate."),
+    ),
+    (
+        "/map",
+        ("Mapa", "Map"),
+        ("Comunas, barrios y cada árbol en el mapa, con su ficha.", "Comunas, barrios and every tree on the map, with its data sheet."),
+    ),
+    (
+        "/trees",
+        ("Árboles", "Trees"),
+        ("Consultar el inventario y exportarlo a CSV.", "Search the inventory and export it to CSV."),
+    ),
+    (
+        "/species",
+        ("Especies", "Species"),
+        ("Catálogo de las especies presentes en la ciudad, con sus rasgos.", "Catalog of the species found in the city, with their traits."),
+    ),
+    (
+        "/analytics",
+        ("Análisis", "Analysis"),
+        (
+            "Indicadores de origen, densidad por comuna, salud y especies amenazadas.",
+            "Indicators on origin, density by comuna, health and threatened species.",
+        ),
+    ),
+];
+
+/// A piece of a reference: text (Spanish, English) and whether it is italic. APA joins the
+/// last author with " y " in Spanish and ", & " in English.
+type Seg = (Text, bool);
+
+/// Same text in both languages (titles, names, journals stay as published).
+const fn same(s: &'static str) -> Text {
+    (s, s)
+}
+
+/// Studies on the urban trees of Ibagué and Tolima that inspired the platform and fed its
+/// development, in APA 7 style, oldest first. Each one: segments, then the link if any.
+const REFERENCES: [(&[Seg], Option<&str>); 8] = [
+    (
+        &[
+            (same("Corporación Autónoma Regional del Tolima [Cortolima]. (2016). "), false),
+            (same("Formulación del plan maestro de silvicultura urbana para la ciudad de Ibagué"), true),
+            (
+                (" [Versión final; Contrato 507 de 2016, operado por Constructo Co S.A.S.]. ", " [Final version; Contract 507 of 2016, operated by Constructo Co S.A.S.]. "),
+                false,
+            ),
+        ],
+        Some("https://binet.cortolima.gov.co/images/estudio/bosques/PLAN_MAESTRO_SILVICULTURA_IBAGUE_2016.pdf"),
+    ),
+    (
+        &[
+            (same("Corporación Autónoma Regional del Tolima [Cortolima]"), false),
+            ((" y ", ", & "), false),
+            (same("Jardín Botánico San Jorge. (2017). "), false),
+            (same("Manual de arborización para el departamento del Tolima"), true),
+            (same("."), false),
+        ],
+        None,
+    ),
+    (
+        &[
+            (same("Núñez-Florez, R., Pérez-Gómez, U."), false),
+            ((" y ", ", & "), false),
+            (same("Fernández-Méndez, F. (2019). Functional diversity criteria for selecting urban trees. "), false),
+            (same("Urban Forestry & Urban Greening, 38"), true),
+            (same(", 251–266. "), false),
+        ],
+        Some("https://doi.org/10.1016/j.ufug.2019.01.005"),
+    ),
+    (
+        &[
+            (same("Acuña-Simbaqueva, L. M., Andrade, H. J., Segura, M. A., Sierra-Ramírez, E., Canal-Daza, D. S."), false),
+            ((" y ", ", & "), false),
+            (same("Greñas-Corrales, O. E. (2021). Mitigación de emisiones de gases de efecto invernadero de hogares por arbolado urbano en Ibagué-Colombia. "),
+                false,
+            ),
+            (same("Ambiente & Sociedade, 24"), true),
+            ((", Artículo e01911. ", ", Article e01911. "), false),
+        ],
+        Some("https://doi.org/10.1590/1809-4422asoc20200191vu2021L3AO"),
+    ),
+    (
+        &[
+            (same("Aragón Mora, D. J."), false),
+            ((" y ", ", & "), false),
+            (same("Valencia Vera, W. (2022). "), false),
+            (same("Oferta de servicios ecosistémicos de especies del arbolado urbano de la ciudad de Ibagué, Tolima, Colombia"), true),
+            ((" [Trabajo de grado, Universidad del Tolima]. ", " [Undergraduate thesis, Universidad del Tolima]. "), false),
+        ],
+        Some("https://repository.ut.edu.co/entities/publication/3a83cc95-87b7-488b-ae06-014cc5ff329e"),
+    ),
+    (
+        &[
+            (same("Campos Pérez, W. F."), false),
+            ((" y ", ", & "), false),
+            (same("Vargas Salgado, W. S. (2022). "), false),
+            (same("Crecimiento diamétrico y captura de carbono de árboles individuales de "), true),
+            // APA: a species name inside an italic title goes back to roman.
+            (same("Tabebuia rosea"), false),
+            (same(" (Bertol) D.C en el arbolado urbano de Ibagué, Colombia"), true),
+            ((" [Trabajo de grado, Universidad del Tolima].", " [Undergraduate thesis, Universidad del Tolima]."), false),
+        ],
+        None,
+    ),
+    (
+        &[
+            (
+                same("Medina Mora, E. (2023). La Ciudadela Comfenalco y su pequeño bosque urbano: La infraestructura verde como aliada en la creación del paisaje ambiental, social y económico. "),
+                false,
+            ),
+            (same("Revista B33 Arquitectura y Urbanismo"), true),
+            (same(", (9). "), false),
+        ],
+        Some("https://revistas.ut.edu.co/index.php/B33/article/view/3239"),
+    ),
+    (
+        &[
+            (same("Torres Payares, L. E. (2025). "), false),
+            (
+                same("Evaluación instrumental del arbolado urbano a través de ensayos no destructivos en el marco del proyecto “Análisis del riesgo de árboles urbanos y sus servicios ecosistémicos”, en la ciudad de Ibagué, Tolima"),
+                true,
+            ),
+            (
+                (" [Informe final de servicio social, Universidad del Tolima].", " [Final report of social service, Universidad del Tolima]."),
+                false,
+            ),
+        ],
+        None,
+    ),
+];
+
+fn external(href: &'static str, label: &'static str) -> impl IntoView {
+    view! {
+        <a href=href target="_blank" rel="noopener noreferrer" class=format!("{LINK} inline-flex items-center gap-1")>
+            {label}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d=ICON_EXTERNAL />
+            </svg>
+        </a>
+    }
+}
 
 #[component]
 pub fn About() -> impl IntoView {
+    let i = I18n::use_ctx();
+    let t = move |(es, en): Text| move || i.t(es, en);
+
     view! {
-        <div class="bg-white shadow rounded-lg p-6">
-            <h1 class="text-2xl font-bold text-primary-600 mb-6">"About the Urban Tree Observatory"</h1>
-
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">"Project Overview"</h2>
-                <p class="text-gray-700 mb-4">
-                    "The Urban Tree Observatory is a comprehensive platform developed by GibdetColombia Chapter to monitor, analyze, and manage urban forests in Colombia, starting with Ibague. Our mission is to promote sustainable urban forestry practices through data-driven decision making and community engagement."
-                </p>
-                <p class="text-gray-700 mb-4">
-                    "By collecting and analyzing data on tree health, biodiversity, and environmental impact, we aim to improve urban forest management, enhance urban biodiversity, and mitigate the effects of climate change in urban environments."
-                </p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <FeaturesCard />
-                <UseCasesCard />
-            </div>
-
-            <ImpactSection />
-            <BenefitsSection />
-            <SponsorsSection />
-
-            <div class="border-t pt-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">"Get Involved"</h2>
-                <p class="text-gray-700 mb-4">
-                    "We welcome collaboration from researchers, municipal partners, and community organizations. If you're interested in contributing to the Urban Tree Observatory or using our data for research purposes, please contact us at "
-                    <a href="mailto:contact@gibdetcolombia.org" class="text-primary-600 hover:underline">"contact@gibdetcolombia.org"</a>
-                    "."
+        <div class="p-6 space-y-6 max-w-6xl mx-auto">
+            // What the platform is
+            <div class=CARD>
+                <h1 class="text-3xl font-bold text-primary-600">"Urban Tree Observatory"</h1>
+                <p class=format!("{P} mt-3 text-lg")>
+                    {t((
+                        "Una plataforma abierta para explorar, entender y gestionar el arbolado urbano de Ibagué, Colombia. Reúne el censo de árboles de la ciudad, el catálogo de especies, los mapas de comunas y barrios y los registros de clima en una sola base de datos geográfica, y los convierte en mapas, fichas consultables e indicadores.",
+                        "An open platform to explore, understand and manage the urban trees of Ibagué, Colombia. It brings together the city's tree census, the species catalog, maps of comunas and barrios and climate records in a single geographic database, and turns them into maps, searchable records and indicators.",
+                    ))}
                 </p>
             </div>
-        </div>
-    }
-}
 
-#[component]
-fn FeaturesCard() -> impl IntoView {
-    view! {
-        <div class="border rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">"Key Features"</h2>
-            <ul class="space-y-3">
-                {FEATURES
-                    .into_iter()
-                    .map(|(title, desc)| view! {
-                        <li class="flex items-start">
-                            <svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d=CHECK_ICON clip-rule="evenodd" />
-                            </svg>
+            // Who builds it (emphasis)
+            <div class="rounded-lg border-2 border-primary-600 bg-primary-50 p-6">
+                <h2 class=H2>{t(("Quién está detrás", "Who is behind it"))}</h2>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <p class=KICKER>{t(("Origen", "Origin"))}</p>
+                        <p class=format!("{P} mt-1")>
+                            {t(("Este proyecto es el producto final de un voluntariado con ", "This project is the final product of a volunteer project with "))}
+                            <strong>"Omdena"</strong>
+                            {t((
+                                " (GibdetColombia Chapter), en el que voluntarios construyeron la primera versión del observatorio.",
+                                " (GibdetColombia Chapter), where volunteers built the first version of the observatory.",
+                            ))}
+                        </p>
+                        <p class="mt-2">{external(OMDENA_URL, "Omdena · Urban Tree Observatory")}</p>
+                    </div>
+                    <div>
+                        <p class=KICKER>{t(("Mantenido y desarrollado por", "Maintained and developed by"))}</p>
+                        <p class=format!("{P} mt-1")>
+                            <strong>"Fundación LEGUT"</strong>
+                            {t((" mantiene la plataforma y continúa su desarrollo.", " maintains the platform and continues its development."))}
+                        </p>
+                        <p class="mt-2">{external(LEGUT_URL, "legut.org")}</p>
+                    </div>
+                    <div>
+                        <p class=KICKER>{t(("Código fuente", "Source code"))}</p>
+                        <p class=format!("{P} mt-1")>
+                            {t((
+                                "El repositorio principal es de código abierto (licencia MIT). Allí son bienvenidos reportes, ideas y contribuciones.",
+                                "The main repository is open source (MIT License). Issues, ideas and contributions are welcome there.",
+                            ))}
+                        </p>
+                        <p class="mt-2">{external(REPO_URL, "GitHub")}</p>
+                    </div>
+                </div>
+            </div>
+
+            // What an urban forest is
+            <div class=CARD>
+                <h2 class=H2>{t(("¿Qué es el arbolado urbano?", "What is an urban forest?"))}</h2>
+                <p class=format!("{P} mt-3")>
+                    {t((
+                        "El arbolado urbano es el conjunto de árboles, palmas y arbustos que crecen en una ciudad: en calles y avenidas, parques, plazas y zonas verdes, en las rondas de ríos y quebradas y en los jardines privados. Visto en conjunto, es parte de la infraestructura de la ciudad —infraestructura verde— que se debe planificar, sembrar y mantener como cualquier otra.",
+                        "The urban forest is the set of all the trees, palms and shrubs that grow in a city: along streets and avenues, in parks, squares and green areas, along rivers and ravines, and in private gardens. Looked at together, they are part of the city's infrastructure — green infrastructure — that needs to be planned, planted and maintained like any other.",
+                    ))}
+                </p>
+                <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {TREE_BENEFITS.into_iter().map(|(title, text)| view! {
+                        <div class="rounded-md border border-gray-200 bg-gray-50 p-4">
+                            <h3 class="font-semibold text-green-800">{t(title)}</h3>
+                            <p class="mt-1 text-sm text-gray-600">{t(text)}</p>
+                        </div>
+                    }).collect_view()}
+                </div>
+            </div>
+
+            // Why the platform
+            <div class=CARD>
+                <h2 class=H2>{t(("¿Por qué esta plataforma?", "Why this platform"))}</h2>
+                <p class=format!("{P} mt-3")>
+                    {t((
+                        "Gestionar el arbolado empieza por conocerlo. La plataforma pone los datos del censo donde todos pueden verlos y usarlos:",
+                        "Managing an urban forest starts with knowing it. The platform puts the census data where everyone can see it and use it:",
+                    ))}
+                </p>
+                <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {PLATFORM_BENEFITS.into_iter().map(|(title, text)| view! {
+                        <div class="flex gap-3">
+                            <span class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600"></span>
                             <div>
-                                <p class="font-medium">{title}</p>
-                                <p class="text-sm text-gray-600">{desc}</p>
+                                <h3 class="font-semibold text-gray-900">{t(title)}</h3>
+                                <p class="text-sm text-gray-600">{t(text)}</p>
+                            </div>
+                        </div>
+                    }).collect_view()}
+                </div>
+            </div>
+
+            // Sections and data
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class=CARD>
+                    <h2 class=H2>{t(("Qué puedes hacer aquí", "What you can do here"))}</h2>
+                    <ul class="mt-4 divide-y divide-gray-100">
+                        {SECTIONS.into_iter().map(|(href, name, text)| view! {
+                            <li class="py-2.5">
+                                <a href=href class=LINK>{t(name)}</a>
+                                <p class="text-sm text-gray-600">{t(text)}</p>
+                            </li>
+                        }).collect_view()}
+                    </ul>
+                </div>
+                <div class=CARD>
+                    <h2 class=H2>{t(("Los datos", "The data"))}</h2>
+                    <ul class=format!("{P} mt-4 space-y-3 text-sm list-disc pl-5")>
+                        <li>
+                            <strong>{t(("Censo de arbolado urbano", "Urban tree census"))}</strong>
+                            {t((
+                                " de Ibagué realizado por Cortolima (campañas de 2014, 2015 y 2017): especie, ubicación, medidas y estado de cada árbol.",
+                                " of Ibagué by Cortolima (campaigns of 2014, 2015 and 2017): species, location, measurements and condition of each tree.",
+                            ))}
+                        </li>
+                        <li>
+                            <strong>{t(("Catálogo de especies", "Species catalog"))}</strong>
+                            {t((
+                                " con origen, rasgos y categoría de la Lista Roja de la UICN, enlazado a GBIF y a la base Useful Tropical Plants.",
+                                " with origin, traits and IUCN Red List category, linked to GBIF and the Useful Tropical Plants database.",
+                            ))}
+                        </li>
+                        <li>
+                            <strong>{t(("Límites de comunas y barrios", "Comuna and barrio boundaries"))}</strong>
+                            {t((" y la población de 2019 de cada comuna.", " and the 2019 population of each comuna."))}
+                        </li>
+                        <li>
+                            <strong>{t(("Temperatura del aire", "Air temperature"))}</strong>
+                            {t((" de estaciones meteorológicas automáticas en Ibagué.", " from automatic weather stations in Ibagué."))}
+                        </li>
+                        <li>
+                            {t((
+                                "Todo se almacena en una base de datos geográfica PostgreSQL / PostGIS. El censo refleja los árboles en el momento en que se levantó; no es un registro en vivo.",
+                                "Everything is stored in a PostgreSQL / PostGIS geographic database. The census reflects the trees when they were surveyed; it is not a live record.",
+                            ))}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            // References
+            <div class=CARD>
+                <h2 class=H2>{t(("Referencias", "References"))}</h2>
+                <p class=format!("{P} mt-3")>
+                    {t((
+                        "Agradecemos a los autores de estos estudios sobre el arbolado urbano de Ibagué y el Tolima, que fueron fuente de inspiración y parte del desarrollo de esta plataforma.",
+                        "We thank the authors of these studies on the urban trees of Ibagué and Tolima, which inspired this platform and were part of its development.",
+                    ))}
+                </p>
+                <ul class="mt-4 space-y-3 text-sm text-gray-700 leading-relaxed">
+                    {REFERENCES.into_iter().map(|(segs, url)| view! {
+                        // One translucent box per reference, in the page's green palette.
+                        <li class="rounded-md border border-primary-200 border-l-4 border-l-primary-600 bg-primary-50/70 px-4 py-3 transition-colors hover:bg-primary-100/70">
+                            // Hanging indent, as in an APA reference list.
+                            <div class="pl-8 -indent-8">
+                                {segs.iter().map(|&(text, italic)| {
+                                    if italic { view! { <i>{t(text)}</i> }.into_any() } else { view! { <span>{t(text)}</span> }.into_any() }
+                                }).collect_view()}
+                                {url.map(|u| view! {
+                                    <a href=u target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline break-all">{u}</a>
+                                })}
                             </div>
                         </li>
-                    })
-                    .collect_view()}
-            </ul>
-        </div>
-    }
-}
-
-#[component]
-fn UseCasesCard() -> impl IntoView {
-    view! {
-        <div class="border rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">"Use Cases"</h2>
-            <div class="space-y-4">
-                {USE_CASES
-                    .into_iter()
-                    .map(|(title, desc)| view! {
-                        <div class="bg-gray-50 p-3 rounded-md border border-gray-200">
-                            <h3 class="font-medium text-primary-700">{title}</h3>
-                            <p class="text-sm text-gray-600 mt-1">{desc}</p>
-                        </div>
-                    })
-                    .collect_view()}
-            </div>
-        </div>
-    }
-}
-
-#[component]
-fn ImpactSection() -> impl IntoView {
-    view! {
-        <div class="mb-8">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">"Our Impact"</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-green-50 p-4 rounded-lg text-center">
-                    <div class="text-3xl font-bold text-green-700 mb-1">"96,943"</div>
-                    <div class="text-sm text-green-600">"Trees Monitored"</div>
-                </div>
-                <div class="bg-blue-50 p-4 rounded-lg text-center">
-                    <div class="text-3xl font-bold text-blue-700 mb-1">"439"</div>
-                    <div class="text-sm text-blue-600">"Species Documented"</div>
-                </div>
-                <div class="bg-purple-50 p-4 rounded-lg text-center">
-                    <div class="text-3xl font-bold text-purple-700 mb-1">"17.30 m"</div>
-                    <div class="text-sm text-purple-600">"Average Tree Height"</div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-amber-50 p-4 rounded-lg text-center">
-                    <div class="text-3xl font-bold text-amber-700 mb-1">"0.18"</div>
-                    <div class="text-sm text-amber-600">"Tree-per-capita Index"</div>
-                </div>
-                <div class="bg-teal-50 p-4 rounded-lg text-center">
-                    <div class="text-3xl font-bold text-teal-700 mb-1">"5"</div>
-                    <div class="text-sm text-teal-600">"Research Partnerships"</div>
-                </div>
-            </div>
-        </div>
-    }
-}
-
-#[component]
-fn BenefitsSection() -> impl IntoView {
-    view! {
-        <div class="mb-8">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">"Environmental Benefits"</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-                    <h3 class="font-medium text-green-800 mb-2">"CO₂ Absorption"</h3>
-                    <div class="text-2xl font-bold text-green-700">"646,867.27 Tons"</div>
-                    <p class="text-sm text-green-600 mt-2">
-                        "Our urban forest captures carbon dioxide, mitigating greenhouse gas effects and combating climate change."
-                    </p>
-                </div>
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <h3 class="font-medium text-blue-800 mb-2">"Oxygen Production"</h3>
-                    <div class="text-2xl font-bold text-blue-700">"1,727,135.62 Tons/year"</div>
-                    <p class="text-sm text-blue-600 mt-2">
-                        "Ibagué's trees generate life-sustaining oxygen, enhancing air quality for the community."
-                    </p>
-                </div>
-            </div>
-        </div>
-    }
-}
-
-#[component]
-fn SponsorsSection() -> impl IntoView {
-    view! {
-        <div class="border rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">"Sponsors"</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {(1..=4)
-                    .map(|n| view! {
-                        <div class="bg-gray-50 p-3 rounded-md border border-gray-200">
-                            <div class="flex justify-center items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="currentColor">
-                                    <rect width="100%" height="100%" fill="#e0e0e0" stroke="#a0a0a0" stroke-dasharray="5,5" />
-                                    <text x="100" y="100" font-family="sans-serif" font-size="20" fill="#555" text-anchor="middle" dominant-baseline="middle">
-                                        {format!("Logo Sponsor {n}")}
-                                    </text>
-                                </svg>
-                            </div>
-                            <h3 class="font-medium text-primary-700 text-center">{format!("Sponsor {n}")}</h3>
-                        </div>
-                    })
-                    .collect_view()}
+                    }).collect_view()}
+                </ul>
             </div>
         </div>
     }

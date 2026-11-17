@@ -1,190 +1,444 @@
-//! Analytics page.
-//!
-//! KNOWN ISSUE: all charts and tables use hardcoded sample data (Colombia-wide, not Ibagué).
+//! Analytics page: urban forest indicators computed from the census in PostGIS
+//! (`GET /api/v1/reports/analytics/`). Each block answers one management question:
+//! diversity (10-20-30 rule), origin, size structure, density per comuna, health by
+//! species and threatened species.
+
+use std::sync::Arc;
+use std::time::Duration;
 
 use leptos::prelude::*;
-use serde_json::json;
+use leptos::task::spawn_local;
+use serde::Deserialize;
+use serde_json::{Value, json};
 
+use super::shared::{HEALTH, health_label};
+use crate::api::{API_BASE, console_error, fmt_thousands, get_json};
 use crate::interop::chart::chart_by_id;
 use crate::interop::when_connected;
+use crate::i18n::{I18n, Lang, pick};
 
-struct TreeRow {
-    id: &'static str,
-    species: &'static str,
-    height: f64,
-    health_status: &'static str,
-    location: &'static str,
+// ---------------------------------------------------------------------------
+// Data
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct Summary {
+    trees_per_1000_inhabitants: Option<i64>,
+    issues_percent: Option<f64>,
+    origin: Vec<Origin>,
+    comunas: Comunas,
+    species_health: Vec<SpeciesHealth>,
+    threatened: Threatened,
 }
 
-const RECENT_TREES: [TreeRow; 5] = [
-    TreeRow { id: "T001", species: "Ceiba pentandra", height: 25.4, health_status: "Healthy", location: "Bogotá" },
-    TreeRow { id: "T002", species: "Quercus humboldtii", height: 18.2, health_status: "Moderate", location: "Medellín" },
-    TreeRow { id: "T003", species: "Tabebuia rosea", height: 12.8, health_status: "Healthy", location: "Cali" },
-    TreeRow { id: "T004", species: "Ficus benjamina", height: 15.6, health_status: "Poor", location: "Cartagena" },
-    TreeRow { id: "T005", species: "Samanea saman", height: 22.1, health_status: "Healthy", location: "Barranquilla" },
-];
-
-struct ClimateRow {
-    station: &'static str,
-    date: &'static str,
-    temperature: f64,
-    rainfall: f64,
-    humidity: f64,
+#[derive(Deserialize)]
+struct Origin {
+    group: String,
+    count: i64,
+    percent: Option<f64>,
 }
 
-const CLIMATE_DATA: [ClimateRow; 5] = [
-    ClimateRow { station: "BOG001", date: "2024-03-15", temperature: 18.5, rainfall: 2.3, humidity: 65.0 },
-    ClimateRow { station: "MED002", date: "2024-03-15", temperature: 22.1, rainfall: 0.0, humidity: 58.0 },
-    ClimateRow { station: "CAL003", date: "2024-03-15", temperature: 25.8, rainfall: 1.5, humidity: 72.0 },
-    ClimateRow { station: "BAR004", date: "2024-03-15", temperature: 28.2, rainfall: 0.8, humidity: 75.0 },
-    ClimateRow { station: "CTG005", date: "2024-03-15", temperature: 29.5, rainfall: 0.0, humidity: 80.0 },
-];
-
-/// JS number interpolation: `{{ 0.0 }}` renders "0", `{{ 65 }}` renders "65".
-fn js_num(n: f64) -> String {
-    crate::api::js_string(Some(&json!(n)))
+#[derive(Deserialize)]
+struct Comunas {
+    results: Vec<Comuna>,
+    outside_comunas: i64,
+    unknown_comuna_in_census: i64,
 }
 
-fn get_health_status_class(status: &str) -> String {
-    let base = "px-2 py-1 text-xs font-medium rounded-full";
-    match status.to_lowercase().as_str() {
-        "healthy" => format!("{base} bg-green-100 text-green-800"),
-        "moderate" => format!("{base} bg-yellow-100 text-yellow-800"),
-        "poor" => format!("{base} bg-red-100 text-red-800"),
-        _ => format!("{base} bg-gray-100 text-gray-800"),
+#[derive(Deserialize)]
+struct Comuna {
+    name: String,
+    trees: i64,
+    area_ha: f64,
+    trees_per_ha: Option<f64>,
+    trees_per_1000_inhabitants: Option<i64>,
+    issues_percent: Option<f64>,
+}
+
+#[derive(Deserialize)]
+struct SpeciesHealth {
+    name: String,
+    trees: i64,
+    sick_percent: f64,
+    critical_percent: f64,
+    dead_percent: f64,
+}
+
+#[derive(Deserialize)]
+struct Threatened {
+    by_status: Vec<StatusCount>,
+    species: Vec<ThreatenedSpecies>,
+    species_count: i64,
+}
+
+#[derive(Deserialize)]
+struct StatusCount {
+    status: String,
+    count: i64,
+}
+
+#[derive(Deserialize)]
+struct ThreatenedSpecies {
+    name: String,
+    status: String,
+    count: i64,
+}
+
+#[derive(Clone)]
+enum Load {
+    Loading,
+    Failed,
+    Ready(Arc<Summary>),
+}
+
+// ---------------------------------------------------------------------------
+// Presentation helpers
+// ---------------------------------------------------------------------------
+
+/// Single hue for magnitudes (the app's green).
+const BAR: &str = "#15803d";
+const CARD: &str = "bg-white rounded-lg shadow border border-gray-200 p-5";
+const H2: &str = "text-lg font-semibold text-gray-900";
+const NOTE: &str = "text-sm text-gray-500 mt-0.5";
+
+fn pct(v: Option<f64>) -> String {
+    v.map(|v| format!("{v:.1}%")).unwrap_or_else(|| "—".into())
+}
+
+fn n(v: i64) -> String {
+    fmt_thousands(v)
+}
+
+fn health_color(code: &str) -> &'static str {
+    HEALTH.iter().find(|(c, ..)| *c == code).map(|(.., color)| *color).unwrap_or("#9ca3af")
+}
+
+fn iucn_label(l: Lang, code: &str) -> &'static str {
+    match code {
+        "CR" => pick(l, "En peligro crítico", "Critically endangered"),
+        "EN" => pick(l, "En peligro", "Endangered"),
+        "VU" => pick(l, "Vulnerable", "Vulnerable"),
+        _ => pick(l, "Otra", "Other"),
     }
 }
 
-/// `<div class="bg-white p-4 rounded-lg shadow"><h2>..</h2><canvas id=..></canvas></div>`
-#[component]
-fn ChartBox(title: &'static str, canvas_id: &'static str) -> impl IntoView {
-    view! {
-        <div class="bg-white p-4 rounded-lg shadow">
-            <h2 class="text-lg font-semibold mb-4">{title}</h2>
-            <canvas id=canvas_id></canvas>
-        </div>
+/// Recessive axes: light grid on the value axis only, small ticks.
+fn axes(horizontal: bool, value_title: &str) -> Value {
+    let value = json!({
+        "beginAtZero": true,
+        "grid": { "color": "rgba(0,0,0,0.06)" },
+        "border": { "display": false },
+        "ticks": { "font": { "size": 11 }, "color": "#6b7280" },
+        "title": { "display": true, "text": value_title, "color": "#6b7280", "font": { "size": 11 } }
+    });
+    let category = json!({
+        "grid": { "display": false },
+        "ticks": { "font": { "size": 11 }, "color": "#374151" }
+    });
+    if horizontal {
+        json!({ "x": value, "y": category })
+    } else {
+        json!({ "y": value, "x": category })
     }
 }
+
+fn bar_dataset(label: &str, data: Vec<Value>, color: &str) -> Value {
+    json!({
+        "label": label,
+        "data": data,
+        "backgroundColor": color,
+        "borderRadius": 4,
+        "borderSkipped": "start",
+        "maxBarThickness": 22
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 #[component]
 pub fn Analytics() -> impl IntoView {
-    // Build the charts once the root (and so every canvas) is attached; see `when_connected`.
+    let i = I18n::use_ctx();
+    let state = RwSignal::new(Load::Loading);
+    let load = move || {
+        state.set(Load::Loading);
+        spawn_local(async move {
+            let url = format!("{API_BASE}/api/v1/reports/analytics/");
+            let res = get_json(&url)
+                .await
+                .and_then(|v| serde_json::from_value::<Summary>(v).map_err(|e| e.to_string()));
+            match res {
+                Ok(s) => state.try_set(Load::Ready(Arc::new(s))),
+                Err(e) => {
+                    console_error("Error loading analytics:", &e);
+                    state.try_set(Load::Failed)
+                }
+            };
+        });
+    };
+    load();
+
     let root = NodeRef::<leptos::html::Div>::new();
+    // Charts are drawn again when the language changes (labels and axis titles).
     Effect::new(move |_| {
-        if let Some(el) = root.get() {
-            when_connected(el.into(), initialize_charts);
+        let l = i.lang();
+        let ready = state.with(|s| match s {
+            Load::Ready(s) => Some(s.clone()),
+            _ => None,
+        });
+        if let (Some(el), Some(summary)) = (root.get(), ready) {
+            when_connected(el.into(), move || {
+                set_timeout(move || draw_charts(l, &summary), Duration::from_millis(100))
+            });
         }
     });
 
     view! {
         <div node_ref=root class="block w-full">
             <div class="p-6 space-y-6">
-                // Header
-                <div class="mb-8">
-                    <h1 class="text-3xl font-bold text-gray-900">"Tree Analytics Dashboard"</h1>
-                    <p class="mt-2 text-gray-600">"Comprehensive analysis of urban tree data in Colombia"</p>
+                <div>
+                    <h1 class="text-2xl font-bold text-green-700">{move || i.t("Análisis del bosque urbano", "Urban Forest Analysis")}</h1>
+                    <p class="mt-1 text-gray-600">
+                        {move || i.t(
+                            "Indicadores calculados a partir del censo arbóreo de Cortolima en Ibagué (2014–2017), almacenado en PostGIS.",
+                            "Indicators computed from the Cortolima tree census of Ibagué (2014–2017) stored in PostGIS.",
+                        )}
+                    </p>
                 </div>
-
-                <div class="space-y-4">
-                    // Circular Charts Row
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <ChartBox title="Species Distribution" canvas_id="speciesChart" />
-                        <ChartBox title="Tree Health Status" canvas_id="healthChart" />
-                        <ChartBox title="Family Distribution" canvas_id="familyChart" />
-                        <ChartBox title="Functional Groups" canvas_id="functionalGroupChart" />
-                    </div>
-                    // Line Charts Row
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <ChartBox title="Monthly Growth Trends" canvas_id="growthChart" />
-                        <ChartBox title="Temperature Trends" canvas_id="temperatureChart" />
-                        <ChartBox title="Observation Trends" canvas_id="observationChart" />
-                        <ChartBox title="Trait Distribution" canvas_id="traitChart" />
-                    </div>
-                    // Bar Charts Row
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <ChartBox title="Environmental Impact" canvas_id="impactChart" />
-                        <ChartBox title="Geographic Distribution" canvas_id="geographicChart" />
-                        <ChartBox title="Measurement Types" canvas_id="measurementChart" />
-                        <ChartBox title="Rainfall Patterns" canvas_id="rainfallChart" />
-                    </div>
-                </div>
-
-                <DataTables />
+                {move || { let l = i.lang(); match state.get() {
+                    Load::Loading => view! {
+                        <div class="py-24 flex items-center justify-center text-gray-500">
+                            <div class="h-8 w-8 mr-3 rounded-full border-4 border-green-200 border-t-green-600 animate-spin"></div>
+                            {pick(l, "Calculando indicadores…", "Computing indicators…")}
+                        </div>
+                    }.into_any(),
+                    Load::Failed => view! {
+                        <div class="py-24 text-center text-red-600">
+                            {pick(l, "No se pudo cargar el análisis. ", "Could not load the analysis. ")}
+                            <button class="underline font-medium" on:click=move |_| load()>{pick(l, "Reintentar", "Retry")}</button>
+                        </div>
+                    }.into_any(),
+                    Load::Ready(s) => content(l, &s).into_any(),
+                }}}
             </div>
         </div>
     }
 }
 
-#[component]
-fn DataTables() -> impl IntoView {
-    const TH: &str = "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase";
+fn content(l: Lang, s: &Summary) -> impl IntoView + use<> {
     view! {
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
-            // Recent Tree Data Table
-            <div class="bg-white p-4 rounded-lg shadow">
-                <h2 class="text-lg font-semibold mb-4">"Recent Tree Records"</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class=TH>"ID"</th>
-                                <th class=TH>"Species"</th>
-                                <th class=TH>"Height"</th>
-                                <th class=TH>"Health"</th>
-                                <th class=TH>"Location"</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            {RECENT_TREES
-                                .iter()
-                                .map(|t| view! {
-                                    <tr>
-                                        <td class="px-4 py-2 text-sm">{t.id}</td>
-                                        <td class="px-4 py-2 text-sm">{t.species}</td>
-                                        <td class="px-4 py-2 text-sm">{format!("{}m", js_num(t.height))}</td>
-                                        <td class="px-4 py-2">
-                                            <span class=get_health_status_class(t.health_status)>{t.health_status}</span>
-                                        </td>
-                                        <td class="px-4 py-2 text-sm">{t.location}</td>
-                                    </tr>
-                                })
-                                .collect_view()}
-                        </tbody>
-                    </table>
-                </div>
+        {origin_card(l, s)}
+        {comunas_card(l, s)}
+        <div class="grid grid-cols-1 xl:grid-cols-5 gap-6 items-stretch">
+            <div class=format!("{CARD} xl:col-span-3 flex flex-col")>
+                <h3 class=H2>{pick(l, "Problemas de salud en las especies más comunes", "Health problems in the most common species")}</h3>
+                <p class=NOTE>
+                    {pick(
+                        l,
+                        format!("Porcentaje de árboles de cada especie registrados como enfermos, críticos o muertos (promedio de la ciudad: {}). De mayor a menor.", pct(s.issues_percent)),
+                        format!("Share of each species' trees recorded sick, critical or dead (city average: {}). Highest first.", pct(s.issues_percent)),
+                    )}
+                </p>
+                <div class="relative mt-3 flex-1 min-h-80"><canvas id="speciesHealthChart"></canvas></div>
             </div>
+            <div class="xl:col-span-2">{threatened_card(l, s)}</div>
+        </div>
+    }
+}
 
-            // Recent Climate Data Table
-            <div class="bg-white p-4 rounded-lg shadow">
-                <h2 class="text-lg font-semibold mb-4">"Recent Climate Data"</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class=TH>"Station"</th>
-                                <th class=TH>"Date"</th>
-                                <th class=TH>"Temperature"</th>
-                                <th class=TH>"Rainfall"</th>
-                                <th class=TH>"Humidity"</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            {CLIMATE_DATA
-                                .iter()
-                                .map(|r| view! {
-                                    <tr>
-                                        <td class="px-4 py-2 text-sm">{r.station}</td>
-                                        <td class="px-4 py-2 text-sm">{r.date}</td>
-                                        <td class="px-4 py-2 text-sm">{format!("{}°C", js_num(r.temperature))}</td>
-                                        <td class="px-4 py-2 text-sm">{format!("{}mm", js_num(r.rainfall))}</td>
-                                        <td class="px-4 py-2 text-sm">{format!("{}%", js_num(r.humidity))}</td>
-                                    </tr>
-                                })
-                                .collect_view()}
-                        </tbody>
-                    </table>
+fn origin_card(l: Lang, s: &Summary) -> impl IntoView + use<> {
+    // Native: the app's green; introduced: orange; not identified: neutral gray.
+    let style_for = move |g: &str| match g {
+        "native" => (pick(l, "Nativas", "Native"), "#15803d"),
+        "introduced" => (pick(l, "Introducidas", "Introduced"), "#eb6834"),
+        _ => (pick(l, "Sin identificar", "Not identified"), "#9ca3af"),
+    };
+    let trees = pick(l, "árboles", "trees");
+    let segments = s
+        .origin
+        .iter()
+        .map(|o| {
+            let (label, color) = style_for(&o.group);
+            let w = o.percent.unwrap_or(0.0);
+            view! {
+                <div class="h-full first:rounded-l last:rounded-r" style=format!("width:{w}%;background:{color}")
+                    title=format!("{label}: {} {trees} ({})", n(o.count), pct(o.percent))></div>
+            }
+        })
+        .collect_view();
+    let legend = s
+        .origin
+        .iter()
+        .map(|o| {
+            let (label, color) = style_for(&o.group);
+            view! {
+                <div class="flex items-start gap-2">
+                    <span class="mt-1 h-3 w-3 shrink-0 rounded-sm" style=format!("background:{color}")></span>
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">{format!("{label} · {}", pct(o.percent))}</p>
+                        <p class="text-xs text-gray-500">{format!("{} {trees}", n(o.count))}</p>
+                    </div>
+                </div>
+            }
+        })
+        .collect_view();
+    view! {
+        <div class=CARD>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-8 gap-y-4 items-center">
+                <div>
+                    <h3 class=H2>{pick(l, "Origen de los árboles", "Origin of the trees")}</h3>
+                    <p class=NOTE>
+                        {pick(
+                            l,
+                            "Las especies nativas están adaptadas al clima local y sostienen la fauna local. Nativas incluye especies nativas, endémicas y nativas-cultivadas; introducidas incluye las cultivadas y naturalizadas.",
+                            "Native species are adapted to the local climate and support local fauna. Native includes native, endemic and native-cultivated species; introduced includes cultivated and naturalized ones.",
+                        )}
+                    </p>
+                </div>
+                <div class="lg:col-span-2">
+                    <div class="flex h-8 gap-0.5 overflow-hidden rounded">{segments}</div>
+                    <div class="mt-3 grid grid-cols-3 gap-3">{legend}</div>
                 </div>
             </div>
+        </div>
+    }
+}
+
+fn comunas_card(l: Lang, s: &Summary) -> impl IntoView + use<> {
+    let tr = move |es: &'static str, en: &'static str| pick(l, es, en);
+    let c = &s.comunas;
+    let rows = c
+        .results
+        .iter()
+        .map(|r| {
+            view! {
+                <tr class="hover:bg-gray-50">
+                    <td class="px-3 py-1.5 text-sm text-gray-900 whitespace-nowrap">{r.name.clone()}</td>
+                    <td class="px-3 py-1.5 text-sm text-right tabular-nums">{n(r.trees)}</td>
+                    <td class="px-3 py-1.5 text-sm text-right tabular-nums text-gray-500">{format!("{:.0}", r.area_ha)}</td>
+                    <td class="px-3 py-1.5 text-sm text-right tabular-nums">{r.trees_per_ha.map(|v| format!("{v:.1}")).unwrap_or_else(|| "—".into())}</td>
+                    <td class="px-3 py-1.5 text-sm text-right tabular-nums">{r.trees_per_1000_inhabitants.map(n).unwrap_or_else(|| "—".into())}</td>
+                    <td class="px-3 py-1.5 text-sm text-right tabular-nums">{pct(r.issues_percent)}</td>
+                </tr>
+            }
+        })
+        .collect_view();
+    let th = "px-3 py-2 text-xs font-medium text-gray-500 uppercase text-right";
+    view! {
+        <div class=CARD>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="flex flex-col">
+                    <h3 class=H2>{tr("Árboles por cada mil habitantes", "Trees per 1,000 inhabitants")}</h3>
+                    <p class=NOTE>
+                        {format!(
+                            "{}: {}. {}",
+                            tr("Toda la ciudad", "City-wide"),
+                            s.trees_per_1000_inhabitants.map(n).unwrap_or_else(|| "—".into()),
+                            tr("De mayor a menor.", "Highest first."),
+                        )}
+                    </p>
+                    <div class="relative mt-3 flex-1 min-h-80"><canvas id="comunaChart"></canvas></div>
+                </div>
+                <div>
+                    <h3 class=H2>{tr("Cifras por comuna", "Comuna figures")}</h3>
+                    <p class=NOTE>{tr("Densidad por área, por habitante (población 2019) y salud.", "Density per area, per inhabitant (population 2019) and health.")}</p>
+                    <div class="mt-3 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-xs font-medium text-gray-500 uppercase text-left">"Comuna"</th>
+                                    <th class=th>{tr("Árboles", "Trees")}</th>
+                                    <th class=th>{tr("Área (ha)", "Area (ha)")}</th>
+                                    <th class=th>{tr("Árboles / ha", "Trees / ha")}</th>
+                                    <th class=th>{tr("Por mil hab.", "Per 1,000 inh.")}</th>
+                                    <th class=th>{tr("Con problemas", "With problems")}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">{rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <p class="mt-4 text-xs text-gray-500">
+                {pick(
+                    l,
+                    format!(
+                        "Cada árbol se asigna a una comuna según sus coordenadas (punto en polígono con PostGIS). El campo del censo deja {} árboles en una comuna desconocida; por ubicación solo {} quedan fuera de los límites de las comunas.",
+                        n(c.unknown_comuna_in_census), n(c.outside_comunas)
+                    ),
+                    format!(
+                        "Each tree is placed in a comuna by its coordinates (PostGIS point-in-polygon). The census field leaves {} trees in an unknown comuna; by location only {} fall outside the comuna boundaries.",
+                        n(c.unknown_comuna_in_census), n(c.outside_comunas)
+                    ),
+                )}
+            </p>
+        </div>
+    }
+}
+
+fn threatened_card(l: Lang, s: &Summary) -> impl IntoView + use<> {
+    let tr = move |es: &'static str, en: &'static str| pick(l, es, en);
+    let badge = |code: &str| match code {
+        "CR" => "bg-red-100 text-red-800",
+        "EN" => "bg-orange-100 text-orange-800",
+        _ => "bg-yellow-100 text-yellow-800",
+    };
+    let summary = s
+        .threatened
+        .by_status
+        .iter()
+        .map(|b| {
+            view! {
+                <div class="text-center">
+                    <p class="text-xl font-bold text-gray-900">{n(b.count)}</p>
+                    <p class=format!("mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold {}", badge(&b.status))>
+                        {format!("{} · {}", b.status, iucn_label(l, &b.status))}
+                    </p>
+                </div>
+            }
+        })
+        .collect_view();
+    let rows = s
+        .threatened
+        .species
+        .iter()
+        .map(|t| {
+            view! {
+                <tr>
+                    <td class="py-1.5 text-sm italic text-gray-900">{t.name.clone()}</td>
+                    <td class="py-1.5 text-center">
+                        <span class=format!("px-2 py-0.5 rounded-full text-xs font-semibold {}", badge(&t.status))>{t.status.clone()}</span>
+                    </td>
+                    <td class="py-1.5 text-sm text-right tabular-nums">{n(t.count)}</td>
+                </tr>
+            }
+        })
+        .collect_view();
+    view! {
+        <div class=format!("{CARD} h-full")>
+            <h3 class=H2>{tr("Especies amenazadas", "Threatened species")}</h3>
+            <p class=NOTE>
+                {{
+                    let (trees, species) = (n(s.threatened.by_status.iter().map(|b| b.count).sum()), s.threatened.species_count);
+                    pick(
+                        l,
+                        format!("{trees} árboles de {species} especies amenazadas a nivel global (Lista Roja de la UICN). La categoría describe las poblaciones silvestres, no los árboles plantados."),
+                        format!("{trees} trees of {species} species that are globally threatened (IUCN Red List). The category describes wild populations, not the planted trees."),
+                    )
+                }}
+            </p>
+            <div class="mt-4 grid grid-cols-3 gap-2">{summary}</div>
+            <table class="mt-4 w-full">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="py-1.5 text-left text-xs font-medium text-gray-500 uppercase">{tr("Especie", "Species")}</th>
+                        <th class="py-1.5 text-center text-xs font-medium text-gray-500 uppercase">{tr("UICN", "IUCN")}</th>
+                        <th class="py-1.5 text-right text-xs font-medium text-gray-500 uppercase">{tr("Árboles", "Trees")}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">{rows}</tbody>
+            </table>
         </div>
     }
 }
@@ -193,132 +447,74 @@ fn DataTables() -> impl IntoView {
 // Charts
 // ---------------------------------------------------------------------------
 
-fn chart(id: &str, config: serde_json::Value) {
-    chart_by_id(id, config, false);
+fn draw_charts(l: Lang, s: &Summary) {
+    comuna_chart(l, s);
+    species_health_chart(l, s);
 }
 
-fn no_legend() -> serde_json::Value {
-    json!({ "legend": { "display": false } })
+fn horizontal_bar(id: &str, labels: Vec<String>, datasets: Vec<Value>, value_title: &str, stacked: bool, legend: bool) {
+    let mut scales = axes(true, value_title);
+    if stacked {
+        scales["x"]["stacked"] = json!(true);
+        scales["y"]["stacked"] = json!(true);
+    }
+    chart_by_id(
+        id,
+        json!({
+            "type": "bar",
+            "data": { "labels": labels, "datasets": datasets },
+            "options": {
+                "indexAxis": "y",
+                "responsive": true,
+                "maintainAspectRatio": false,
+                "scales": scales,
+                "plugins": {
+                    "legend": { "display": legend, "position": "bottom", "labels": { "boxWidth": 10, "font": { "size": 11 } } }
+                }
+            }
+        }),
+        true,
+    );
 }
 
-fn initialize_charts() {
-    // Species
-    chart("speciesChart", json!({
-        "type": "pie",
-        "data": {
-            "labels": ["Ceiba pentandra", "Quercus humboldtii", "Tabebuia rosea", "Others"],
-            "datasets": [{ "data": [30, 25, 20, 25], "backgroundColor": ["#4CAF50", "#8BC34A", "#CDDC39", "#FF9800"] }]
-        },
-        "options": { "responsive": true, "plugins": { "legend": { "position": "bottom", "display": false } } }
-    }));
-    // Health
-    chart("healthChart", json!({
-        "type": "doughnut",
-        "data": {
-            "labels": ["Healthy", "Moderate", "Poor"],
-            "datasets": [{ "data": [65, 25, 10], "backgroundColor": ["#4CAF50", "#FFC107", "#F44336"] }]
-        },
-        "options": { "responsive": true, "plugins": { "legend": { "position": "bottom", "display": false } } }
-    }));
-    // Growth
-    chart("growthChart", json!({
-        "type": "line",
-        "data": {
-            "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-            "datasets": [{ "label": "Growth (cm)", "data": [5, 8, 12, 15, 10, 7], "borderColor": "#4CAF50", "tension": 0.4 }]
-        },
-        "options": { "responsive": true, "plugins": no_legend(), "scales": { "y": { "beginAtZero": true } } }
-    }));
-    // Impact
-    chart("impactChart", json!({
-        "type": "bar",
-        "data": {
-            "labels": ["CO₂", "O₂", "Shade", "Water"],
-            "datasets": [{ "label": "Impact", "data": [75, 82, 60, 45], "backgroundColor": "#2196F3" }]
-        },
-        "options": { "responsive": true, "plugins": no_legend(), "scales": { "y": { "beginAtZero": true, "max": 100 } } }
-    }));
-    // Family
-    chart("familyChart", json!({
-        "type": "polarArea",
-        "data": {
-            "labels": ["Fabaceae", "Moraceae", "Bignoniaceae", "Others"],
-            "datasets": [{ "data": [40, 30, 20, 10], "backgroundColor": ["#FF9800", "#F44336", "#9C27B0", "#2196F3"] }]
-        },
-        "options": { "responsive": true, "plugins": no_legend() }
-    }));
-    // Functional groups
-    chart("functionalGroupChart", json!({
-        "type": "radar",
-        "data": {
-            "labels": ["Shade", "Fruit", "Native", "Ornamental", "Medicinal"],
-            "datasets": [{ "label": "Distribution", "data": [85, 60, 75, 90, 45], "borderColor": "#4CAF50", "backgroundColor": "rgba(76, 175, 80, 0.2)" }]
-        },
-        "options": { "responsive": true, "plugins": no_legend() }
-    }));
-    // Geographic
-    chart("geographicChart", json!({
-        "type": "bar",
-        "data": {
-            "labels": ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena"],
-            "datasets": [{ "label": "Trees", "data": [1200, 800, 600, 400, 300], "backgroundColor": "#3F51B5" }]
-        },
-        "options": { "responsive": true, "plugins": no_legend(), "scales": { "y": { "beginAtZero": true } } }
-    }));
-    // Temperature
-    chart("temperatureChart", json!({
-        "type": "line",
-        "data": {
-            "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-            "datasets": [{ "label": "Avg Temp (°C)", "data": [22, 23, 25, 24, 23, 22], "borderColor": "#FF5722", "tension": 0.4 }]
-        },
-        "options": { "responsive": true, "plugins": no_legend() }
-    }));
-    // Traits
-    chart("traitChart", json!({
-        "type": "bubble",
-        "data": {
-            "datasets": [{
-                "label": "Traits",
-                "data": [
-                    { "x": 20, "y": 30, "r": 15 },
-                    { "x": 40, "y": 10, "r": 10 },
-                    { "x": 30, "y": 20, "r": 8 },
-                    { "x": 10, "y": 40, "r": 12 }
-                ],
-                "backgroundColor": "rgba(156, 39, 176, 0.6)"
-            }]
-        },
-        "options": { "responsive": true, "plugins": no_legend(), "scales": { "x": { "beginAtZero": true }, "y": { "beginAtZero": true } } }
-    }));
-    // Measurement
-    chart("measurementChart", json!({
-        "type": "bar",
-        "data": {
-            "labels": ["Height", "DBH", "Crown", "Health"],
-            "datasets": [{ "label": "Count", "data": [150, 120, 90, 180], "backgroundColor": ["#009688", "#00BCD4", "#03A9F4", "#3F51B5"] }]
-        },
-        "options": { "responsive": true, "plugins": no_legend(), "scales": { "y": { "beginAtZero": true } } }
-    }));
-    // Observation
-    chart("observationChart", json!({
-        "type": "line",
-        "data": {
-            "labels": ["Week 1", "Week 2", "Week 3", "Week 4"],
-            "datasets": [{
-                "label": "Observations", "data": [45, 60, 35, 80], "borderColor": "#673AB7",
-                "tension": 0.4, "fill": true, "backgroundColor": "rgba(103, 58, 183, 0.1)"
-            }]
-        },
-        "options": { "responsive": true, "plugins": no_legend() }
-    }));
-    // Rainfall
-    chart("rainfallChart", json!({
-        "type": "bar",
-        "data": {
-            "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-            "datasets": [{ "label": "Rainfall (mm)", "data": [120, 90, 150, 180, 60, 30], "backgroundColor": "#1976D2" }]
-        },
-        "options": { "responsive": true, "plugins": no_legend() }
-    }));
+fn comuna_chart(l: Lang, s: &Summary) {
+    let title = pick(l, "Árboles por cada mil habitantes", "Trees per 1,000 inhabitants");
+    let mut rows: Vec<&Comuna> = s.comunas.results.iter().filter(|c| c.trees_per_1000_inhabitants.is_some()).collect();
+    rows.sort_by_key(|c| std::cmp::Reverse(c.trees_per_1000_inhabitants));
+    horizontal_bar(
+        "comunaChart",
+        rows.iter().map(|c| c.name.replace("COMUNA", "Comuna")).collect(),
+        vec![bar_dataset(title, rows.iter().map(|c| json!(c.trees_per_1000_inhabitants)).collect(), BAR)],
+        title,
+        false,
+        false,
+    );
+}
+
+fn species_health_chart(l: Lang, s: &Summary) {
+    let rows = &s.species_health;
+    let series = [
+        ("SI", rows.iter().map(|r| json!(r.sick_percent)).collect::<Vec<_>>()),
+        ("CR", rows.iter().map(|r| json!(r.critical_percent)).collect()),
+        ("DE", rows.iter().map(|r| json!(r.dead_percent)).collect()),
+    ];
+    let datasets = series
+        .into_iter()
+        .map(|(code, data)| {
+            let mut d = bar_dataset(health_label(l, code), data, health_color(code));
+            // Stacked segments: rounded ends only on the outer segment, 2px gap between fills.
+            d["borderRadius"] = json!(0);
+            d["borderColor"] = json!("#ffffff");
+            d["borderWidth"] = json!({ "right": 2 });
+            d
+        })
+        .collect();
+    horizontal_bar(
+        "speciesHealthChart",
+        rows.iter().map(|r| format!("{} ({})", r.name, n(r.trees))).collect(),
+        datasets,
+        pick(l, "% de los árboles de la especie", "% of the species' trees"),
+        true,
+        true,
+    );
 }

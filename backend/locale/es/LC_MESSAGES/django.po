@@ -909,3 +909,49 @@ msgstr "Español"
 #: config/settings/base.py:168
 msgid "English"
 msgstr "Inglés"
+
+# Tree status (apps/biodiversity)
+
+msgid "active"
+msgstr "vigente"
+
+msgid "removed"
+msgstr "retirado"
+
+msgid "felled"
+msgstr "talado"
+
+msgid "fallen"
+msgstr "caído"
+
+msgid "dead standing"
+msgstr "muerto en pie"
+
+msgid "transplanted"
+msgstr "trasladado"
+
+msgid "status"
+msgstr "estado"
+
+msgid "removal date"
+msgstr "fecha de retiro"
+
+msgid "removal reason"
+msgstr "motivo del retiro"
+
+msgid "removal note"
+msgstr "nota del retiro"
+
+msgid "Mark selected trees as removed (felled, today)"
+msgstr "Marcar los árboles seleccionados como retirados (talados, hoy)"
+
+#, python-format
+msgid "%(n)d trees marked as removed. Edit them to adjust the date, reason or note."
+msgstr "%(n)d árboles marcados como retirados. Edítalos para ajustar la fecha, el motivo o la nota."
+
+msgid "Mark selected trees as active again"
+msgstr "Marcar los árboles seleccionados como vigentes de nuevo"
+
+#, python-format
+msgid "%(n)d trees marked as active."
+msgstr "%(n)d árboles marcados como vigentes."

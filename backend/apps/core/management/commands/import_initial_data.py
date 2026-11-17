@@ -601,7 +601,7 @@ class Command(BaseCommand):
             desc="Importing genera",
         ):
             genus, _ = Genus.objects.get_or_create(
-                name=row.genus, family=families[row.family]
+                name=row.genus, defaults={"family": families[row.family]}
             )
             genera[row.genus] = genus
 

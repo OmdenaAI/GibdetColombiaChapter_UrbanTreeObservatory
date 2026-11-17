@@ -243,3 +243,164 @@ class TestSpatialEndpoints:
 
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data) == 1
+
+
+@pytest.mark.django_db
+class TestInventoryAPI:
+    """/api/v1/biodiversity/inventory/: read-only tree inventory with CSV export."""
+
+    @pytest.fixture
+    def trees(self, neighborhood, species):
+        import datetime
+
+        from apps.biodiversity.factories import BiodiversityRecordFactory
+        from apps.reports.factories import MeasurementFactory, ObservationFactory
+
+        out = []
+        for i, (height, health) in enumerate([(3.0, "HE"), (12.0, "SI")]):
+            record = BiodiversityRecordFactory(
+                neighborhood=neighborhood,
+                species=species,
+                common_name=f"Tree {i}",
+                date=datetime.date(2017, 1, 1),
+            )
+            # An older and a newer total height: the newer one is reported.
+            MeasurementFactory(
+                biodiversity_record=record,
+                attribute="HT",
+                value=1.0,
+                unit="m",
+                date=datetime.date(2014, 1, 1),
+            )
+            MeasurementFactory(
+                biodiversity_record=record,
+                attribute="HT",
+                value=height,
+                unit="m",
+                date=datetime.date(2017, 1, 1),
+            )
+            MeasurementFactory(
+                biodiversity_record=record,
+                attribute="DBH",
+                value=20.0,
+                unit="cm",
+                date=datetime.date(2017, 1, 1),
+            )
+            ObservationFactory(biodiversity_record=record, phytosanitary_status=health)
+            out.append(record)
+        return out
+
+    def test_list_reports_latest_values(self, api_client, trees):
+        response = api_client.get(reverse("biodiversity:inventory-list"))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 2
+        row = response.data["results"][1]
+        assert row["id"] == trees[1].id
+        assert row["height_m"] == 12.0
+        assert row["dbh_cm"] == 20.0
+        assert row["phytosanitary_status"] == "SI"
+        assert row["family"] == trees[1].species.genus.family.name
+
+    def test_filters(self, api_client, trees, species):
+        url = reverse("biodiversity:inventory-list")
+        genus = species.genus.name
+        family = species.genus.family.name
+        hood = trees[0].neighborhood.name
+
+        def ids(**params):
+            return [r["id"] for r in api_client.get(url, params).data["results"]]
+
+        assert ids(id=trees[0].id) == [trees[0].id]
+        assert ids(species=f"{genus} {species.name}".upper()) == [t.id for t in trees]
+        assert ids(species="tree 1") == [trees[1].id]
+        assert ids(family=family[:4].lower()) == [t.id for t in trees]
+        assert ids(neighborhood=hood[:3]) == [t.id for t in trees]
+        assert ids(health="SI") == [trees[1].id]
+        assert ids(species="no such tree") == []
+
+    def test_detail_has_every_measurement_and_observation(self, api_client, trees):
+        response = api_client.get(
+            reverse("biodiversity:inventory-detail", args=[trees[0].id])
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.data
+        heights = [m for m in data["measurements"] if m["attribute"] == "HT"]
+        assert [h["value"] for h in heights] == [3.0, 1.0]  # newest first
+        assert heights[0]["label"] == "total height"
+        fields = {f["field"]: f for f in data["observations"][0]["fields"]}
+        assert fields["phytosanitary_status"]["display"] == "healthy"
+
+    def test_detail_language(self, api_client, trees):
+        url = reverse("biodiversity:inventory-detail", args=[trees[0].id])
+
+        def labels(params):
+            data = api_client.get(url, params).data
+            height = next(m for m in data["measurements"] if m["attribute"] == "HT")
+            fields = {f["field"]: f for f in data["observations"][0]["fields"]}
+            return height["label"], fields["phytosanitary_status"]["display"]
+
+        assert labels({"lang": "es"}) == ("altura total", "saludable")
+        assert labels({"lang": "en"}) == ("total height", "healthy")
+        # Unsupported or missing: English.
+        assert labels({"lang": "fr"}) == ("total height", "healthy")
+
+    def test_detail_not_found(self, api_client):
+        response = api_client.get(
+            reverse("biodiversity:inventory-detail", args=[999999])
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_export_filtered_and_selected(self, api_client, trees):
+        import csv
+        import io
+
+        url = reverse("biodiversity:inventory-export")
+
+        def rows(response):
+            assert response.status_code == status.HTTP_200_OK
+            assert "attachment" in response["Content-Disposition"]
+            text = b"".join(response.streaming_content).decode("utf-8-sig")
+            return list(csv.DictReader(io.StringIO(text)))
+
+        all_rows = rows(api_client.get(url))
+        assert [int(r["id"]) for r in all_rows] == [t.id for t in trees]
+        assert all_rows[1]["total_height_m"] == "12.0"
+        assert all_rows[1]["phytosanitary_status"] == "sick"
+
+        assert [r["id"] for r in rows(api_client.get(url, {"health": "HE"}))] == [
+            str(trees[0].id)
+        ]
+
+        selected = rows(api_client.post(url, {"ids": [trees[1].id]}, format="json"))
+        assert [r["id"] for r in selected] == [str(trees[1].id)]
+
+    def test_export_language(self, api_client, trees):
+        import csv
+        import io
+
+        url = reverse("biodiversity:inventory-export")
+
+        def statuses(response):
+            text = b"".join(response.streaming_content).decode("utf-8-sig")
+            reader = csv.DictReader(io.StringIO(text))
+            # The header stays in English in every language.
+            assert "phytosanitary_status" in reader.fieldnames
+            return [r["phytosanitary_status"] for r in reader]
+
+        assert statuses(api_client.get(url, {"lang": "es"})) == ["saludable", "enfermo"]
+        assert statuses(api_client.get(url, {"lang": "en"})) == ["healthy", "sick"]
+        selected = api_client.post(
+            f"{url}?lang=es", {"ids": [trees[1].id]}, format="json"
+        )
+        assert statuses(selected) == ["enfermo"]
+
+    def test_export_rejects_bad_ids(self, api_client):
+        url = reverse("biodiversity:inventory-export")
+        for body in ({}, {"ids": []}, {"ids": ["1"]}):
+            assert api_client.post(url, body, format="json").status_code == 400
+
+    def test_read_only(self, api_client, trees):
+        url = reverse("biodiversity:inventory-detail", args=[trees[0].id])
+        assert api_client.delete(url).status_code == status.HTTP_405_METHOD_NOT_ALLOWED

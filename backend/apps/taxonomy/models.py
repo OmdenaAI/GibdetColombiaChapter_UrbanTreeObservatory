@@ -312,3 +312,42 @@ class Species(BaseModel):
     def tropical_plants_url(self):
         """Return the URL for the species on the Useful Tropical Plants Database."""
         return f"https://tropical.theferns.info/viewtropical.php?id={self.genus.name}+{self.name}"
+
+
+class ManualEntry(BaseModel):
+    """A species sheet of the "Manual de arborización para el departamento del Tolima"
+    (Cortolima – Jardín Botánico San Jorge, 2017), stored verbatim.
+
+    ``header`` keeps the fields under the name ("Familia", "Sinónimos", "Nombre común",
+    "Lugar de origen", "Procedencia", …) as ``[{"label": ..., "value": ...}]`` and
+    ``sections`` the sheet's sections as ``[{"title": ..., "text": ...}]``, both in the
+    manual's order and wording. In the text, bold runs are marked ``**…**`` and paragraphs
+    are separated by a blank line.
+    Loaded with ``python manage.py load_manual_tolima``.
+    """
+
+    SOURCE = (
+        "Cortolima – Jardín Botánico San Jorge. Manual de arborización para el "
+        "departamento del Tolima (2017)"
+    )
+
+    species = models.OneToOneField(
+        Species, on_delete=models.CASCADE, related_name="manual_entry"
+    )
+    title = models.CharField(max_length=200, help_text="Sheet title in the manual.")
+    scientific_name = models.CharField(
+        max_length=200, help_text="Scientific name as written in the manual."
+    )
+    family = models.CharField(max_length=100, blank=True)
+    header = models.JSONField(default=list)
+    sections = models.JSONField(default=list)
+    page_start = models.PositiveSmallIntegerField()
+    page_end = models.PositiveSmallIntegerField()
+
+    class Meta:
+        verbose_name = "manual entry"
+        verbose_name_plural = "manual entries"
+        ordering = ["page_start"]
+
+    def __str__(self):
+        return f"{self.scientific_name} (p. {self.page_start})"
