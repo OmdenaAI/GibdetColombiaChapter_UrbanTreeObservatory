@@ -16,8 +16,11 @@ python scripts/explore_csv_data.py --data-dir=/path/to/csv/files [--output-dir=.
 
 The species detail shows, verbatim, the species' sheet from *Manual de arborización para el
 departamento del Tolima* (Cortolima – Jardín Botánico San Jorge, 2017; sheets on pp. 148-255).
-The reviewed data lives in `backend/apps/taxonomy/data/manual_tolima.json` and is loaded with
-`python manage.py load_manual_tolima`. To regenerate it from the PDF (needs poppler):
+The manual's text belongs to Cortolima and its license is unknown, so it is **not in this
+repository**: only the code that extracts it is. Each installation generates
+`backend/apps/taxonomy/data/manual_tolima.json` (ignored by git) from its own copy of the
+PDF and loads it with `python manage.py load_manual_tolima`. To generate it (needs poppler
+and the API running for `link.py`):
 
 ```bash
 python3 scripts/manual_tolima/extract.py MANUAL.pdf > entries.json      # 108 sheets
@@ -26,4 +29,4 @@ python3 scripts/manual_tolima/link.py entries.json backend/apps/taxonomy/data/ma
 ```
 
 The text is kept as written in the manual, typos included; only line breaks from the layout
-are joined. Check any change against the PDF pages before committing the JSON.
+are joined. Check the result against the PDF pages before loading it.

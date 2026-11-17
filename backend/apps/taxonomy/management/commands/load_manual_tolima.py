@@ -3,9 +3,13 @@
     python manage.py load_manual_tolima [--file PATH]
 
 The JSON file (default ``apps/taxonomy/data/manual_tolima.json``) is produced by
-``scripts/manual_tolima/extract.py`` and reviewed by hand: each entry names the catalog
-species it belongs to in ``"species"`` (scientific name as in the catalog). Loading is
-idempotent: entries are created or updated per species; species not found are reported.
+``scripts/manual_tolima/extract.py`` from a copy of the manual's PDF and reviewed by hand:
+each entry names the catalog species it belongs to in ``"species"`` (scientific name as in
+the catalog). Loading is idempotent: entries are created or updated per species; species
+not found are reported.
+
+The file is not in the repository (it is ignored by git): the manual's text belongs to
+Cortolima and its license is unknown. Generate it locally (see ``scripts/README.md``).
 """
 
 import json
@@ -31,7 +35,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         path = Path(options["file"])
         if not path.exists():
-            raise CommandError(f"File not found: {path}")
+            raise CommandError(
+                f"File not found: {path}. The manual's text is not in the repository; "
+                "generate the file from the PDF (see scripts/README.md)."
+            )
         entries = json.loads(path.read_text(encoding="utf-8"))
         by_name = {
             s.full: s

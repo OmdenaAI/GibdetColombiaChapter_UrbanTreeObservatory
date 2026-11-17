@@ -5,6 +5,9 @@ data/csv/
 
 data/json/
 
+# Tolima manual text (Cortolima, license unknown): generated locally, never committed
+apps/taxonomy/data/manual_tolima.json
+
 
 # Coverage files
 .coverage
