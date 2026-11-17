@@ -52,7 +52,8 @@ def _top_species(total_trees):
         .order_by("-n")[:TOP_SPECIES]
     )
     names = {
-        s.id: s for s in Species.objects.select_related("genus").filter(
+        s.id: s
+        for s in Species.objects.select_related("genus").filter(
             id__in=[r["species_id"] for r in rows]
         )
     }

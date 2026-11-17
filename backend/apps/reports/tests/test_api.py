@@ -290,15 +290,23 @@ class TestDashboardAPI:
 
         neighborhood.locality.population_2019 = 100
         neighborhood.locality.save()
-        for i, (height, status_code) in enumerate([(3.0, "HE"), (12.0, "HE"), (30.0, "SI")]):
+        for i, (height, status_code) in enumerate(
+            [(3.0, "HE"), (12.0, "HE"), (30.0, "SI")]
+        ):
             record = BiodiversityRecordFactory(
                 neighborhood=neighborhood,
                 species=species,
                 date=datetime.date(2017, 1, 1 + i),
             )
-            MeasurementFactory(biodiversity_record=record, attribute="HT", value=height, unit="m")
-            ObservationFactory(biodiversity_record=record, phytosanitary_status=status_code)
-        BiodiversityRecordFactory(neighborhood=neighborhood, species=species, date=datetime.date(1899, 1, 1))
+            MeasurementFactory(
+                biodiversity_record=record, attribute="HT", value=height, unit="m"
+            )
+            ObservationFactory(
+                biodiversity_record=record, phytosanitary_status=status_code
+            )
+        BiodiversityRecordFactory(
+            neighborhood=neighborhood, species=species, date=datetime.date(1899, 1, 1)
+        )
         ClimateFactory(date=datetime.date(2025, 4, 1), value=20.0)
 
         response = api_client.get(reverse("reports:dashboard"))
@@ -309,7 +317,10 @@ class TestDashboardAPI:
         assert data["trees_per_capita"] == {"population": 100, "value": 0.04}
         assert data["phytosanitary_status"] == {"HE": 2, "SI": 1}
         assert data["top_species"][0]["count"] == 4
-        assert data["records_by_year"] == {"years": [{"year": 2017, "count": 3}], "invalid_dates": 1}
+        assert data["records_by_year"] == {
+            "years": [{"year": 2017, "count": 3}],
+            "invalid_dates": 1,
+        }
         bins = {b["from_m"]: b["count"] for b in data["height_distribution"]}
         assert (bins[0], bins[10], bins[25]) == (1, 1, 1)
         temperature = data["monthly_temperature"]
@@ -335,8 +346,12 @@ class TestAnalyticsAPI:
         cache.clear()
         neighborhood.locality.population_2019 = 1000
         neighborhood.locality.save()
-        native = SpeciesFactory(genus=genus, name="nativa", origin="NT", life_form="TR", iucn_status="VU")
-        exotic = SpeciesFactory(genus=genus, name="exotica", origin="CU", life_form="TR", iucn_status="LC")
+        native = SpeciesFactory(
+            genus=genus, name="nativa", origin="NT", life_form="TR", iucn_status="VU"
+        )
+        exotic = SpeciesFactory(
+            genus=genus, name="exotica", origin="CU", life_form="TR", iucn_status="LC"
+        )
         # 3 native trees (one sick), 1 introduced.
         for species, dbh, health in [
             (native, 5.0, "HE"),
@@ -345,9 +360,13 @@ class TestAnalyticsAPI:
             (exotic, 90.0, "HE"),
         ]:
             record = BiodiversityRecordFactory(
-                neighborhood=neighborhood, species=species, date=datetime.date(2017, 1, 1)
+                neighborhood=neighborhood,
+                species=species,
+                date=datetime.date(2017, 1, 1),
             )
-            MeasurementFactory(biodiversity_record=record, attribute="DBH", value=dbh, unit="cm")
+            MeasurementFactory(
+                biodiversity_record=record, attribute="DBH", value=dbh, unit="cm"
+            )
             ObservationFactory(biodiversity_record=record, phytosanitary_status=health)
 
         response = api_client.get(reverse("reports:analytics"))

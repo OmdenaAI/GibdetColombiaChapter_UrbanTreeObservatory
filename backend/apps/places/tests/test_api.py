@@ -257,8 +257,12 @@ class TestTreeStatistics:
             BiodiversityRecordFactory(neighborhood=neighborhood, species=other_species),
         ]
         for record, height in zip(records, [10.0, 20.0, 30.0], strict=True):
-            MeasurementFactory(biodiversity_record=record, attribute="HT", value=height, unit="m")
-            MeasurementFactory(biodiversity_record=record, attribute="DBH", value=99.0, unit="cm")
+            MeasurementFactory(
+                biodiversity_record=record, attribute="HT", value=height, unit="m"
+            )
+            MeasurementFactory(
+                biodiversity_record=record, attribute="DBH", value=99.0, unit="cm"
+            )
         empty = NeighborhoodFactory(locality=neighborhood.locality)
         return neighborhood, empty
 
@@ -287,7 +291,9 @@ class TestTreeStatistics:
         neighborhood, empty = trees  # factory boundaries cover most of Colombia
         far = NeighborhoodFactory(
             locality=neighborhood.locality,
-            boundary=MultiPolygon(Polygon.from_bbox((10.0, 10.0, 10.1, 10.1)), srid=4326),
+            boundary=MultiPolygon(
+                Polygon.from_bbox((10.0, 10.0, 10.1, 10.1)), srid=4326
+            ),
         )
         url = reverse("places:neighborhood-bbox")
         box = {"min_lon": -75.3, "min_lat": 4.4, "max_lon": -75.2, "max_lat": 4.5}
@@ -324,4 +330,3 @@ class TestTreeStatistics:
         by_id = {r["id"]: r for r in response.data["results"]}
         assert by_id[neighborhood.locality_id]["total_trees"] == 3
         assert by_id[neighborhood.locality_id]["species_count"] == 2
-

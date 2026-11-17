@@ -165,7 +165,9 @@ class TestSpeciesAPI:
         """common_name is the most frequent non-empty name among the species' records."""
         from apps.biodiversity.factories import BiodiversityRecordFactory
 
-        BiodiversityRecordFactory.create_batch(2, species=species, common_name="Guayacán")
+        BiodiversityRecordFactory.create_batch(
+            2, species=species, common_name="Guayacán"
+        )
         BiodiversityRecordFactory(species=species, common_name="Chicalá")
         BiodiversityRecordFactory.create_batch(3, species=species, common_name="")
 

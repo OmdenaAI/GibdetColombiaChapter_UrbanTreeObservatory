@@ -326,7 +326,9 @@ class Command(BaseCommand):
                 )
                 records_dict = {
                     record.id: record
-                    for record in BiodiversityRecord.all_objects.filter(id__in=affected_ids)
+                    for record in BiodiversityRecord.all_objects.filter(
+                        id__in=affected_ids
+                    )
                 }
 
                 # Update records with new neighborhoods

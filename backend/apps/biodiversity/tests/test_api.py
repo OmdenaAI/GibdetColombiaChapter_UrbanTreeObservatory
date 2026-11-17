@@ -266,15 +266,24 @@ class TestInventoryAPI:
             )
             # An older and a newer total height: the newer one is reported.
             MeasurementFactory(
-                biodiversity_record=record, attribute="HT", value=1.0, unit="m",
+                biodiversity_record=record,
+                attribute="HT",
+                value=1.0,
+                unit="m",
                 date=datetime.date(2014, 1, 1),
             )
             MeasurementFactory(
-                biodiversity_record=record, attribute="HT", value=height, unit="m",
+                biodiversity_record=record,
+                attribute="HT",
+                value=height,
+                unit="m",
                 date=datetime.date(2017, 1, 1),
             )
             MeasurementFactory(
-                biodiversity_record=record, attribute="DBH", value=20.0, unit="cm",
+                biodiversity_record=record,
+                attribute="DBH",
+                value=20.0,
+                unit="cm",
                 date=datetime.date(2017, 1, 1),
             )
             ObservationFactory(biodiversity_record=record, phytosanitary_status=health)
@@ -311,7 +320,9 @@ class TestInventoryAPI:
         assert ids(species="no such tree") == []
 
     def test_detail_has_every_measurement_and_observation(self, api_client, trees):
-        response = api_client.get(reverse("biodiversity:inventory-detail", args=[trees[0].id]))
+        response = api_client.get(
+            reverse("biodiversity:inventory-detail", args=[trees[0].id])
+        )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.data
@@ -336,7 +347,9 @@ class TestInventoryAPI:
         assert labels({"lang": "fr"}) == ("total height", "healthy")
 
     def test_detail_not_found(self, api_client):
-        response = api_client.get(reverse("biodiversity:inventory-detail", args=[999999]))
+        response = api_client.get(
+            reverse("biodiversity:inventory-detail", args=[999999])
+        )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_export_filtered_and_selected(self, api_client, trees):
@@ -356,7 +369,9 @@ class TestInventoryAPI:
         assert all_rows[1]["total_height_m"] == "12.0"
         assert all_rows[1]["phytosanitary_status"] == "sick"
 
-        assert [r["id"] for r in rows(api_client.get(url, {"health": "HE"}))] == [str(trees[0].id)]
+        assert [r["id"] for r in rows(api_client.get(url, {"health": "HE"}))] == [
+            str(trees[0].id)
+        ]
 
         selected = rows(api_client.post(url, {"ids": [trees[1].id]}, format="json"))
         assert [r["id"] for r in selected] == [str(trees[1].id)]
