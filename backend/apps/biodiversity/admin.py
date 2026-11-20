@@ -19,6 +19,7 @@ class BiodiversityRecordAdmin(GISModelAdmin):
     )
     list_filter = (
         "status",
+        "planting_site",
         "removal_reason",
         "date",
         "species__life_form",
