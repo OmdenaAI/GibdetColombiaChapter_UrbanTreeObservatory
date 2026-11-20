@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Measurement, Observation
+from .models import Assessment, Measurement, Observation, Study
 
 
 @admin.register(Measurement)
@@ -17,7 +17,7 @@ class MeasurementAdmin(admin.ModelAdmin):
         "measurement",
         "date",
     )
-    list_filter = ("attribute", "unit", "method", "date")
+    list_filter = ("attribute", "unit", "method", "study", "date")
     search_fields = ("biodiversity_record__id", "biodiversity_record__common_name")
     raw_id_fields = ("biodiversity_record",)
     readonly_fields = ("created_at", "updated_at")
@@ -155,3 +155,26 @@ class ObservationAdmin(admin.ModelAdmin):
     @admin.display(description="Growth Phase")
     def growth_phase_display(self, obj):
         return obj.get_growth_phase_display()
+
+
+@admin.register(Study)
+class StudyAdmin(admin.ModelAdmin):
+    list_display = ("authors", "year", "title", "date")
+    search_fields = ("title", "authors", "institution")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(Assessment)
+class AssessmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "biodiversity_record_id",
+        "study",
+        "date",
+        "visual_risk",
+        "biomechanical_risk",
+        "tomography_level",
+    )
+    list_filter = ("study", "visual_risk", "biomechanical_risk", "tomography_level")
+    search_fields = ("biodiversity_record__id", "study_code")
+    raw_id_fields = ("biodiversity_record",)
+    readonly_fields = ("created_at", "updated_at")

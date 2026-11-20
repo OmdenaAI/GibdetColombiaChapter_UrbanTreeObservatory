@@ -56,7 +56,8 @@ highlights the point; "Back to summary" restores the statistics. Comuna labels (
 height in the panel. Barrios and tree points are loaded only for the visible area (one request per
 pan/zoom: `/places/neighborhoods/bbox/` with geometry + statistics, `/biodiversity/records/bbox/`);
 barrios already drawn are kept and sent as `exclude`, and stale point responses are dropped. The **Dashboard**, **Trees** and **Analytics** pages also use real data;
-Reports and Alerts are hidden for now (see "Future work").
+**Reports** is shown to logged-in staff users (see "Login and Reports") and Alerts is hidden
+for now (see "Future work").
 
 ### Analytics (`/analytics`)
 
@@ -110,25 +111,31 @@ The whole interface is available in Spanish (default) and English, switched with
   CSV headers stay in English in both languages, so that files keep stable column names.
 - Data values (species, barrio and comuna names, common names) are shown as recorded.
 - Numbers keep the current format (`101,228`, `6.21`) in both languages.
-- Reports and Alerts are hidden (see below) and were not translated.
+- Alerts is hidden (see below) and was not translated.
 
-## Future work: Reports and Alerts (restricted pages)
+## Login and Reports
 
-**Pending — do not forget.** Reports and Alerts are meant for administrators and for the public
-and private institutions that manage urban trees, not for the public demo. They will be defined
-with those institutions after the demo is shown, together with the platform's login and roles.
+The user icon in the navbar opens a login form: the same username and password as the Django
+admin (`src/auth.rs`). It uses the API's JWT endpoints (`/api/v1/auth/token/`, `refresh/`,
+`me/`); the tokens are kept in `localStorage` and the access token is renewed when the API
+answers 401, so a session lasts up to the refresh token's 7 days.
 
-Until then they are disabled with the Cargo feature `restricted-pages` (off by default): no
-sidebar entries, no navbar bell, and `/reports` and `/alerts` redirect to the dashboard. The
-pages still compile (`src/pages/reports.rs`, `src/pages/alerts.rs`) but contain only sample
-data. To look at them: `trunk serve --features restricted-pages` (or
-`cargo build --features restricted-pages`). Search the code for `TODO(restricted-pages)`.
+**Reports** (`/reports`, `src/pages/reports.rs`) appears in the sidebar for staff users. It
+updates the tree database from a file (Excel, CSV, zipped Shapefile or GeoJSON) with the columns
+of the map's downloads: the server checks the file and answers what would change and the errors
+of each row; nothing is written until the user applies it. The column reference is on the page
+and in `backend/apps/reports/upload.py`.
 
-Next steps when this resumes:
-- define with the partner institutions what reports and alerts they need, and from which data;
-- add login and roles (Django auth already exists for the admin) and show these pages only to
-  privileged users instead of the build-time feature;
-- replace the sample data with API endpoints.
+## Future work: Alerts (restricted page)
+
+**Pending — do not forget.** Alerts is meant for administrators and for the public and private
+institutions that manage urban trees. It will be defined with those institutions after the
+demo is shown.
+
+Until then it is disabled with the Cargo feature `restricted-pages` (off by default): no sidebar
+entry, no navbar bell, and `/alerts` redirects to the dashboard. The page still compiles
+(`src/pages/alerts.rs`) but contains only sample data. To look at it:
+`trunk serve --features restricted-pages`. Search the code for `TODO(restricted-pages)`.
 
 ## Known issues
 

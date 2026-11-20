@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::path;
 
+use crate::auth::Auth;
 use crate::i18n::I18n;
 use crate::layout::Layout;
 use crate::pages::{
@@ -11,11 +12,10 @@ use crate::pages::{
     reports::Reports, species::SpeciesCatalog, trees::Trees,
 };
 
-/// Reports and Alerts are for administrators and partner institutions (public and private
-/// entities that manage urban trees). The demo has no login yet, so they are hidden: not in
-/// the sidebar, and their URLs redirect to the dashboard.
-/// TODO(restricted-pages): show them to logged-in, privileged users once the platform's
-/// login and roles are defined with those institutions. See README "Future work".
+/// Alerts is for administrators and partner institutions (public and private entities that
+/// manage urban trees) and has no content yet, so it is hidden: not in the sidebar, and its
+/// URL redirects to the dashboard. Reports is shown to logged-in staff users (see `auth`).
+/// TODO(restricted-pages): define Alerts with those institutions. See ROADMAP.md.
 pub const RESTRICTED_PAGES: bool = cfg!(feature = "restricted-pages");
 
 fn restricted(page: fn() -> AnyView) -> AnyView {
@@ -29,6 +29,7 @@ fn restricted(page: fn() -> AnyView) -> AnyView {
 #[component]
 pub fn App() -> impl IntoView {
     I18n::provide();
+    Auth::provide();
     view! {
         <Router>
             <Layout>
@@ -39,7 +40,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/map") view=MapPage />
                     <Route path=path!("/trees") view=Trees />
                     <Route path=path!("/species") view=SpeciesCatalog />
-                    <Route path=path!("/reports") view=|| restricted(|| view! { <Reports /> }.into_any()) />
+                    <Route path=path!("/reports") view=Reports />
                     <Route path=path!("/alerts") view=|| restricted(|| view! { <Alerts /> }.into_any()) />
                     <Route path=path!("/analytics") view=Analytics />
                     <Route path=path!("/about") view=About />

@@ -1,14 +1,19 @@
 import django_filters
+from django.utils import timezone, translation
+from django.utils.translation import gettext as _
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
-from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework import filters, mixins, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.parsers import JSONParser, MultiPartParser
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import upload
 from .analytics import analytics_summary
 from .dashboard import dashboard_summary
-from .models import Measurement, Observation
-from .serializers import MeasurementSerializer, ObservationSerializer
+from .models import Measurement, Observation, Upload
+from .serializers import MeasurementSerializer, ObservationSerializer, UploadSerializer
 
 
 class MeasurementFilter(django_filters.FilterSet):
@@ -155,3 +160,84 @@ class AnalyticsView(APIView):
 
     def get(self, request):
         return Response(analytics_summary())
+
+
+def _language(request):
+    lang = request.query_params.get("lang", "")
+    return lang if lang in {"es", "en"} else "en"
+
+
+class UploadViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    """Files that update the tree database (Reports page); staff users only.
+
+    ``POST uploads/`` (multipart ``file``) checks the file and answers what would change,
+    without writing; ``POST uploads/{id}/apply/`` writes it. ``?lang=es`` translates the
+    messages. See ``upload.py`` for the file's columns.
+    """
+
+    queryset = Upload.objects.select_related("user")
+    serializer_class = UploadSerializer
+    permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser, JSONParser]
+
+    def create(self, request):
+        file = request.FILES.get("file")
+        with translation.override(_language(request)):
+            if file is None:
+                return _error(_("Choose a file."))
+            fmt = upload.file_format(file.name)
+            if fmt is None:
+                return _error(
+                    _(
+                        "Use an Excel (.xlsx), CSV, zipped Shapefile (.zip) or GeoJSON file."
+                    )
+                )
+            if file.size > upload.MAX_BYTES:
+                return _error(_("The file is larger than 20 MB."))
+            record = Upload.objects.create(
+                file=file, name=file.name[:255], format=fmt, user=request.user
+            )
+            try:
+                record.summary = self._check(record).summary()
+            except upload.UploadError as e:
+                record.file.delete(save=False)
+                record.delete()
+                return _error(str(e))
+            record.save(update_fields=["summary", "updated_at"])
+        return Response(self.get_serializer(record).data, status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def apply(self, request, pk=None):
+        record = self.get_object()
+        with translation.override(_language(request)):
+            if record.status == Upload.Status.APPLIED:
+                return _error(_("This file was already applied."))
+            # Checked again: the database may have changed since the preview.
+            try:
+                plan = self._check(record)
+            except upload.UploadError as e:
+                return _error(str(e))
+            summary = plan.summary()
+            if plan.errors:
+                record.summary = summary
+                record.save(update_fields=["summary", "updated_at"])
+                return Response(
+                    self.get_serializer(record).data, status.HTTP_400_BAD_REQUEST
+                )
+            upload.apply(plan)
+            record.summary = summary
+            record.status = Upload.Status.APPLIED
+            record.applied_at = timezone.now()
+            record.save()
+        return Response(self.get_serializer(record).data)
+
+    def _check(self, record):
+        suffix = "." + record.name.rsplit(".", 1)[-1].lower()
+        with upload.local_copy(record.file, suffix) as path:
+            return upload.check(path, record.format, user=record.user)
+
+
+def _error(message):
+    return Response({"error": message}, status.HTTP_400_BAD_REQUEST)

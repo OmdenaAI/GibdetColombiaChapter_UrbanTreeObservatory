@@ -17,7 +17,7 @@ def tree_statistics(group_field=None, records_filter=None):
     ``"neighborhood__locality_id"``; ``None`` returns the city-wide totals.
 
     Each entry has ``total_trees`` (records), ``species_count`` (distinct species) and
-    ``avg_height_m`` (mean of the records' total-height measurements, ``None`` without any).
+    ``avg_height_m`` (mean of the records' latest total-height measurement, ``None`` without any).
     Two grouped queries, whatever the number of places. ``records_filter`` (a dict of
     BiodiversityRecord lookups) restricts the records, e.g. ``{"neighborhood_id__in": ids}``.
     """
@@ -25,6 +25,7 @@ def tree_statistics(group_field=None, records_filter=None):
     records = BiodiversityRecord.objects.filter(**records_filter)
     heights = Measurement.objects.filter(
         attribute=Measurement.MeasuredAttribute.TOTAL_HEIGHT,
+        is_latest=True,
         **{f"biodiversity_record__{k}": v for k, v in records_filter.items()},
     )
 

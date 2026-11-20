@@ -2,6 +2,7 @@
 
 mod api;
 mod app;
+mod auth;
 mod i18n;
 mod interop;
 mod layout;
