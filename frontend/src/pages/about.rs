@@ -140,100 +140,288 @@ const fn same(s: &'static str) -> Text {
     (s, s)
 }
 
-/// Studies on the urban trees of Ibagué and Tolima that inspired the platform and fed its
-/// development, in APA 7 style, oldest first. Each one: segments, then the link if any.
-const REFERENCES: [(&[Seg], Option<&str>); 8] = [
-    (
-        &[
-            (same("Corporación Autónoma Regional del Tolima [Cortolima]. (2016). "), false),
-            (same("Formulación del plan maestro de silvicultura urbana para la ciudad de Ibagué"), true),
+/// One APA 7 reference: its segments, then the link if any.
+type Reference = (&'static [Seg], Option<&'static str>);
+
+const AND: Seg = ((" y ", ", & "), false);
+const OPEN_DATA: Text = same("Portal Nacional de Datos Abiertos de Colombia. ");
+
+/// A stage of research on the urban trees of Ibagué and Tolima: period, name, headline,
+/// summary (citing in APA style) and its references, oldest first (same year: by author).
+struct Stage {
+    period: &'static str,
+    name: Text,
+    title: Text,
+    summary: Text,
+    references: &'static [Reference],
+}
+
+/// The studies that inspired the platform and fed its development, by stage.
+const STAGES: [Stage; 4] = [
+    Stage {
+        period: "2005 – 2010",
+        name: ("Etapa fundacional", "Foundations"),
+        title: ("Primeros diagnósticos botánicos", "First botanical surveys"),
+        summary: (
+            "Molina Prieto (2008) propone especies que fortalecen la Estructura Ecológica Principal de Ibagué y Esquivel (2010) cataloga 280 especies arbóreas de la ciudad.",
+            "Molina Prieto (2008) proposes species that strengthen the Main Ecological Structure of Ibagué and Esquivel (2010) catalogs 280 tree species of the city.",
+        ),
+        references: &[
             (
-                (" [Versión final; Contrato 507 de 2016, operado por Constructo Co S.A.S.]. ", " [Final version; Contract 507 of 2016, operated by Constructo Co S.A.S.]. "),
-                false,
-            ),
-        ],
-        Some("https://binet.cortolima.gov.co/images/estudio/bosques/PLAN_MAESTRO_SILVICULTURA_IBAGUE_2016.pdf"),
-    ),
-    (
-        &[
-            (same("Corporación Autónoma Regional del Tolima [Cortolima]"), false),
-            ((" y ", ", & "), false),
-            (same("Jardín Botánico San Jorge. (2017). "), false),
-            (same("Manual de arborización para el departamento del Tolima"), true),
-            (same("."), false),
-        ],
-        None,
-    ),
-    (
-        &[
-            (same("Núñez-Florez, R., Pérez-Gómez, U."), false),
-            ((" y ", ", & "), false),
-            (same("Fernández-Méndez, F. (2019). Functional diversity criteria for selecting urban trees. "), false),
-            (same("Urban Forestry & Urban Greening, 38"), true),
-            (same(", 251–266. "), false),
-        ],
-        Some("https://doi.org/10.1016/j.ufug.2019.01.005"),
-    ),
-    (
-        &[
-            (same("Acuña-Simbaqueva, L. M., Andrade, H. J., Segura, M. A., Sierra-Ramírez, E., Canal-Daza, D. S."), false),
-            ((" y ", ", & "), false),
-            (same("Greñas-Corrales, O. E. (2021). Mitigación de emisiones de gases de efecto invernadero de hogares por arbolado urbano en Ibagué-Colombia. "),
-                false,
-            ),
-            (same("Ambiente & Sociedade, 24"), true),
-            ((", Artículo e01911. ", ", Article e01911. "), false),
-        ],
-        Some("https://doi.org/10.1590/1809-4422asoc20200191vu2021L3AO"),
-    ),
-    (
-        &[
-            (same("Aragón Mora, D. J."), false),
-            ((" y ", ", & "), false),
-            (same("Valencia Vera, W. (2022). "), false),
-            (same("Oferta de servicios ecosistémicos de especies del arbolado urbano de la ciudad de Ibagué, Tolima, Colombia"), true),
-            ((" [Trabajo de grado, Universidad del Tolima]. ", " [Undergraduate thesis, Universidad del Tolima]. "), false),
-        ],
-        Some("https://repository.ut.edu.co/entities/publication/3a83cc95-87b7-488b-ae06-014cc5ff329e"),
-    ),
-    (
-        &[
-            (same("Campos Pérez, W. F."), false),
-            ((" y ", ", & "), false),
-            (same("Vargas Salgado, W. S. (2022). "), false),
-            (same("Crecimiento diamétrico y captura de carbono de árboles individuales de "), true),
-            // APA: a species name inside an italic title goes back to roman.
-            (same("Tabebuia rosea"), false),
-            (same(" (Bertol) D.C en el arbolado urbano de Ibagué, Colombia"), true),
-            ((" [Trabajo de grado, Universidad del Tolima].", " [Undergraduate thesis, Universidad del Tolima]."), false),
-        ],
-        None,
-    ),
-    (
-        &[
-            (
-                same("Medina Mora, E. (2023). La Ciudadela Comfenalco y su pequeño bosque urbano: La infraestructura verde como aliada en la creación del paisaje ambiental, social y económico. "),
-                false,
-            ),
-            (same("Revista B33 Arquitectura y Urbanismo"), true),
-            (same(", (9). "), false),
-        ],
-        Some("https://revistas.ut.edu.co/index.php/B33/article/view/3239"),
-    ),
-    (
-        &[
-            (same("Torres Payares, L. E. (2025). "), false),
-            (
-                same("Evaluación instrumental del arbolado urbano a través de ensayos no destructivos en el marco del proyecto “Análisis del riesgo de árboles urbanos y sus servicios ecosistémicos”, en la ciudad de Ibagué, Tolima"),
-                true,
+                &[
+                    (same("Molina Prieto, L. F. (2008). Árboles para Ibagué: Especies que fortalecen la Estructura Ecológica Principal. "), false),
+                    (same("Revista Nodo, 3"), true),
+                    (same("(5), 73–84. "), false),
+                ],
+                Some("https://revistas.uan.edu.co/index.php/nodo/article/view/149"),
             ),
             (
-                (" [Informe final de servicio social, Universidad del Tolima].", " [Final report of social service, Universidad del Tolima]."),
-                false,
+                &[
+                    (same("Esquivel M., H. E. (2010). "), false),
+                    (same("Flora arbórea de la ciudad de Ibagué"), true),
+                    ((" [Catálogo taxonómico y fenológico de 280 especies]. Universidad del Tolima.", " [Taxonomic and phenological catalog of 280 species]. Universidad del Tolima."), false),
+                ],
+                None,
             ),
         ],
-        None,
-    ),
+    },
+    Stage {
+        period: "2014 – 2017",
+        name: ("Etapa censal y de planificación", "Census and planning"),
+        title: ("Censo «Ibagué Ciudad Verde» y plan maestro", "The “Ibagué Ciudad Verde” census and master plan"),
+        summary: (
+            "Cortolima y la Universidad del Tolima levantan el censo del arbolado urbano y sus planes operativos por comuna (Universidad del Tolima y Cortolima, 2015). Le siguen el plan maestro de silvicultura urbana (Cortolima, 2016), el manual de arborización del Tolima (Cortolima y Jardín Botánico San Jorge, 2017) y los primeros criterios de diversidad funcional para elegir especies (Núñez-Florez, 2017).",
+            "Cortolima and the Universidad del Tolima survey the urban tree census and its operational plans by comuna (Universidad del Tolima & Cortolima, 2015). They are followed by the urban forestry master plan (Cortolima, 2016), the Tolima arborization manual (Cortolima & Jardín Botánico San Jorge, 2017) and the first functional diversity criteria for choosing species (Núñez-Florez, 2017).",
+        ),
+        references: &[
+            (
+                &[
+                    (same("Universidad del Tolima [UT]"), false),
+                    AND,
+                    (same("Corporación Autónoma Regional del Tolima [Cortolima]. (2015). "), false),
+                    (same("Plan operativo detallado de silvicultura urbana para la Comuna 2 de Ibagué"), true),
+                    ((" [Informe técnico del censo Ibagué Ciudad Verde]. Cortolima.", " [Technical report of the Ibagué Ciudad Verde census]. Cortolima."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Corporación Autónoma Regional del Tolima [Cortolima]. (2016). "), false),
+                    (same("Formulación del plan maestro de silvicultura urbana para la ciudad de Ibagué"), true),
+                    ((" [Versión final; Contrato 507 de 2016, operado por Constructo Co S.A.S.]. ", " [Final version; Contract 507 of 2016, operated by Constructo Co S.A.S.]. "), false),
+                ],
+                Some("https://binet.cortolima.gov.co/images/estudio/bosques/PLAN_MAESTRO_SILVICULTURA_IBAGUE_2016.pdf"),
+            ),
+            (
+                &[
+                    (same("Corporación Autónoma Regional del Tolima [Cortolima]"), false),
+                    AND,
+                    (same("Jardín Botánico San Jorge. (2017). "), false),
+                    (same("Manual de arborización para el departamento del Tolima"), true),
+                    (same(". Cortolima."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Núñez-Florez, R. (2017). "), false),
+                    (same("Criterios de diversidad funcional para la selección de especies en el arbolado urbano de la comuna 3 de la ciudad de Ibagué, Tolima"), true),
+                    (
+                        (
+                            " [Trabajo de grado de maestría, Universidad del Tolima]. Repositorio Institucional Universidad del Tolima (RIUT).",
+                            " [Master's thesis, Universidad del Tolima]. Repositorio Institucional Universidad del Tolima (RIUT).",
+                        ),
+                        false,
+                    ),
+                ],
+                None,
+            ),
+        ],
+    },
+    Stage {
+        period: "2019 – 2022",
+        name: ("Etapa funcional y ecosistémica", "Function and ecosystem services"),
+        title: ("Rasgos funcionales, carbono y economía ambiental", "Functional traits, carbon and environmental economics"),
+        summary: (
+            "Núñez-Florez et al. (2019) publican criterios de diversidad funcional para seleccionar árboles urbanos. Acuña-Simbaqueva et al. (2021) estiman cuánto mitiga el arbolado las emisiones de los hogares y Sierra-Ramírez et al. (2022), cuánto pagarían por ello. Otros trabajos abordan el riesgo de fallo, los líquenes, la hojarasca, los servicios ecosistémicos y el crecimiento de los árboles, y la Alcaldía de Ibagué (2022) publica el censo como datos abiertos.",
+            "Núñez-Florez et al. (2019) publish functional diversity criteria for selecting urban trees. Acuña-Simbaqueva et al. (2021) estimate how much the trees mitigate household emissions and Sierra-Ramírez et al. (2022), how much people would pay for it. Other works address failure risk, lichens, leaf litter, ecosystem services and tree growth, and the city government (Alcaldía de Ibagué, 2022) publishes the census as open data.",
+        ),
+        references: &[
+            (
+                &[
+                    (same("Núñez-Florez, R., Pérez-Gómez, U."), false),
+                    AND,
+                    (same("Fernández-Méndez, F. (2019). Functional diversity criteria for selecting urban trees. "), false),
+                    (same("Urban Forestry & Urban Greening, 38"), true),
+                    (same(", 251–266. "), false),
+                ],
+                Some("https://doi.org/10.1016/j.ufug.2019.01.005"),
+            ),
+            (
+                &[
+                    (same("Barreto, L."), false),
+                    AND,
+                    (same("Esquivel, H. E. (2020). "), false),
+                    (same("Diversidad y riqueza de líquenes epífitos en zonas verdes urbanas de Ibagué, Tolima, Colombia"), true),
+                    (same(". Universidad del Tolima."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Pérez-Gómez, U., et al. (2020). "), false),
+                    (same("Evaluación del riesgo de fallo en el arbolado del campus de la Universidad del Tolima, Ibagué"), true),
+                    ((" [Ponencia científica]. Universidad del Tolima.", " [Conference paper]. Universidad del Tolima."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Acuña-Simbaqueva, L. M., Andrade, H. J., Segura, M. A., Sierra-Ramírez, E., Canal-Daza, D. S."), false),
+                    AND,
+                    (same("Greñas-Corrales, O. E. (2021). Mitigación de emisiones de gases de efecto invernadero de hogares por arbolado urbano en Ibagué-Colombia. "), false),
+                    (same("Ambiente & Sociedade, 24"), true),
+                    ((", Artículo e01911. ", ", Article e01911. "), false),
+                ],
+                Some("https://doi.org/10.1590/1809-4422asoc20200191vu2021L3AO"),
+            ),
+            (
+                &[
+                    (same("Oliveros, D."), false),
+                    AND,
+                    (same("Salguero, J. (2021). Dinámica de descomposición de hojarasca en el bosque urbano de ribera del campus de la Universidad de Ibagué. "), false),
+                    (same("Revista Indagare"), true),
+                    (same(", Universidad de Ibagué."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Alcaldía Municipal de Ibagué. (2022). "), false),
+                    (same("Censo del arbolado urbano de Ibagué por comuna — Proyecto Ibagué Ciudad Verde"), true),
+                    ((" [Conjunto de datos abiertos, ID: sczr-x354]. ", " [Open dataset, ID: sczr-x354]. "), false),
+                    (OPEN_DATA, false),
+                ],
+                Some("https://www.datos.gov.co/"),
+            ),
+            (
+                &[
+                    (same("Aragón Mora, D. J."), false),
+                    AND,
+                    (same("Valencia Vera, W. (2022). "), false),
+                    (same("Oferta de servicios ecosistémicos de especies del arbolado urbano de la ciudad de Ibagué, Tolima, Colombia"), true),
+                    ((" [Trabajo de grado, Universidad del Tolima]. Repositorio Institucional Universidad del Tolima. ", " [Undergraduate thesis, Universidad del Tolima]. Repositorio Institucional Universidad del Tolima. "), false),
+                ],
+                Some("https://repository.ut.edu.co/entities/publication/3a83cc95-87b7-488b-ae06-014cc5ff329e"),
+            ),
+            (
+                &[
+                    (same("Campos Pérez, W. F."), false),
+                    AND,
+                    (same("Vargas Salgado, W. S. (2022). "), false),
+                    (same("Crecimiento diamétrico y captura de carbono de árboles individuales de "), true),
+                    // APA: a species name inside an italic title goes back to roman.
+                    (same("Tabebuia rosea"), false),
+                    (same(" (Bertol) D.C en el arbolado urbano de Ibagué, Colombia"), true),
+                    ((" [Trabajo de grado, Universidad del Tolima].", " [Undergraduate thesis, Universidad del Tolima]."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Sierra-Ramírez, E., Andrade, H. J."), false),
+                    AND,
+                    (same("Segura, M. A. (2022). "), false),
+                    (same("Disponibilidad a pagar por la mitigación de emisiones de gases de efecto invernadero mediante arborización urbana en Ibagué, Colombia"), true),
+                    (same(". Grupo de Investigación PROECUT, Universidad del Tolima."), false),
+                ],
+                None,
+            ),
+        ],
+    },
+    Stage {
+        period: "2023 – 2026",
+        name: ("Etapa microclimática e instrumental", "Microclimate and instruments"),
+        title: ("Confort térmico, evaluación instrumental y datos abiertos", "Thermal comfort, instrumental assessment and open data"),
+        summary: (
+            "Barrero-Mora y Francel (2023) miden el confort térmico y lumínico de los parques y Guevara y Francel (2023), la accesibilidad peatonal que ofrece el arbolado; Medina Mora (2023) analiza un bosque urbano de barrio y Díaz-Jaramillo et al. (2024) estudian las aves asociadas al arbolado del campus de la Universidad del Tolima y del Jardín Botánico San Jorge. Segura Madrigal et al. (2025) proponen estrategias de mitigación con arbolado y movilidad sostenible, Torres (2025) evalúa 100 árboles con tomografía y otros ensayos no destructivos, y la Alcaldía de Ibagué (2026) publica el inventario completo como datos abiertos.",
+            "Barrero-Mora and Francel (2023) measure thermal and light comfort in parks and Guevara and Francel (2023), the pedestrian accessibility the trees provide; Medina Mora (2023) studies a neighborhood urban forest and Díaz-Jaramillo et al. (2024) study the birds associated with the trees of the Universidad del Tolima campus and the San Jorge Botanical Garden. Segura Madrigal et al. (2025) propose mitigation strategies with trees and sustainable mobility, Torres (2025) assesses 100 trees with tomography and other non-destructive tests, and the city government (Alcaldía de Ibagué, 2026) publishes the full inventory as open data.",
+        ),
+        references: &[
+            (
+                &[
+                    (same("Barrero-Mora, L."), false),
+                    AND,
+                    (same("Francel, A. (2023). Confort térmico y lumínico en parques de fronteras urbanas de Ibagué, Colombia. "), false),
+                    (same("Ciudad y Territorio Estudios Territoriales (CyTET), 55"), true),
+                    (same("(216)."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Guevara, M."), false),
+                    AND,
+                    (same("Francel, A. (2023). Accesibilidad peatonal y amenidad del arbolado urbano en Ibagué, Colombia. "), false),
+                    (same("CIDADES, Comunidades e Territórios"), true),
+                    (same("."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (
+                        same("Medina Mora, E. (2023). La Ciudadela Comfenalco y su pequeño bosque urbano: La infraestructura verde como aliada en la creación del paisaje ambiental, social y económico. "),
+                        false,
+                    ),
+                    (same("Revista B33 Arquitectura y Urbanismo"), true),
+                    (same(", (9). "), false),
+                ],
+                Some("https://revistas.ut.edu.co/index.php/B33/article/view/3239"),
+            ),
+            (
+                &[
+                    (same("Díaz-Jaramillo, C., et al."), false),
+                    AND,
+                    (same("Parra-Hernández, R. M., et al. (2024). "), false),
+                    (same("Avifauna asociada a remanentes boscosos y arbolado urbano del campus de la Universidad del Tolima y el Jardín Botánico San Jorge en Ibagué. "), false),
+                    (same("Biota Colombiana"), true),
+                    (same(". "), false),
+                ],
+                Some("https://repository.ut.edu.co/entities/publication/2d96b821-385c-4f0a-ab00-f7a2e2253d31"),
+            ),
+            (
+                &[
+                    (same("Segura Madrigal, M. A., Andrade Castañeda, H. J."), false),
+                    AND,
+                    (same("Sierra-Ramírez, E. (2025). "), false),
+                    (same("Estrategias de mitigación de emisiones de gases de efecto invernadero de hogares mediante arbolado urbano y movilidad sostenible en Ibagué"), true),
+                    (same(". Editorial Universidad del Tolima / Grupo de Investigación PROECUT."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Torres Payares, L. E. (2025). "), false),
+                    (
+                        same("Evaluación instrumental del arbolado urbano a través de ensayos no destructivos en el marco del proyecto “Análisis del riesgo de árboles urbanos y sus servicios ecosistémicos”, en la ciudad de Ibagué, Tolima"),
+                        true,
+                    ),
+                    ((" [Informe final de servicio social, Universidad del Tolima].", " [Final report of social service, Universidad del Tolima]."), false),
+                ],
+                None,
+            ),
+            (
+                &[
+                    (same("Alcaldía Municipal de Ibagué. (2026). "), false),
+                    (same("Inventario del arbolado urbano de Ibagué (101.000 registros y 26 variables dasométricas)"), true),
+                    ((" [Conjunto de datos abiertos, ID: am4p-tz7w]. ", " [Open dataset, ID: am4p-tz7w]. "), false),
+                    (OPEN_DATA, false),
+                ],
+                Some("https://www.datos.gov.co/"),
+            ),
+        ],
+    },
 ];
 
 fn external(href: &'static str, label: &'static str) -> impl IntoView {
@@ -391,31 +579,44 @@ pub fn About() -> impl IntoView {
                 </div>
             </div>
 
-            // References
+            // References, as a timeline of research stages
             <div class=CARD>
                 <h2 class=H2>{t(("Referencias", "References"))}</h2>
                 <p class=format!("{P} mt-3")>
                     {t((
-                        "Agradecemos a los autores de estos estudios sobre el arbolado urbano de Ibagué y el Tolima, que fueron fuente de inspiración y parte del desarrollo de esta plataforma.",
-                        "We thank the authors of these studies on the urban trees of Ibagué and Tolima, which inspired this platform and were part of its development.",
+                        "Agradecemos a los autores de estos estudios sobre el arbolado urbano de Ibagué y el Tolima, que fueron fuente de inspiración y parte del desarrollo de esta plataforma. Los presentamos por etapas, de los más antiguos a los más recientes.",
+                        "We thank the authors of these studies on the urban trees of Ibagué and Tolima, which inspired this platform and were part of its development. They are shown by stage, oldest first.",
                     ))}
                 </p>
-                <ul class="mt-4 space-y-3 text-sm text-gray-700 leading-relaxed">
-                    {REFERENCES.into_iter().map(|(segs, url)| view! {
-                        // One translucent box per reference, in the page's green palette.
-                        <li class="rounded-md border border-primary-200 border-l-4 border-l-primary-600 bg-primary-50/70 px-4 py-3 transition-colors hover:bg-primary-100/70">
-                            // Hanging indent, as in an APA reference list.
-                            <div class="pl-8 -indent-8">
-                                {segs.iter().map(|&(text, italic)| {
-                                    if italic { view! { <i>{t(text)}</i> }.into_any() } else { view! { <span>{t(text)}</span> }.into_any() }
+                <ol class="relative mt-8">
+                    // The timeline's line, behind the dots.
+                    <span class="absolute left-[11px] top-2 bottom-2 w-0.5 bg-primary-200" aria-hidden="true"></span>
+                    {STAGES.into_iter().map(|stage| view! {
+                        <li class="relative pl-10 pb-10 last:pb-0">
+                            <span class="absolute left-0 top-1 h-6 w-6 rounded-full border-4 border-white bg-primary-600 ring-2 ring-primary-300" aria-hidden="true"></span>
+                            <p class="inline-block rounded-md bg-primary-50 px-3 py-1 text-sm font-semibold text-primary-800">
+                                {stage.period}" · "{t(stage.name)}
+                            </p>
+                            <h3 class="mt-2 text-lg font-semibold text-gray-900">{t(stage.title)}</h3>
+                            <p class="mt-1 text-gray-600 leading-relaxed">{t(stage.summary)}</p>
+                            <ul class="mt-4 space-y-2 text-sm text-gray-700 leading-relaxed">
+                                {stage.references.iter().map(|&(segs, url)| view! {
+                                    <li class="rounded-md border border-primary-100 border-l-4 border-l-primary-500 bg-white px-4 py-2.5 transition-colors hover:bg-primary-50/70">
+                                        // Hanging indent, as in an APA reference list.
+                                        <div class="pl-8 -indent-8">
+                                            {segs.iter().map(|&(text, italic)| {
+                                                if italic { view! { <i>{t(text)}</i> }.into_any() } else { view! { <span>{t(text)}</span> }.into_any() }
+                                            }).collect_view()}
+                                            {url.map(|u| view! {
+                                                <a href=u target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline break-all">{u}</a>
+                                            })}
+                                        </div>
+                                    </li>
                                 }).collect_view()}
-                                {url.map(|u| view! {
-                                    <a href=u target="_blank" rel="noopener noreferrer" class="text-primary-700 hover:underline break-all">{u}</a>
-                                })}
-                            </div>
+                            </ul>
                         </li>
                     }).collect_view()}
-                </ul>
+                </ol>
             </div>
         </div>
     }
