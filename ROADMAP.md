@@ -5,16 +5,17 @@ an issue and a pull request when work on it starts; the numbers (#) are existing
 
 ## 1. Login, Reports and Alerts for institutions
 
-The platform is public and read-only. Reports and Alerts are meant for administrators and for
-public and private institutions working on urban trees; they are hidden behind the
-`restricted-pages` feature until there is a login.
+Staff users can sign in from the platform (same username and password as the Django admin) and
+update the database from the Reports page with a file. Next:
 
-- Login for administrators and partner institutions (django-allauth is already installed),
-  with roles, and a working user icon in the navbar.
-- Define Reports and Alerts with the institutions after the first demo, then build them on
-  real data and translate them (they are English only).
-- Edit trees from the platform for logged-in users: mark a tree as removed (today: the CSV in
-  `backend/apps/biodiversity/data/removed_trees.csv` or the Django admin), or correct its data.
+- Accounts for partner institutions with their own roles and permissions (today only staff
+  users can upload), and a password reset.
+- Mark trees as removed from an uploaded file too (today: the CSV in
+  `backend/apps/biodiversity/data/removed_trees.csv` or the Django admin), and edit a single
+  tree from its sheet.
+- Undo an applied file.
+- Define Alerts with the institutions after the first demo, then build it on real data and
+  translate it (it is English only and hidden behind the `restricted-pages` feature).
 
 ## 2. Map
 

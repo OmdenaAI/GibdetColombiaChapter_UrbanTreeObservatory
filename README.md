@@ -29,10 +29,21 @@ downloads.
   species.
 - **Tree status**: trees that no longer exist (felled, fallen...) are kept in the database
   with the date, reason and a note of the removal, and hidden from the platform.
+- **Reports (login)**: staff users sign in with their Django admin username and password and
+  update the database from a file (Excel, CSV, zipped Shapefile or GeoJSON, with the columns
+  of the downloads): edit trees, add new trees and add measurements and observations, which
+  keep their history. The file is checked first and applied only when confirmed; every file
+  is kept with its user.
+- **Studies**: results of research on the census trees, loaded with their citation. The
+  first is the instrumental assessment of 100 trees by Torres Payares (2025): visual
+  (EVA) and biomechanical risk, acoustic tomography, wood densities and stiffness. Each
+  tree's page shows the assessment and indicators computed from its measurements (crown
+  area and asymmetry, slenderness, residual sound wall, biomass and CO₂, intervention
+  criteria), with their formulas.
 - **Bilingual**: Spanish (default) and English.
 
-Reports and Alerts, meant for administrators and partner institutions, are hidden until there
-is a login (see the [roadmap](ROADMAP.md)).
+Alerts, meant for administrators and partner institutions, is hidden until it is defined with
+them (see the [roadmap](ROADMAP.md)).
 
 ## Built with
 
@@ -123,11 +134,42 @@ to `backend/data/json`, then run:
 docker compose exec backend python manage.py import_initial_data --local-dir=data
 ```
 
+The import dates the trees whose survey date was empty (stored as 1899-12-30, Excel's
+day zero) with the most frequent date of the trees within 200 m. On a database loaded
+before this step, run it once (idempotent):
+
+```bash
+docker compose exec backend python manage.py fix_census_dates
+```
+
+It also gives each tree its planting site (park, sidewalk, road median...), which the
+cleaned files lack, from the original census in `backend/apps/biodiversity/data/planting_sites.csv`,
+matched by position. On a database loaded before this step, run it once (idempotent):
+
+```bash
+docker compose exec backend python manage.py load_planting_sites
+```
+
+It then gives each species the planting sites that the Tolima arborization manual
+recommends for it (the species catalog filters by them), from the project's coding of the
+manual in `backend/apps/taxonomy/data/planting_site_suitability.csv`. On a database loaded
+before this step, run it once (idempotent):
+
+```bash
+docker compose exec backend python manage.py load_planting_site_suitability
+```
+
 Then mark the trees that no longer exist. The list is versioned in
 `backend/apps/biodiversity/data/removed_trees.csv`:
 
 ```bash
 docker compose exec backend python manage.py load_removed_trees
+```
+
+Then load the studies (see each study's README):
+
+```bash
+docker compose exec backend python manage.py import_study apps/reports/studies/torres_payares_2025
 ```
 
 The species sheets of the Tolima arborization manual are optional. Their text is not in this
@@ -234,6 +276,9 @@ public deployment...) is in [ROADMAP.md](ROADMAP.md).
 - **Tolima arborization manual**: Cortolima – Jardín Botánico San Jorge, *Manual de
   arborización para el departamento del Tolima* (2017). Its license is unknown, so its text is
   not included in this repository: only the code that extracts it.
+- **Instrumental assessment of 100 urban trees**: Torres Payares, L. E. (2025), Universidad
+  del Tolima, published with the author's authorization; sources and reconciliation in
+  [`backend/apps/reports/studies/torres_payares_2025`](backend/apps/reports/studies/torres_payares_2025/README.md).
 - **References**: the studies on urban trees that inspired the platform are cited on its
   About page.
 
