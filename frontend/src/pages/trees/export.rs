@@ -1,7 +1,7 @@
 //! CSV downloads. The backend builds the files (`/biodiversity/inventory/export/`):
 //! all matching trees through a plain link (the server streams it as an attachment),
 //! the selected ones through a POST whose response is saved from a Blob (`post_download`,
-//! also used by the map's queries).
+//! also used by the map's queries). `save_bytes` saves a file built in the browser.
 
 use wasm_bindgen::JsCast;
 
@@ -68,8 +68,12 @@ pub async fn post_download(
         }));
     }
     let bytes = resp.binary().await.map_err(|e| e.to_string())?;
+    save_bytes(&bytes, file_name, mime)
+}
 
-    let parts = js_sys::Array::of1(&js_sys::Uint8Array::from(bytes.as_slice()));
+/// Save bytes built in the browser as a file (through a Blob URL).
+pub fn save_bytes(bytes: &[u8], file_name: &str, mime: &str) -> Result<(), String> {
+    let parts = js_sys::Array::of1(&js_sys::Uint8Array::from(bytes));
     let options = web_sys::BlobPropertyBag::new();
     options.set_type(mime);
     let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &options)
