@@ -14,6 +14,7 @@ Key database constraints and model design notes:
   schema is extensible if new TraitTypes are added.
 """
 
+from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.urls import reverse
@@ -275,6 +276,17 @@ class Species(BaseModel):
         _("identified by"), max_length=255, default="Cortolima"
     )
     date = models.DateField(_("identified date"), null=True, blank=True)
+    recommended_planting_sites = ArrayField(
+        models.CharField(max_length=2),
+        default=list,
+        blank=True,
+        verbose_name=_("recommended planting sites"),
+        help_text=_(
+            "Planting sites (park, sidewalk, road median...) that the Tolima "
+            "arborization manual recommends for the species, with or without "
+            "conditions. Empty when the manual says nothing."
+        ),
+    )
 
     class Meta:
         verbose_name = pgettext_lazy("singular", "species")

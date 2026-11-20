@@ -48,6 +48,7 @@ from pathlib import Path
 
 import pandas as pd
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Point
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from tqdm import tqdm
@@ -55,7 +56,7 @@ from tqdm import tqdm
 from apps.biodiversity.models import BiodiversityRecord
 from apps.climate.models import Climate, Station
 from apps.places.models import Locality, Municipality, Neighborhood, Site
-from apps.reports.models import Measurement, Observation
+from apps.reports.models import Measurement, Observation, refresh_latest
 from apps.taxonomy.models import (
     Family,
     FunctionalGroup,
@@ -190,6 +191,15 @@ class Command(BaseCommand):
                 self.import_biodiversity_records()
                 self.import_measurements()
                 self.import_observations()
+                # Empty survey dates come as 1899-12-30 (Excel's day zero).
+                call_command("fix_census_dates", stdout=self.stdout)
+                # The site (park, sidewalk...) is not in the cleaned files; it comes
+                # from the original census, versioned in the repository.
+                call_command("load_planting_sites", stdout=self.stdout)
+                # The planting sites the Tolima manual recommends for each species.
+                call_command("load_planting_site_suitability", stdout=self.stdout)
+                # bulk_create skips the signals that flag the newest rows.
+                refresh_latest()
                 self.import_climate_data()
 
             self.stdout.write(self.style.SUCCESS("Import completed successfully"))
