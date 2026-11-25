@@ -13,9 +13,7 @@ MAY, JUNE = datetime.date(2014, 5, 8), datetime.date(2014, 6, 1)
 
 def tree(lon, date, **dbh):
     record = BiodiversityRecordFactory(location=Point(lon, 4.44), date=date)
-    MeasurementFactory(
-        biodiversity_record=record, attribute="DBH", date=date, **dbh
-    )
+    MeasurementFactory(biodiversity_record=record, attribute="DBH", date=date, **dbh)
     return record
 
 

@@ -73,7 +73,9 @@ def read_points(path):
             x, y = metres(row["X"]), metres(row["Y"])
             site = SITES[row["emplazamiento"]]
         except KeyError as e:
-            raise CommandError(f"line {line}: missing column or unknown site {e}") from e
+            raise CommandError(
+                f"line {line}: missing column or unknown site {e}"
+            ) from e
         except ValueError as e:
             problems.append(f"line {line}: bad coordinate {e}")
             continue
@@ -113,7 +115,7 @@ class Command(BaseCommand):
         current = dict(
             BiodiversityRecord.all_objects.values_list("id", "planting_site")
         )
-        wanted = {rid: "" for rid in ambiguous} | site_of
+        wanted = dict.fromkeys(ambiguous, "") | site_of
         changes = {rid: s for rid, s in wanted.items() if current.get(rid) != s}
 
         with transaction.atomic():
