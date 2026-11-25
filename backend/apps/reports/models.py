@@ -649,3 +649,45 @@ class Upload(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
+
+
+class EcosystemService(models.Model):
+    """Ecosystem services of a tree, estimated from its latest measurements with the
+    method of ``apps.reports.ecosystem`` (carbon stock and intercepted rain, lower bound).
+
+    Derived data: ``compute_ecosystem_services`` recomputes every row after the census
+    changes. The statistics of barrios, comunas and the city are sums of these rows.
+    """
+
+    biodiversity_record = models.OneToOneField(
+        BiodiversityRecord,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="ecosystem_service",
+        verbose_name=_("biodiversity record"),
+    )
+    # Null: an input was missing and could not be estimated (e.g. no crown data at all).
+    carbon_kg = models.FloatField(_("carbon stock (kg C)"), null=True, blank=True)
+    rain_interception_m3 = models.FloatField(
+        _("intercepted rain (m³/year)"), null=True, blank=True
+    )
+    crown_area_m2 = models.FloatField(
+        _("crown projection area (m²)"), null=True, blank=True
+    )
+    leaf_area_index = models.FloatField(_("leaf area index"), null=True, blank=True)
+    imputed = models.CharField(
+        _("imputed inputs"),
+        max_length=200,
+        blank=True,
+        help_text=_("Inputs that were missing or impossible and were estimated."),
+    )
+    computed_at = models.DateTimeField(_("computed at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("ecosystem service estimate")
+        verbose_name_plural = _("ecosystem service estimates")
+
+    def __str__(self):
+        return (
+            f"Ecosystem services of biodiversity record #{self.biodiversity_record_id}"
+        )

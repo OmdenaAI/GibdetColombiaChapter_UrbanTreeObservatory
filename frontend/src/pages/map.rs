@@ -10,8 +10,8 @@
 //! once per `moveend` (Leaflet also fires it after every zoom). Barrios are kept once drawn;
 //! points are replaced on every move and stale responses are dropped.
 //!  - panel fallbacks use JS `||`, so missing stats show hardcoded city-wide numbers. Tree
-//!    count, species count and average height now come from `/places/*/statistics/`; the
-//!    tree-per-capita index and the environmental figures are still placeholders.
+//!    count, species count, average height, carbon stock and intercepted rain come from
+//!    `/places/*/statistics/`; the tree-per-capita index is still a placeholder.
 //!  - no cleanup of the Leaflet map / listeners when leaving the route.
 
 use std::cell::{Cell, RefCell};
@@ -38,7 +38,6 @@ use super::tree_panel::{TreePanel, TreeRecord};
 struct Region {
     name: String,
     statistics: Value,
-    environmental: Value,
 }
 
 /// Tree point styles: normal and selected (larger, light green, drawn on top).
@@ -75,15 +74,32 @@ fn unhighlight(h: Highlight) {
 
 const OVERVIEW: &str = "Ibagué Overview";
 
-/// API entry -> the panel's `statistics` shape. Only the three computed metrics are set;
-/// `healthIndex` keeps its previous placeholder (`fallback_health`).
+/// API entry -> the panel's `statistics` shape. `healthIndex` keeps its previous
+/// placeholder (`fallback_health`); the rest is computed by the backend.
 fn panel_stats(s: &Value, fallback_health: Value) -> Value {
     json!({
         "totalTrees": fmt_thousands(s["total_trees"].as_i64().unwrap_or(0)),
         "speciesCount": s["species_count"].as_i64().unwrap_or(0).to_string(),
         "avgHeight": s["avg_height_m"].as_f64().map(|h| format!("{h:.2}")).unwrap_or_else(|| "N/A".into()),
         "healthIndex": fallback_health,
+        "carbonStock": s["carbon_t"].as_f64().map(fmt_amount).unwrap_or_else(|| "N/A".into()),
+        "rainInterception": s["rain_interception_m3"].as_f64().map(fmt_amount).unwrap_or_else(|| "N/A".into()),
     })
+}
+
+/// Thousands separator for large amounts, one decimal below 100 (a barrio's few t C).
+fn fmt_amount(v: f64) -> String {
+    if v.abs() < 100.0 {
+        format!("{v:.1}")
+    } else {
+        fmt_thousands(v.round() as i64)
+    }
+}
+
+/// Panel statistics when a region has none.
+fn missing_stats() -> Value {
+    json!({ "totalTrees": "N/A", "speciesCount": "N/A", "avgHeight": "N/A", "healthIndex": "N/A",
+            "carbonStock": "N/A", "rainInterception": "N/A" })
 }
 
 /// `{id: panel statistics}` + city-wide totals from `/places/<kind>/statistics/`.
@@ -168,7 +184,6 @@ pub fn MapPage() -> impl IntoView {
     let selected_region = RwSignal::new(Region {
         name: OVERVIEW.into(),
         statistics: json!({ "totalTrees": 0, "speciesCount": 0, "avgHeight": 0, "healthIndex": 0 }),
-        environmental: json!({ "co2Absorption": 0, "oxygenProduction": 0 }),
     });
     let selected_tree = RwSignal::new(None::<TreeRecord>);
     let highlight: Highlight = StoredValue::new_local(None);
@@ -233,9 +248,6 @@ pub fn MapPage() -> impl IntoView {
     let stat = move |k: &'static str, fb: &'static str| {
         move || na(i.lang(), selected_region.with(|r| js_or(&r.statistics[k], fb)))
     };
-    let env = move |k: &'static str, fb: &'static str| {
-        move || selected_region.with(|r| js_or(&r.environmental[k], fb))
-    };
 
     // Region / city summary, shown while no tree is selected.
     let summary = move || {
@@ -266,16 +278,20 @@ pub fn MapPage() -> impl IntoView {
                     </div>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">{move || i.t("Impacto ambiental", "Environmental Impact")}</h3>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">{move || i.t("Servicios ecosistémicos", "Ecosystem Services")}</h3>
                     <div class="space-y-4">
                         <div>
-                            <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), env("co2Absorption", "646,867.27")(), "t")}</p>
-                            <p class="text-sm text-gray-600">{move || i.t("Absorción de CO₂", "CO₂ Absorption")}</p>
+                            <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), stat("carbonStock", "N/A")(), "t C")}</p>
+                            <p class="text-sm text-gray-600">{move || i.t("Carbono almacenado", "Stored carbon")}</p>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), env("oxygenProduction", "1,727,135.62")(), i.t("t/año", "t/year"))}</p>
-                            <p class="text-sm text-gray-600">{move || i.t("Producción de oxígeno", "Oxygen Production")}</p>
+                            <p class="text-2xl font-bold text-green-700">{move || with_unit(i.lang(), stat("rainInterception", "N/A")(), i.t("m³/año", "m³/year"))}</p>
+                            <p class="text-sm text-gray-600">{move || i.t("Lluvia interceptada", "Intercepted rain")}</p>
                         </div>
+                        <p class="text-xs text-gray-400">{move || i.t(
+                            "Carbono: acumulado en la vida de los árboles. Lluvia: cota inferior (lo que retienen las copas, sin la evaporación durante el aguacero).",
+                            "Carbon: accumulated over the trees' lives. Rain: lower bound (what the crowns hold, without evaporation during the storm).",
+                        )}</p>
                     </div>
                 </div>
             </div>
@@ -565,12 +581,11 @@ fn load_localities(st: Rc<MapState>) {
                 .as_i64()
                 .and_then(|id| stats.get(&id).cloned())
                 .unwrap_or_else(|| json!({}));
-            let environmental = if truthy(&data["environmental"]) { data["environmental"].clone() } else { json!({}) };
 
             let feature = json!({
                 "type": "Feature",
                 "geometry": data["boundary"],
-                "properties": { "name": name, "statistics": statistics, "environmental": environmental }
+                "properties": { "name": name, "statistics": statistics }
             });
 
             let on_each_feature = {
@@ -661,17 +676,8 @@ fn on_each_locality(st: &Rc<MapState>, data: &Value, props: &Value, layer: Layer
         let bounds = l.get_bounds();
         st.map.fit_bounds(&bounds, &to_js(&json!({ "padding": [10, 10], "maxZoom": 16 })));
 
-        let statistics = if truthy(&props["statistics"]) {
-            props["statistics"].clone()
-        } else {
-            json!({ "totalTrees": "N/A", "speciesCount": "N/A", "avgHeight": "N/A", "healthIndex": "N/A" })
-        };
-        let environmental = if truthy(&props["environmental"]) {
-            props["environmental"].clone()
-        } else {
-            json!({ "co2Absorption": "N/A", "oxygenProduction": "N/A" })
-        };
-        st.selected_region.try_set(Region { name: comuna.clone(), statistics, environmental });
+        let statistics = if truthy(&props["statistics"]) { props["statistics"].clone() } else { missing_stats() };
+        st.selected_region.try_set(Region { name: comuna.clone(), statistics });
         st.selected_tree.try_set(None);
     }));
 }
@@ -765,14 +771,8 @@ fn on_neighborhood_events(st: &Rc<MapState>, layer: &Layer, name: String, statis
         if tools.is_drawing() {
             return;
         }
-        let statistics = statistics.clone().unwrap_or_else(|| {
-            json!({ "totalTrees": "N/A", "speciesCount": "N/A", "avgHeight": "N/A", "healthIndex": "N/A" })
-        });
-        region.try_set(Region {
-            name: name.clone(),
-            statistics,
-            environmental: json!({ "co2Absorption": "N/A", "oxygenProduction": "N/A" }),
-        });
+        let statistics = statistics.clone().unwrap_or_else(missing_stats);
+        region.try_set(Region { name: name.clone(), statistics });
         tree.try_set(None);
     }));
 }
@@ -894,5 +894,10 @@ mod tests {
         assert_eq!(s["avgHeight"], "8.10");
         let empty = panel_stats(&json!({"total_trees": 0, "species_count": 0, "avg_height_m": null}), json!("N/A"));
         assert_eq!(empty["avgHeight"], "N/A");
+        assert_eq!(empty["carbonStock"], "N/A");
+        let services = panel_stats(&json!({"total_trees": 1, "carbon_t": 21081.9, "rain_interception_m3": 303101.0}), json!("N/A"));
+        assert_eq!(services["carbonStock"], "21,082");
+        assert_eq!(services["rainInterception"], "303,101");
+        assert_eq!(panel_stats(&json!({"carbon_t": 12.34}), json!("N/A"))["carbonStock"], "12.3");
     }
 }

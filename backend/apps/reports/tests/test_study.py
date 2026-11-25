@@ -11,6 +11,12 @@ from django.core.management import CommandError, call_command
 from django.urls import reverse
 from django.utils import translation
 
+from apps.reports.ecosystem import (
+    NON_WOODY_FAMILIES,
+    PALM_FAMILY,
+    agb_chave2005,
+    carbon_kg,
+)
 from apps.reports.factories import MeasurementFactory, ObservationFactory
 from apps.reports.management.commands.import_study import MEASUREMENTS
 from apps.reports.metrics import tree_metrics
@@ -257,20 +263,39 @@ class TestMetrics:
         assert m["residual_wall"]["value"] == pytest.approx(0.11, abs=0.005)
         assert m["residual_wall"]["flag"] is True
         assert m["strength_loss"]["value"] == pytest.approx(70, abs=0.5)
-        agb = 0.0673 * (0.32 * 73.21**2 * 15.5) ** 0.976
-        assert m["biomass"]["value"] == pytest.approx(agb, abs=0.5)
-        assert "measured on this tree" in m["biomass"]["note"]
+        assert "carbon_stock" not in m  # until compute_ecosystem_services runs
         # Damage > 50 %, biomechanical high, visual high; one tree is its species'
         # mean, so MOE and density do not deviate: 3 of 5.
         assert (m["priority"]["value"], m["priority"]["unit"]) == (3, "/ 5")
         assert m["priority"]["flag"] is True
 
-    def test_census_tree_uses_the_species_density(self, census_tree):
+    def test_ecosystem_services_use_the_study_measurements(
+        self, study_dir, census_tree
+    ):
+        """After the study, the tree's carbon uses its measured DBH (73.21 cm) and basic
+        density (0.32 g/cm³) instead of the census DBH and species density."""
+        call_command("import_study", study_dir)
+        call_command("compute_ecosystem_services")
+        m = self.metrics(census_tree)
+
+        family = census_tree.species.genus.family.name
+        assert family not in NON_WOODY_FAMILIES | {PALM_FAMILY}
+        expected = carbon_kg(agb_chave2005(73.21, 0.32))
+        assert m["carbon_stock"]["value"] == pytest.approx(expected, abs=0.5)
+        assert m["carbon_stock"]["unit"] == "kg C"
+        assert m["rain_interception"]["value"] > 0
+
+    def test_census_tree_without_study(self, census_tree):
         MeasurementFactory(
             biodiversity_record=census_tree, attribute=A.TOTAL_HEIGHT, value=15.0
         )
+        call_command("compute_ecosystem_services")
         m = self.metrics(census_tree)
-        assert "of the species" in m["biomass"]["note"]
+        assert m["carbon_stock"]["value"] == pytest.approx(
+            carbon_kg(agb_chave2005(49.0, 0.35)), abs=0.5
+        )
+        # No crown diameter in the whole (test) census: interception cannot be estimated.
+        assert "rain_interception" not in m
         assert "residual_wall" not in m and "priority" not in m
 
 

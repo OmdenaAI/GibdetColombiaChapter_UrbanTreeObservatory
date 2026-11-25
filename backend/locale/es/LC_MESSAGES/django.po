@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 17:54-0500\n"
+"POT-Creation-Date: 2026-11-24 13:30-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -162,6 +162,7 @@ msgstr "nota del retiro"
 
 #: apps/biodiversity/models.py:109 apps/reports/models.py:140
 #: apps/reports/models.py:265 apps/reports/models.py:553
+#: apps/reports/models.py:667
 msgid "biodiversity record"
 msgstr "registro de biodiversidad"
 
@@ -309,84 +310,135 @@ msgstr "limite del barrio"
 msgid "neighborhoods"
 msgstr "barrios"
 
-#: apps/reports/metrics.py:73 apps/reports/metrics.py:94
+#: apps/reports/ecosystem.py:86
+msgid "DBH"
+msgstr "DAP"
+
+#: apps/reports/ecosystem.py:87 apps/reports/models.py:101
+msgid "total height"
+msgstr "altura total"
+
+#: apps/reports/ecosystem.py:88 apps/reports/models.py:102
+msgid "crown diameter"
+msgstr "diámetro de la copa"
+
+#: apps/reports/ecosystem.py:89
+msgid "crown height"
+msgstr "altura de la copa"
+
+#: apps/reports/ecosystem.py:90
+msgid "wood density (species, Global Wood Density Database)"
+msgstr "densidad de la madera (especie, Global Wood Density Database)"
+
+#: apps/reports/ecosystem.py:91
+msgid "wood density (genus, Global Wood Density Database)"
+msgstr "densidad de la madera (género, Global Wood Density Database)"
+
+#: apps/reports/ecosystem.py:92
+msgid "wood density (family, Global Wood Density Database)"
+msgstr "densidad de la madera (familia, Global Wood Density Database)"
+
+#: apps/reports/ecosystem.py:93
+msgid "wood density (census median)"
+msgstr "densidad de la madera (mediana del censo)"
+
+#: apps/reports/metrics.py:74 apps/reports/metrics.py:95
 msgid "crown projection area"
 msgstr "área de proyección de copa"
 
-#: apps/reports/metrics.py:83
+#: apps/reports/metrics.py:84
 msgid "crown asymmetry"
 msgstr "asimetría de copa"
 
-#: apps/reports/metrics.py:105
+#: apps/reports/metrics.py:106
 msgid "live crown ratio"
 msgstr "proporción de copa viva"
 
-#: apps/reports/metrics.py:116
+#: apps/reports/metrics.py:117
 msgid "wind-exposed crown area"
 msgstr "área de copa expuesta al viento"
 
-#: apps/reports/metrics.py:121
+#: apps/reports/metrics.py:122
 msgid "Elliptical crown profile; wind load grows with it."
 msgstr "Perfil de copa elíptico; la carga de viento crece con esta área."
 
-#: apps/reports/metrics.py:134
+#: apps/reports/metrics.py:135
 msgid "basal area"
 msgstr "área basal"
 
-#: apps/reports/metrics.py:143
+#: apps/reports/metrics.py:144
 msgid "slenderness"
 msgstr "esbeltez"
 
-#: apps/reports/metrics.py:151
+#: apps/reports/metrics.py:152
 msgid "residual sound wall t/R"
 msgstr "pared sana residual t/R"
 
-#: apps/reports/metrics.py:157
+#: apps/reports/metrics.py:158
 msgid "Limit 0.32 (Mattheck); assumes a centred hollow."
 msgstr "Límite 0,32 (Mattheck); supone un hueco centrado."
 
-#: apps/reports/metrics.py:163
+#: apps/reports/metrics.py:164
 msgid "estimated loss of bending strength"
 msgstr "pérdida estimada de resistencia a la flexión"
 
-#: apps/reports/metrics.py:168
+#: apps/reports/metrics.py:169
 msgid "Centred hollow (Wagener)."
 msgstr "Hueco centrado (Wagener)."
 
-#: apps/reports/metrics.py:177
+#: apps/reports/metrics.py:178
 msgid "dynamic MOE vs species mean"
 msgstr "MOE dinámico frente a la media de la especie"
 
-#: apps/reports/metrics.py:181
+#: apps/reports/metrics.py:182
 msgid "green density vs species mean"
 msgstr "densidad verde frente a la media de la especie"
 
-#: apps/reports/metrics.py:198
-msgid "wood density measured on this tree"
-msgstr "densidad de la madera medida en este árbol"
-
-#: apps/reports/metrics.py:200
-msgid "wood density of the species (database)"
-msgstr "densidad de la madera de la especie (base de datos)"
-
-#: apps/reports/metrics.py:205
-msgid "above-ground biomass"
-msgstr "biomasa aérea"
-
-#: apps/reports/metrics.py:210
+#: apps/reports/metrics.py:206
 #, python-format
-msgid "Chave et al. 2014, fitted on forest trees; %(source)s."
-msgstr "Chave et al. 2014, ajustada con árboles de bosque; %(source)s."
+msgid "Estimated with imputed inputs: %(inputs)s."
+msgstr "Estimado con datos imputados: %(inputs)s."
 
-#: apps/reports/metrics.py:217
-msgid "stored CO₂ equivalent"
-msgstr "CO₂ equivalente almacenado"
+#: apps/reports/metrics.py:216
+msgid "stored carbon"
+msgstr "carbono almacenado"
 
-#: apps/reports/metrics.py:248
+#: apps/reports/metrics.py:222
+#, python-format
+msgid ""
+"Accumulated over the tree's life (stock). Chave et al. 2005, moist forest, "
+"without height; roots ×1.26, urban trees ×0.8, carbon fraction 0.47. Palms: "
+"10 + 6.4 · H (Frangi & Lugo 1985). %(co2).0f kg CO₂e."
+msgstr ""
+"Acumulado en la vida del árbol (stock). Chave et al. 2005, bosque húmedo, "
+"sin altura; raíces ×1,26, árbol urbano ×0,8, fracción de carbono 0,47. "
+"Palmas: 10 + 6,4 · H (Frangi y Lugo 1985). %(co2).0f kg CO₂e."
+
+#: apps/reports/metrics.py:234
+msgid "intercepted rain"
+msgstr "lluvia interceptada"
+
+#: apps/reports/metrics.py:236
+msgid "m³/year"
+msgstr "m³/año"
+
+#: apps/reports/metrics.py:240
+#, python-format
+msgid ""
+"Rain held by the crown each rainy day (2022, 2023, 2025; nearest IDEAM "
+"station scaled with CHIRPS). Leaf area index %(lai).1f (Nowak 1996), crown "
+"area %(area).0f m². Lower bound: evaporation during the storm is not counted."
+msgstr ""
+"Lluvia que retiene la copa cada día de lluvia (2022, 2023 y 2025; estación "
+"del IDEAM más cercana escalada con CHIRPS). Índice de área foliar %(lai).1f "
+"(Nowak 1996), área de copa %(area).0f m². Cota inferior: no cuenta la "
+"evaporación durante el aguacero."
+
+#: apps/reports/metrics.py:273
 msgid "intervention criteria met"
 msgstr "criterios de intervención cumplidos"
 
-#: apps/reports/metrics.py:252
+#: apps/reports/metrics.py:277
 msgid ""
 "damage > 50 %, MOEd ≤ −20 %, biomechanical risk high, visual risk ≥ "
 "moderate, green density ±20 %"
@@ -456,14 +508,6 @@ msgstr "estudios"
 #: apps/reports/models.py:100
 msgid "trunk height"
 msgstr "altura del tronco"
-
-#: apps/reports/models.py:101
-msgid "total height"
-msgstr "altura total"
-
-#: apps/reports/models.py:102
-msgid "crown diameter"
-msgstr "diámetro de la copa"
 
 #: apps/reports/models.py:103
 msgid "diameter at breast height"
@@ -1021,6 +1065,42 @@ msgstr "carga de archivo"
 #: apps/reports/models.py:647
 msgid "uploads"
 msgstr "cargas de archivos"
+
+#: apps/reports/models.py:670
+msgid "carbon stock (kg C)"
+msgstr "carbono almacenado (kg C)"
+
+#: apps/reports/models.py:672
+msgid "intercepted rain (m³/year)"
+msgstr "lluvia interceptada (m³/año)"
+
+#: apps/reports/models.py:675
+msgid "crown projection area (m²)"
+msgstr "área de proyección de copa (m²)"
+
+#: apps/reports/models.py:677
+msgid "leaf area index"
+msgstr "índice de área foliar"
+
+#: apps/reports/models.py:679
+msgid "imputed inputs"
+msgstr "datos imputados"
+
+#: apps/reports/models.py:682
+msgid "Inputs that were missing or impossible and were estimated."
+msgstr "Datos que faltaban o eran imposibles y se estimaron."
+
+#: apps/reports/models.py:684
+msgid "computed at"
+msgstr "calculado en"
+
+#: apps/reports/models.py:687
+msgid "ecosystem service estimate"
+msgstr "estimación de servicios ecosistémicos"
+
+#: apps/reports/models.py:688
+msgid "ecosystem service estimates"
+msgstr "estimaciones de servicios ecosistémicos"
 
 #: apps/reports/upload.py:161
 #, python-format

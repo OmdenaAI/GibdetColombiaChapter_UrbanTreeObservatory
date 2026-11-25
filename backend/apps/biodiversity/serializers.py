@@ -15,6 +15,9 @@ class BiodiversityRecordSerializer(serializers.ModelSerializer):
     neighborhood = NeighborhoodLightSerializer(read_only=True)
     longitude = serializers.FloatField(read_only=True)
     latitude = serializers.FloatField(read_only=True)
+    # Ecosystem services of the tree (``EcosystemService``; null until computed).
+    carbon_kg = serializers.SerializerMethodField()
+    rain_interception_m3 = serializers.SerializerMethodField()
 
     class Meta:
         model = BiodiversityRecord
@@ -34,8 +37,22 @@ class BiodiversityRecordSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "system_comment",
+            "carbon_kg",
+            "rain_interception_m3",
         ]
         read_only_fields = ["longitude", "latitude", "system_comment"]
+
+    @staticmethod
+    def _service(obj, field):
+        es = getattr(obj, "ecosystem_service", None)
+        value = getattr(es, field, None) if es else None
+        return round(value, 2) if value is not None else None
+
+    def get_carbon_kg(self, obj):
+        return self._service(obj, "carbon_kg")
+
+    def get_rain_interception_m3(self, obj):
+        return self._service(obj, "rain_interception_m3")
 
 
 class BiodiversityRecordGeoSerializer(GeoFeatureModelSerializer):

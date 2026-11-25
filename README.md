@@ -172,6 +172,18 @@ Then load the studies (see each study's README):
 docker compose exec backend python manage.py import_study apps/reports/studies/torres_payares_2025
 ```
 
+Finally, estimate each tree's ecosystem services (stored carbon and intercepted rain), which
+the map, the dashboard and the tree sheets add up by barrio, comuna and city. The method and
+its references are in `backend/apps/reports/ecosystem.py`; the rain curves and the wood
+densities of the Global Wood Density Database (for trees without one) are in
+`backend/apps/reports/data/`, exported by the analysis notebook. Missing inputs are filled
+with census-wide medians, so run it again after any change to the census (new trees,
+uploads, studies):
+
+```bash
+docker compose exec backend python manage.py compute_ecosystem_services
+```
+
 The species sheets of the Tolima arborization manual are optional. Their text is not in this
 repository (see [Data sources and credits](#data-sources-and-credits)); to generate and load
 them from your own copy of the PDF, follow [`scripts/README.md`](scripts/README.md).
@@ -279,6 +291,9 @@ public deployment...) is in [ROADMAP.md](ROADMAP.md).
 - **Instrumental assessment of 100 urban trees**: Torres Payares, L. E. (2025), Universidad
   del Tolima, published with the author's authorization; sources and reconciliation in
   [`backend/apps/reports/studies/torres_payares_2025`](backend/apps/reports/studies/torres_payares_2025/README.md).
+- **Wood density**: Global Wood Density Database (Chave et al., 2009; Zanne et al., 2009,
+  Dryad, CC0), as distributed in the `wdData` table of the BIOMASS R package; used for the
+  trees without a census density.
 - **References**: the studies on urban trees that inspired the platform are cited on its
   About page.
 

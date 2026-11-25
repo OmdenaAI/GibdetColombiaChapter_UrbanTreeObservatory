@@ -4,17 +4,19 @@ Formula symbols: D = DBH (m; cm in the biomass equation), H = total height,
 Hc = crown base (trunk) height, Dc / Dns / Deo = crown diameter (mean / N-S / E-W),
 a = damaged fraction of the cross-section, ρ = basic wood density (g/cm³).
 
-Nothing here is stored: each indicator is computed on request from the values it
-depends on, so it always follows the data and its formula is shown with it. They are
-estimates: each one says which formula and assumptions it uses.
+The structural indicators are computed on request from the values they depend on, so
+they always follow the data and their formula is shown with them; the ecosystem services
+are read from ``EcosystemService``, because their missing inputs are filled with medians
+of the whole census. All are estimates: each one says which formula and assumptions it
+uses.
 
 References
 - Crown and stem form: ISA (2017) Tree Risk Assessment; i-Tree Eco crown variables.
 - Residual wall t/R and the 0.32 limit: Mattheck & Breloer (1994), The Body Language
   of Trees. Assumes the damaged area is a centred, circular hollow.
 - Strength loss of a hollow stem, (d/D)^3: Wagener (1963); Coder (1989).
-- Above-ground biomass: Chave et al. (2014), Glob. Change Biol. 20: 3177, eq. 4,
-  fitted on forest trees; carbon fraction 0.47 (IPCC 2006).
+- Carbon stock and intercepted rain: stored per tree by ``compute_ecosystem_services``
+  (method and references in ``apps.reports.ecosystem``).
 - Intervention criteria: Torres Payares (2025), recommendations - internal damage
   > 50 %, MOEd at least 20 % below the species mean, high biomechanical risk, visible
   damage in the visual assessment, green density more than 20 % from the species mean.
@@ -25,14 +27,13 @@ import math
 from django.db.models import Avg
 from django.utils.translation import gettext as _
 
-from .models import Assessment, Measurement
+from .models import Assessment, EcosystemService, Measurement
 
 A = Measurement.MeasuredAttribute
 
 RESIDUAL_WALL_LIMIT = 0.32
 DAMAGE_LIMIT = 50  # %
 DEVIATION_LIMIT = 20  # % from the species mean
-CARBON_FRACTION = 0.47
 CO2_PER_C = 44 / 12
 
 
@@ -171,7 +172,7 @@ def _stem(v):
     return out
 
 
-def _wood(v, wd_method, means):
+def _wood(v, means):
     out = []
     for key, attribute, label in (
         ("moe_vs_species", A.DYNAMIC_MOE, _("dynamic MOE vs species mean")),
@@ -191,34 +192,58 @@ def _wood(v, wd_method, means):
             else (abs(dev) > DEVIATION_LIMIT)
         )
         out.append(_metric(key, label, dev, "%", "x / x̄ − 1", 0, flag=flag))
-    dbh, ht, wd = v.get(A.DIAMETER_BH), v.get(A.TOTAL_HEIGHT), v.get(A.WOOD_DENSITY)
-    if dbh and ht and wd:
-        agb = 0.0673 * (wd * dbh**2 * ht) ** 0.976
-        source = (
-            _("wood density measured on this tree")
-            if wd_method == Measurement.MeasurementMethod.INCREMENT_BORER
-            else _("wood density of the species (database)")
-        )
+    return out
+
+
+def _services(record):
+    """Carbon stock and intercepted rain, as stored by ``compute_ecosystem_services``
+    (the same values the barrio, comuna and city statistics add up)."""
+    try:
+        es = record.ecosystem_service
+    except EcosystemService.DoesNotExist:
+        return []
+    note = (
+        _("Estimated with imputed inputs: %(inputs)s.")
+        % {"inputs": ", ".join(_(x) for x in es.imputed.split(", "))}
+        if es.imputed
+        else None
+    )
+    out = []
+    if es.carbon_kg is not None:
         out.append(
             _metric(
-                "biomass",
-                _("above-ground biomass"),
-                agb,
-                "kg",
-                "0.0673 · (ρ · D² · H)^0.976",
+                "carbon_stock",
+                _("stored carbon"),
+                es.carbon_kg,
+                "kg C",
+                "ρ · exp(−1.499 + 2.148 ln D + 0.207 (ln D)² − 0.0281 (ln D)³) · 1.26 · 0.8 · 0.47",
                 0,
-                note=_("Chave et al. 2014, fitted on forest trees; %(source)s.")
-                % {"source": source},
+                note=_(
+                    "Accumulated over the tree's life (stock). Chave et al. 2005, moist forest, "
+                    "without height; roots ×1.26, urban trees ×0.8, carbon fraction 0.47. "
+                    "Palms: 10 + 6.4 · H (Frangi & Lugo 1985). %(co2).0f kg CO₂e."
+                )
+                % {"co2": es.carbon_kg * CO2_PER_C}
+                + (f" {note}" if note else ""),
             )
         )
+    if es.rain_interception_m3 is not None:
         out.append(
             _metric(
-                "co2",
-                _("stored CO₂ equivalent"),
-                agb * CARBON_FRACTION * CO2_PER_C,
-                "kg",
-                "AGB · 0.47 · 44/12",
-                0,
+                "rain_interception",
+                _("intercepted rain"),
+                es.rain_interception_m3,
+                _("m³/year"),
+                "Ac · Σ min(P, 0.2 mm · LAI)",
+                2,
+                note=_(
+                    "Rain held by the crown each rainy day (2022, 2023, 2025; nearest IDEAM "
+                    "station scaled with CHIRPS). Leaf area index %(lai).1f (Nowak 1996), crown "
+                    "area %(area).0f m². Lower bound: evaporation during the storm is not "
+                    "counted."
+                )
+                % {"lai": es.leaf_area_index, "area": es.crown_area_m2}
+                + (f" {note}" if note else ""),
             )
         )
     return out
@@ -262,12 +287,11 @@ def tree_metrics(record, measurements, assessment):
     latest assessment."""
     latest = {m.attribute: m for m in measurements if m.is_latest}
     v = {attribute: m.value for attribute, m in latest.items()}
-    wd = latest.get(A.WOOD_DENSITY)
     means = (
         species_means(record.species_id)
         if A.DYNAMIC_MOE in v or A.GREEN_DENSITY in v
         else {}
     )
-    metrics = _crown(v) + _stem(v) + _wood(v, wd and wd.method, means)
+    metrics = _crown(v) + _stem(v) + _wood(v, means) + _services(record)
     priority = _priority(v, assessment, metrics)
     return metrics + ([priority] if priority else [])

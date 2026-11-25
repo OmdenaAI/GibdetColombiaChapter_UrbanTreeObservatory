@@ -47,6 +47,19 @@ class TestBiodiversityRecordAPI:
         assert (
             response.data["neighborhood"]["id"] == biodiversity_record.neighborhood.id
         )
+        assert response.data["carbon_kg"] is None  # not computed yet
+
+        from apps.reports.models import EcosystemService
+
+        EcosystemService.objects.create(
+            biodiversity_record=biodiversity_record,
+            carbon_kg=123.456,
+            rain_interception_m3=1.234,
+            crown_area_m2=10.0,
+            leaf_area_index=3.0,
+        )
+        data = authenticated_client.get(url).data
+        assert (data["carbon_kg"], data["rain_interception_m3"]) == (123.46, 1.23)
 
     @pytest.mark.skip(reason="GeoJSON format not working correctly yet")
     def test_biodiversity_record_geojson(
