@@ -248,6 +248,7 @@ class TestTreeStatistics:
         from apps.biodiversity.factories import BiodiversityRecordFactory
         from apps.places.factories import NeighborhoodFactory
         from apps.reports.factories import MeasurementFactory
+        from apps.reports.models import EcosystemService
         from apps.taxonomy.factories import SpeciesFactory
 
         other_species = SpeciesFactory()
@@ -262,6 +263,13 @@ class TestTreeStatistics:
             )
             MeasurementFactory(
                 biodiversity_record=record, attribute="DBH", value=99.0, unit="cm"
+            )
+            EcosystemService.objects.create(
+                biodiversity_record=record,
+                carbon_kg=1500.0,
+                rain_interception_m3=2.5,
+                crown_area_m2=20.0,
+                leaf_area_index=3.0,
             )
         empty = NeighborhoodFactory(locality=neighborhood.locality)
         return neighborhood, empty
@@ -278,10 +286,16 @@ class TestTreeStatistics:
             "total_trees": 3,
             "species_count": 2,
             "avg_height_m": 20.0,
+            "carbon_t": 4.5,
+            "carbon_co2e_t": 16.5,
+            "rain_interception_m3": 8,
         }
         assert by_id[empty.id]["total_trees"] == 0
         assert by_id[empty.id]["avg_height_m"] is None
+        assert by_id[empty.id]["carbon_t"] == 0
         assert response.data["overall"]["total_trees"] == 3
+        assert response.data["overall"]["carbon_t"] == 4.5
+        assert response.data["overall"]["rain_interception_m3"] == 8
 
     def test_neighborhood_bbox(self, api_client, trees):
         from django.contrib.gis.geos import MultiPolygon, Polygon
@@ -306,6 +320,7 @@ class TestTreeStatistics:
         row = by_id[neighborhood.id]
         assert row["total_trees"] == 3
         assert row["avg_height_m"] == 20.0
+        assert row["rain_interception_m3"] == 8
         assert row["locality"] == neighborhood.locality.name
         assert row["boundary"]["type"] == "MultiPolygon"
         assert by_id[empty.id]["total_trees"] == 0
@@ -330,3 +345,4 @@ class TestTreeStatistics:
         by_id = {r["id"]: r for r in response.data["results"]}
         assert by_id[neighborhood.locality_id]["total_trees"] == 3
         assert by_id[neighborhood.locality_id]["species_count"] == 2
+        assert by_id[neighborhood.locality_id]["carbon_t"] == 4.5

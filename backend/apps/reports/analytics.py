@@ -10,18 +10,18 @@ Each block answers one management question about the census:
 - ``threatened``: trees of species in a threatened IUCN category.
 
 The whole payload is cached: the census changes rarely and the spatial join takes a
-few seconds. The key includes the number of active trees (see ``analytics_summary``).
+few seconds. The key changes with the data (see ``_data_version``).
 """
 
 from django.core.cache import cache
 from django.db import connection
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 
 from apps.biodiversity.models import BiodiversityRecord
 
-from .models import Observation
+from .models import Measurement, Observation
 
-CACHE_KEY = "reports:analytics:v2"
+CACHE_KEY = "reports:analytics:v3"
 CACHE_SECONDS = 60 * 60
 
 TOP_SPECIES = 10
@@ -69,20 +69,26 @@ def _comunas():
         """
         WITH placed AS (
             -- One comuna per tree, also for points on a shared border.
+            -- Planar test on geometry: same result as on geography for these
+            -- small polygons, and about ten times faster.
             SELECT DISTINCT ON (r.id) r.id, l.id AS locality_id
             FROM biodiversity_biodiversityrecord r
             JOIN places_locality l
-              ON l.boundary IS NOT NULL AND ST_Intersects(l.boundary, r.location)
+              ON l.boundary IS NOT NULL
+             AND ST_Intersects(l.boundary::geometry, r.location::geometry)
             WHERE r.status = %s  -- active trees only
             ORDER BY r.id, l.id
         )
         SELECT l.id, l.name, l.population_2019 AS population,
                ST_Area(l.boundary) / 10000.0 AS area_ha,
-               count(p.id) AS trees,
-               count(p.id) FILTER (WHERE o.phytosanitary_status = ANY(%s)) AS issues
+               -- DISTINCT: a tree may have several observations.
+               count(DISTINCT p.id) AS trees,
+               count(DISTINCT p.id)
+                   FILTER (WHERE o.phytosanitary_status = ANY(%s)) AS issues
         FROM places_locality l
         LEFT JOIN placed p ON p.locality_id = l.id
-        LEFT JOIN reports_observation o ON o.biodiversity_record_id = p.id
+        LEFT JOIN reports_observation o
+          ON o.biodiversity_record_id = p.id AND o.is_latest
         WHERE l.boundary IS NOT NULL
         GROUP BY l.id
         ORDER BY l.id
@@ -127,7 +133,9 @@ def _species_health():
         .values_list("species_id", flat=True)[:TOP_SPECIES]
     )
     rows = (
-        Observation.objects.filter(biodiversity_record__species_id__in=top_ids)
+        Observation.objects.filter(
+            biodiversity_record__species_id__in=top_ids, is_latest=True
+        )
         .values(
             "biodiversity_record__species_id",
             "biodiversity_record__species__genus__name",
@@ -183,7 +191,9 @@ def _threatened():
 
 def _summary():
     total = BiodiversityRecord.objects.count()
-    issues = Observation.objects.filter(phytosanitary_status__in=ISSUES).count()
+    issues = Observation.objects.filter(
+        phytosanitary_status__in=ISSUES, is_latest=True
+    ).count()
     origin = _origin(total)
     comunas = _comunas()
     population = sum(c["population"] or 0 for c in comunas["results"])
@@ -201,10 +211,27 @@ def _summary():
     }
 
 
+def _data_version():
+    """Changes whenever trees, measurements or observations do: the number of active
+    trees (removals), the last tree edit and the newest measurement / observation."""
+    trees = BiodiversityRecord.objects.aggregate(
+        n=Count("id"), edited=Max("updated_at")
+    )
+    return ":".join(
+        str(v)
+        for v in (
+            trees["n"],
+            trees["edited"] and trees["edited"].timestamp(),
+            Measurement.all_objects.aggregate(m=Max("id"))["m"],
+            Observation.all_objects.aggregate(m=Max("id"))["m"],
+        )
+    )
+
+
 def analytics_summary(refresh=False):
-    # Keyed by the number of active trees: marking trees as removed (or active again)
-    # shows at once, whatever process cached the previous payload.
-    key = f"{CACHE_KEY}:{BiodiversityRecord.objects.count()}"
+    # Keyed by the state of the data: a removal or an uploaded file shows at once,
+    # whatever process cached the previous payload.
+    key = f"{CACHE_KEY}:{_data_version()}"
     data = None if refresh else cache.get(key)
     if data is None:
         data = _summary()

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-02 09:18-0500\n"
+"POT-Creation-Date: 2026-11-24 13:30-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,50 +19,154 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
 "1 : 2;\n"
 
-#: apps/biodiversity/models.py:17
+#: apps/biodiversity/admin.py:50
+msgid "Mark selected trees as removed (felled, today)"
+msgstr "Marcar los árboles seleccionados como retirados (talados, hoy)"
+
+#: apps/biodiversity/admin.py:61
+#, python-format
+msgid ""
+"%(n)d trees marked as removed. Edit them to adjust the date, reason or note."
+msgstr ""
+"%(n)d árboles marcados como retirados. Edítalos para ajustar la fecha, el "
+"motivo o la nota."
+
+#: apps/biodiversity/admin.py:67
+msgid "Mark selected trees as active again"
+msgstr "Marcar los árboles seleccionados como vigentes de nuevo"
+
+#: apps/biodiversity/admin.py:76
+#, python-format
+msgid "%(n)d trees marked as active."
+msgstr "%(n)d árboles marcados como vigentes."
+
+# Tree status (apps/biodiversity)
+#: apps/biodiversity/models.py:31
+msgid "active"
+msgstr "vigente"
+
+#: apps/biodiversity/models.py:32
+msgid "removed"
+msgstr "retirado"
+
+#: apps/biodiversity/models.py:37
+msgid "park"
+msgstr "parque"
+
+#: apps/biodiversity/models.py:38
+msgid "sidewalk"
+msgstr "andén"
+
+#: apps/biodiversity/models.py:39
+msgid "road median"
+msgstr "separador vial"
+
+#: apps/biodiversity/models.py:40
+msgid "green strip"
+msgstr "zona blanda"
+
+#: apps/biodiversity/models.py:41
+msgid "tree pit"
+msgstr "alcorque"
+
+#: apps/biodiversity/models.py:42
+msgid "front garden"
+msgstr "antejardín"
+
+#: apps/biodiversity/models.py:43
+msgid "roundabout"
+msgstr "glorieta"
+
+#: apps/biodiversity/models.py:46
+msgid "felled"
+msgstr "talado"
+
+#: apps/biodiversity/models.py:47
+msgid "fallen"
+msgstr "caído"
+
+#: apps/biodiversity/models.py:48
+msgid "dead standing"
+msgstr "muerto en pie"
+
+#: apps/biodiversity/models.py:49
+msgid "transplanted"
+msgstr "trasladado"
+
+#: apps/biodiversity/models.py:50 apps/taxonomy/models.py:188
+#: apps/taxonomy/models.py:202 apps/taxonomy/models.py:215
+msgid "other"
+msgstr "otro"
+
+#: apps/biodiversity/models.py:53
 msgid "common name"
 msgstr "nombre común"
 
-#: apps/biodiversity/models.py:23 apps/taxonomy/models.py:281
+#: apps/biodiversity/models.py:59 apps/taxonomy/models.py:293
 msgctxt "plural"
 msgid "species"
 msgstr "especies"
 
-#: apps/biodiversity/models.py:29 apps/places/models/spatial.py:160
+#: apps/biodiversity/models.py:65 apps/places/models/spatial.py:160
 #: apps/places/models/spatial.py:181
 msgid "neighborhood"
 msgstr "barrio"
 
-#: apps/biodiversity/models.py:35 apps/places/models/sites.py:15
+#: apps/biodiversity/models.py:71 apps/places/models/sites.py:15
 msgid "site"
 msgstr "sitio"
 
-#: apps/biodiversity/models.py:39 apps/climate/models.py:12
+#: apps/biodiversity/models.py:75 apps/climate/models.py:12
 msgid "location"
 msgstr "ubicación"
 
-#: apps/biodiversity/models.py:40
+#: apps/biodiversity/models.py:76
 msgid "elevation (m)"
 msgstr "elevación (m)"
 
-#: apps/biodiversity/models.py:42 apps/reports/models.py:363
+#: apps/biodiversity/models.py:78 apps/reports/models.py:480
 msgid "recorded by"
 msgstr "registrado por"
 
-#: apps/biodiversity/models.py:44
+#: apps/biodiversity/models.py:80
 msgid "recorded date"
 msgstr "fecha de registro"
 
-#: apps/biodiversity/models.py:46
+#: apps/biodiversity/models.py:82 apps/reports/models.py:593
+msgid "planting site"
+msgstr "emplazamiento"
+
+#: apps/biodiversity/models.py:87
+msgid "Park, sidewalk, road median... Empty when unknown."
+msgstr "Parque, andén, separador vial... Vacío si no se conoce."
+
+#: apps/biodiversity/models.py:90
 msgid "system comment"
 msgstr "comentario del sistema"
 
-#: apps/biodiversity/models.py:50 apps/reports/models.py:41
-#: apps/reports/models.py:148
+#: apps/biodiversity/models.py:93 apps/reports/models.py:634
+msgid "status"
+msgstr "estado"
+
+#: apps/biodiversity/models.py:99
+msgid "removal date"
+msgstr "fecha de retiro"
+
+#: apps/biodiversity/models.py:101
+msgid "removal reason"
+msgstr "motivo del retiro"
+
+#: apps/biodiversity/models.py:103
+msgid "removal note"
+msgstr "nota del retiro"
+
+#: apps/biodiversity/models.py:109 apps/reports/models.py:140
+#: apps/reports/models.py:265 apps/reports/models.py:553
+#: apps/reports/models.py:667
 msgid "biodiversity record"
 msgstr "registro de biodiversidad"
 
-#: apps/biodiversity/models.py:51
+#: apps/biodiversity/models.py:110
 msgid "biodiversity records"
 msgstr "registros de biodiversidad"
 
@@ -95,7 +199,7 @@ msgstr "temperatura del aire a 2 m"
 msgid "Celsius"
 msgstr "Celsius"
 
-#: apps/climate/models.py:52 apps/reports/models.py:62
+#: apps/climate/models.py:52 apps/reports/models.py:161
 msgid "measurement date"
 msgstr "fecha de medición"
 
@@ -107,7 +211,7 @@ msgstr "descripción del sensor"
 msgid "measured value"
 msgstr "valor medido"
 
-#: apps/climate/models.py:61 apps/reports/models.py:51
+#: apps/climate/models.py:61 apps/reports/models.py:150
 msgid "measurement unit"
 msgstr "unidad de medida"
 
@@ -206,690 +310,1293 @@ msgstr "limite del barrio"
 msgid "neighborhoods"
 msgstr "barrios"
 
-#: apps/reports/models.py:15
-msgid "trunk height"
-msgstr "altura del tronco"
+#: apps/reports/ecosystem.py:86
+msgid "DBH"
+msgstr "DAP"
 
-#: apps/reports/models.py:16
+#: apps/reports/ecosystem.py:87 apps/reports/models.py:101
 msgid "total height"
 msgstr "altura total"
 
-#: apps/reports/models.py:17
+#: apps/reports/ecosystem.py:88 apps/reports/models.py:102
 msgid "crown diameter"
 msgstr "diámetro de la copa"
 
-#: apps/reports/models.py:18
+#: apps/reports/ecosystem.py:89
+msgid "crown height"
+msgstr "altura de la copa"
+
+#: apps/reports/ecosystem.py:90
+msgid "wood density (species, Global Wood Density Database)"
+msgstr "densidad de la madera (especie, Global Wood Density Database)"
+
+#: apps/reports/ecosystem.py:91
+msgid "wood density (genus, Global Wood Density Database)"
+msgstr "densidad de la madera (género, Global Wood Density Database)"
+
+#: apps/reports/ecosystem.py:92
+msgid "wood density (family, Global Wood Density Database)"
+msgstr "densidad de la madera (familia, Global Wood Density Database)"
+
+#: apps/reports/ecosystem.py:93
+msgid "wood density (census median)"
+msgstr "densidad de la madera (mediana del censo)"
+
+#: apps/reports/metrics.py:74 apps/reports/metrics.py:95
+msgid "crown projection area"
+msgstr "área de proyección de copa"
+
+#: apps/reports/metrics.py:84
+msgid "crown asymmetry"
+msgstr "asimetría de copa"
+
+#: apps/reports/metrics.py:106
+msgid "live crown ratio"
+msgstr "proporción de copa viva"
+
+#: apps/reports/metrics.py:117
+msgid "wind-exposed crown area"
+msgstr "área de copa expuesta al viento"
+
+#: apps/reports/metrics.py:122
+msgid "Elliptical crown profile; wind load grows with it."
+msgstr "Perfil de copa elíptico; la carga de viento crece con esta área."
+
+#: apps/reports/metrics.py:135
+msgid "basal area"
+msgstr "área basal"
+
+#: apps/reports/metrics.py:144
+msgid "slenderness"
+msgstr "esbeltez"
+
+#: apps/reports/metrics.py:152
+msgid "residual sound wall t/R"
+msgstr "pared sana residual t/R"
+
+#: apps/reports/metrics.py:158
+msgid "Limit 0.32 (Mattheck); assumes a centred hollow."
+msgstr "Límite 0,32 (Mattheck); supone un hueco centrado."
+
+#: apps/reports/metrics.py:164
+msgid "estimated loss of bending strength"
+msgstr "pérdida estimada de resistencia a la flexión"
+
+#: apps/reports/metrics.py:169
+msgid "Centred hollow (Wagener)."
+msgstr "Hueco centrado (Wagener)."
+
+#: apps/reports/metrics.py:178
+msgid "dynamic MOE vs species mean"
+msgstr "MOE dinámico frente a la media de la especie"
+
+#: apps/reports/metrics.py:182
+msgid "green density vs species mean"
+msgstr "densidad verde frente a la media de la especie"
+
+#: apps/reports/metrics.py:206
+#, python-format
+msgid "Estimated with imputed inputs: %(inputs)s."
+msgstr "Estimado con datos imputados: %(inputs)s."
+
+#: apps/reports/metrics.py:216
+msgid "stored carbon"
+msgstr "carbono almacenado"
+
+#: apps/reports/metrics.py:222
+#, python-format
+msgid ""
+"Accumulated over the tree's life (stock). Chave et al. 2005, moist forest, "
+"without height; roots ×1.26, urban trees ×0.8, carbon fraction 0.47. Palms: "
+"10 + 6.4 · H (Frangi & Lugo 1985). %(co2).0f kg CO₂e."
+msgstr ""
+"Acumulado en la vida del árbol (stock). Chave et al. 2005, bosque húmedo, "
+"sin altura; raíces ×1,26, árbol urbano ×0,8, fracción de carbono 0,47. "
+"Palmas: 10 + 6,4 · H (Frangi y Lugo 1985). %(co2).0f kg CO₂e."
+
+#: apps/reports/metrics.py:234
+msgid "intercepted rain"
+msgstr "lluvia interceptada"
+
+#: apps/reports/metrics.py:236
+msgid "m³/year"
+msgstr "m³/año"
+
+#: apps/reports/metrics.py:240
+#, python-format
+msgid ""
+"Rain held by the crown each rainy day (2022, 2023, 2025; nearest IDEAM "
+"station scaled with CHIRPS). Leaf area index %(lai).1f (Nowak 1996), crown "
+"area %(area).0f m². Lower bound: evaporation during the storm is not counted."
+msgstr ""
+"Lluvia que retiene la copa cada día de lluvia (2022, 2023 y 2025; estación "
+"del IDEAM más cercana escalada con CHIRPS). Índice de área foliar %(lai).1f "
+"(Nowak 1996), área de copa %(area).0f m². Cota inferior: no cuenta la "
+"evaporación durante el aguacero."
+
+#: apps/reports/metrics.py:273
+msgid "intervention criteria met"
+msgstr "criterios de intervención cumplidos"
+
+#: apps/reports/metrics.py:277
+msgid ""
+"damage > 50 %, MOEd ≤ −20 %, biomechanical risk high, visual risk ≥ "
+"moderate, green density ±20 %"
+msgstr ""
+"afectación > 50 %, MOEd ≤ −20 %, riesgo biomecánico alto, riesgo visual ≥ "
+"moderado, densidad verde ±20 %"
+
+#: apps/reports/models.py:64
+msgid "identifier"
+msgstr "identificador"
+
+#: apps/reports/models.py:65
+msgid "title"
+msgstr "título"
+
+#: apps/reports/models.py:66
+msgid "authors"
+msgstr "autores"
+
+#: apps/reports/models.py:67
+msgid "institution"
+msgstr "institución"
+
+#: apps/reports/models.py:68
+msgid "year"
+msgstr "año"
+
+#: apps/reports/models.py:70
+msgid "date"
+msgstr "fecha"
+
+#: apps/reports/models.py:70
+msgid "Date given to the study's measurements."
+msgstr "Fecha asignada a las mediciones del estudio."
+
+#: apps/reports/models.py:72
+msgid "citation"
+msgstr "cita"
+
+#: apps/reports/models.py:74
+msgid "short citation"
+msgstr "cita abreviada"
+
+#: apps/reports/models.py:78
+msgid "APA in-text citation shown next to its values, e.g. Torres (2025)."
+msgstr ""
+"Cita en el texto (APA) que se muestra junto a sus valores, p. ej. Torres "
+"(2025)."
+
+#: apps/reports/models.py:81
+msgid "methods"
+msgstr "métodos"
+
+#: apps/reports/models.py:82 apps/reports/models.py:601
+msgid "notes"
+msgstr "notas"
+
+#: apps/reports/models.py:85 apps/reports/models.py:168
+#: apps/reports/models.py:491 apps/reports/models.py:559
+msgid "study"
+msgstr "estudio"
+
+#: apps/reports/models.py:86
+msgid "studies"
+msgstr "estudios"
+
+#: apps/reports/models.py:100
+msgid "trunk height"
+msgstr "altura del tronco"
+
+#: apps/reports/models.py:103
 msgid "diameter at breast height"
 msgstr "diámetro a la altura del pecho"
 
-#: apps/reports/models.py:19
+#: apps/reports/models.py:104
 msgid "volume"
 msgstr "volumen"
 
-#: apps/reports/models.py:20
+#: apps/reports/models.py:105
 msgid "wood density"
 msgstr "densidad de la madera"
 
-#: apps/reports/models.py:21 apps/reports/models.py:28
-#: apps/reports/models.py:35 apps/reports/models.py:91
-#: apps/reports/models.py:98 apps/reports/models.py:104
-#: apps/reports/models.py:110 apps/reports/models.py:118
-#: apps/reports/models.py:128 apps/reports/models.py:133
-#: apps/reports/models.py:142
+#: apps/reports/models.py:106
+msgid "crown diameter north-south"
+msgstr "diámetro de copa norte-sur"
+
+#: apps/reports/models.py:107
+msgid "crown diameter east-west"
+msgstr "diámetro de copa este-oeste"
+
+#: apps/reports/models.py:108
+msgid "internal damage"
+msgstr "afectación interna"
+
+#: apps/reports/models.py:109
+msgid "transverse acoustic velocity"
+msgstr "velocidad acústica transversal"
+
+#: apps/reports/models.py:110
+msgid "green wood density"
+msgstr "densidad verde de la madera"
+
+#: apps/reports/models.py:111
+msgid "dynamic modulus of elasticity"
+msgstr "módulo de elasticidad dinámico"
+
+#: apps/reports/models.py:112 apps/reports/models.py:122
+#: apps/reports/models.py:134 apps/reports/models.py:208
+#: apps/reports/models.py:215 apps/reports/models.py:221
+#: apps/reports/models.py:227 apps/reports/models.py:235
+#: apps/reports/models.py:245 apps/reports/models.py:250
+#: apps/reports/models.py:259
 msgid "not reported"
 msgstr "no reportado"
 
-#: apps/reports/models.py:24
+#: apps/reports/models.py:115
 msgid "meters (m)"
 msgstr "metros (m)"
 
-#: apps/reports/models.py:25
+#: apps/reports/models.py:116
 msgid "cubic meters (m3)"
 msgstr "metros cúbicos (m3)"
 
-#: apps/reports/models.py:26
+#: apps/reports/models.py:117
 msgid "centimeters (cm)"
 msgstr "centímetros (cm)"
 
-#: apps/reports/models.py:27
+#: apps/reports/models.py:118
 msgid "grams per cubic centimeter (g/cm3)"
 msgstr "gramos por centímetro cúbico (g/cm3)"
 
-#: apps/reports/models.py:31
+#: apps/reports/models.py:119
+msgid "percent (%)"
+msgstr "porcentaje (%)"
+
+#: apps/reports/models.py:120
+msgid "meters per second (m/s)"
+msgstr "metros por segundo (m/s)"
+
+#: apps/reports/models.py:121
+msgid "megapascals (MPa)"
+msgstr "megapascales (MPa)"
+
+#: apps/reports/models.py:125
 msgid "optical estimation"
 msgstr "estimación óptica"
 
-#: apps/reports/models.py:32
+#: apps/reports/models.py:126
 msgid "volume equation"
 msgstr "ecuación volumétrica"
 
-#: apps/reports/models.py:33
+#: apps/reports/models.py:127
 msgid "diameter tape"
 msgstr "cinta diamétrica"
 
-#: apps/reports/models.py:34
+#: apps/reports/models.py:128
 msgid "wood density database"
 msgstr "base de datos de la densidad de la madera"
 
-#: apps/reports/models.py:44
+#: apps/reports/models.py:129
+msgid "measuring tape"
+msgstr "cinta métrica"
+
+#: apps/reports/models.py:130
+msgid "laser hypsometer"
+msgstr "hipsómetro láser"
+
+#: apps/reports/models.py:131
+msgid "acoustic tomography"
+msgstr "tomografía acústica"
+
+#: apps/reports/models.py:132
+msgid "stress wave timer"
+msgstr "medidor de onda de esfuerzo (TreeSonic)"
+
+#: apps/reports/models.py:133
+msgid "increment borer core"
+msgstr "núcleo de barreno de Pressler"
+
+#: apps/reports/models.py:143
 msgid "measured attribute"
 msgstr "atributo medido"
 
-#: apps/reports/models.py:49
+#: apps/reports/models.py:148
 msgid "measurement value"
 msgstr "valor medido"
 
-#: apps/reports/models.py:57
+#: apps/reports/models.py:156
 msgid "measurement method"
 msgstr "método de medición"
 
-#: apps/reports/models.py:65
+#: apps/reports/models.py:172 apps/reports/models.py:495
+msgid "latest"
+msgstr "más reciente"
+
+#: apps/reports/models.py:175 apps/reports/models.py:498
+msgid "Newest row of this tree (see refresh_latest)."
+msgstr "Fila más reciente de este árbol (ver refresh_latest)."
+
+#: apps/reports/models.py:182
 msgid "measurement"
 msgstr "medida"
 
-#: apps/reports/models.py:66
+#: apps/reports/models.py:183
 msgid "measurements"
 msgstr "medidas"
 
-#: apps/reports/models.py:88
+#: apps/reports/models.py:205
 msgid "flowering"
 msgstr "floreciendo"
 
-#: apps/reports/models.py:89
+#: apps/reports/models.py:206
 msgid "fruiting"
 msgstr "dando frutos"
 
-#: apps/reports/models.py:90
+#: apps/reports/models.py:207
 msgid "sterile"
 msgstr "estéril"
 
-#: apps/reports/models.py:94
+#: apps/reports/models.py:211
 msgid "healthy"
 msgstr "saludable"
 
-#: apps/reports/models.py:95
+#: apps/reports/models.py:212
 msgid "sick"
 msgstr "enfermo"
 
-#: apps/reports/models.py:96
+#: apps/reports/models.py:213
 msgid "critical"
 msgstr "crítico"
 
-#: apps/reports/models.py:97
+#: apps/reports/models.py:214
 msgid "dead"
 msgstr "muerto"
 
-#: apps/reports/models.py:101
+#: apps/reports/models.py:218
 msgid "good"
 msgstr "bueno"
 
-#: apps/reports/models.py:102
+#: apps/reports/models.py:219
 msgid "fair"
 msgstr "regular"
 
-#: apps/reports/models.py:103
+#: apps/reports/models.py:220
 msgid "poor"
 msgstr "pobre"
 
-#: apps/reports/models.py:107
+#: apps/reports/models.py:224
 msgid "dense"
 msgstr "denso"
 
-#: apps/reports/models.py:108
+#: apps/reports/models.py:225 apps/reports/models.py:537
 msgid "medium"
 msgstr "medio"
 
-#: apps/reports/models.py:109
+#: apps/reports/models.py:226
 msgid "sparse"
 msgstr "espaciado"
 
-#: apps/reports/models.py:113
+#: apps/reports/models.py:230
 msgid "essential"
 msgstr "esencial"
 
-#: apps/reports/models.py:114
+#: apps/reports/models.py:231
 msgid "emblematic"
 msgstr "emblemático"
 
-#: apps/reports/models.py:115
+#: apps/reports/models.py:232
 msgid "desirable"
 msgstr "deseable"
 
-#: apps/reports/models.py:116
+#: apps/reports/models.py:233
 msgid "indifferent"
 msgstr "indiferente"
 
-#: apps/reports/models.py:117
+#: apps/reports/models.py:234
 msgid "unacceptable"
 msgstr "inaceptable"
 
-#: apps/reports/models.py:121
+#: apps/reports/models.py:238
 msgid "seedling"
 msgstr "plántula"
 
-#: apps/reports/models.py:122
+#: apps/reports/models.py:239
 msgid "juvenile"
 msgstr "juvenil"
 
-#: apps/reports/models.py:123
+#: apps/reports/models.py:240 apps/reports/models.py:543
 msgid "adult"
 msgstr "adulto"
 
-#: apps/reports/models.py:126
+#: apps/reports/models.py:243
 msgid "yes"
 msgstr "sí"
 
-#: apps/reports/models.py:127
+#: apps/reports/models.py:244
 msgid "no"
 msgstr "no"
 
-#: apps/reports/models.py:131
+#: apps/reports/models.py:248
 msgid "natural state"
 msgstr "estado natural"
 
-#: apps/reports/models.py:132
+#: apps/reports/models.py:249
 msgid "nutrient deficiency"
 msgstr "deficiencia de nutrientes"
 
-#: apps/reports/models.py:136
+#: apps/reports/models.py:253
 msgid "0%"
 msgstr "0%"
 
-#: apps/reports/models.py:137
+#: apps/reports/models.py:254
 msgid "20%"
 msgstr "20%"
 
-#: apps/reports/models.py:138
+#: apps/reports/models.py:255
 msgid "40%"
 msgstr "40%"
 
-#: apps/reports/models.py:139
+#: apps/reports/models.py:256
 msgid "60%"
 msgstr "60%"
 
-#: apps/reports/models.py:140
+#: apps/reports/models.py:257
 msgid "80%"
 msgstr "80%"
 
-#: apps/reports/models.py:141
+#: apps/reports/models.py:258
 msgid "100%"
 msgstr "100%"
 
-#: apps/reports/models.py:151
+#: apps/reports/models.py:268
 msgid "reproductive condition"
 msgstr "condición reproductiva"
 
-#: apps/reports/models.py:157
+#: apps/reports/models.py:274
 msgid "phytosanitary status"
 msgstr "estado fitosanitario"
 
-#: apps/reports/models.py:163
+#: apps/reports/models.py:280
 msgid "physical condition"
 msgstr "condición física"
 
-#: apps/reports/models.py:169
+#: apps/reports/models.py:286
 msgid "foliage density"
 msgstr "densidad de follaje"
 
-#: apps/reports/models.py:175
+#: apps/reports/models.py:292
 msgid "aesthetic value"
 msgstr "valor estético"
 
-#: apps/reports/models.py:181
+#: apps/reports/models.py:298
 msgid "growth phase"
 msgstr "fase de crecimiento"
 
-#: apps/reports/models.py:188
+#: apps/reports/models.py:305
 msgid "ed"
 msgstr "ed"
 
-#: apps/reports/models.py:194
+#: apps/reports/models.py:311
 msgid "hc"
 msgstr "hc"
 
-#: apps/reports/models.py:200
+#: apps/reports/models.py:317
 msgid "hcf"
 msgstr "hcf"
 
-#: apps/reports/models.py:207
+#: apps/reports/models.py:324
 msgid "standing"
 msgstr "posición"
 
-#: apps/reports/models.py:215
+#: apps/reports/models.py:332
 msgid "cre"
 msgstr "cre"
 
-#: apps/reports/models.py:221
+#: apps/reports/models.py:338
 msgid "crh"
 msgstr "crh"
 
-#: apps/reports/models.py:227
+#: apps/reports/models.py:344
 msgid "cra"
 msgstr "cra"
 
-#: apps/reports/models.py:233
+#: apps/reports/models.py:350
 msgid "coa"
 msgstr "coa"
 
-#: apps/reports/models.py:239
+#: apps/reports/models.py:356
 msgid "ce"
 msgstr "ce"
 
-#: apps/reports/models.py:245
+#: apps/reports/models.py:362
 msgid "civ"
 msgstr "civ"
 
-#: apps/reports/models.py:251
+#: apps/reports/models.py:368
 msgid "crt"
 msgstr "crt"
 
-#: apps/reports/models.py:257
+#: apps/reports/models.py:374
 msgid "crg"
 msgstr "crg"
 
-#: apps/reports/models.py:263
+#: apps/reports/models.py:380
 msgid "cap"
 msgstr "cap"
 
-#: apps/reports/models.py:271
+#: apps/reports/models.py:388
 msgid "rd"
 msgstr "rd"
 
-#: apps/reports/models.py:277
+#: apps/reports/models.py:394
 msgid "dm"
 msgstr "dm"
 
-#: apps/reports/models.py:283
+#: apps/reports/models.py:400
 msgid "bbs"
 msgstr "bbs"
 
-#: apps/reports/models.py:289
+#: apps/reports/models.py:406
 msgid "ab"
 msgstr "ab"
 
-#: apps/reports/models.py:295
+#: apps/reports/models.py:412
 msgid "pi"
 msgstr "pi"
 
-#: apps/reports/models.py:301
+#: apps/reports/models.py:418
 msgid "ph"
 msgstr "ph"
 
-#: apps/reports/models.py:307
+#: apps/reports/models.py:424
 msgid "pa"
 msgstr "pa"
 
-#: apps/reports/models.py:313
+#: apps/reports/models.py:430
 msgid "pd"
 msgstr "pd"
 
-#: apps/reports/models.py:319
+#: apps/reports/models.py:436
 msgid "pe"
 msgstr "pe"
 
-#: apps/reports/models.py:325
+#: apps/reports/models.py:442
 msgid "pp"
 msgstr "pp"
 
-#: apps/reports/models.py:331
+#: apps/reports/models.py:448
 msgid "po"
 msgstr "po"
 
-#: apps/reports/models.py:337
+#: apps/reports/models.py:454
 msgid "r_vol"
 msgstr "r_vol"
 
-#: apps/reports/models.py:343
+#: apps/reports/models.py:460
 msgid "r_cr"
 msgstr "r_cr"
 
-#: apps/reports/models.py:349
+#: apps/reports/models.py:466
 msgid "r_ce"
 msgstr "r_ce"
 
-#: apps/reports/models.py:356
+#: apps/reports/models.py:473
 msgid "photo URL"
 msgstr "URL de la foto"
 
-#: apps/reports/models.py:360
+#: apps/reports/models.py:477
 msgid "URL of the photo associated with the observation"
 msgstr "URL de la foto asociada a la observación"
 
-#: apps/reports/models.py:362
+#: apps/reports/models.py:479
 msgid "field notes"
 msgstr "notas en campo"
 
-#: apps/reports/models.py:365
+#: apps/reports/models.py:482
 msgid "accompanying collectors"
 msgstr "recolectores acompañantes"
 
-#: apps/reports/models.py:367
+#: apps/reports/models.py:484
 msgid "observation date"
 msgstr "fecha de la observación"
 
-#: apps/reports/models.py:370
+#: apps/reports/models.py:505
 msgid "observation"
 msgstr "observación"
 
-#: apps/reports/models.py:371
+#: apps/reports/models.py:506
 msgid "observations"
 msgstr "observaciones"
 
-#: apps/taxonomy/models.py:29
+#: apps/reports/models.py:529 apps/reports/models.py:536
+msgid "low"
+msgstr "bajo"
+
+#: apps/reports/models.py:530
+msgid "moderate"
+msgstr "moderado"
+
+#: apps/reports/models.py:531 apps/reports/models.py:538
+msgid "high"
+msgstr "alto"
+
+#: apps/reports/models.py:532
+msgid "extreme"
+msgstr "extremo"
+
+#: apps/reports/models.py:535
+msgid "no damage"
+msgstr "sin afectación"
+
+#: apps/reports/models.py:539
+msgid "very high"
+msgstr "muy alto"
+
+#: apps/reports/models.py:542
+msgid "young"
+msgstr "joven"
+
+#: apps/reports/models.py:544
+msgid "mature"
+msgstr "maduro"
+
+#: apps/reports/models.py:545
+msgid "overmature"
+msgstr "sobremaduro"
+
+#: apps/reports/models.py:561
+msgid "assessment date"
+msgstr "fecha de la evaluación"
+
+#: apps/reports/models.py:563
+msgid "code in the study"
+msgstr "código en el estudio"
+
+#: apps/reports/models.py:566
+msgid "The tree's number or code in the source, when it differs."
+msgstr "Número o código del árbol en la fuente, cuando difiere."
+
+#: apps/reports/models.py:569
+msgid "visual risk (EVA)"
+msgstr "riesgo visual (EVA)"
+
+#: apps/reports/models.py:572
+msgid "part of the tree at risk"
+msgstr "parte del árbol en riesgo"
+
+#: apps/reports/models.py:575
+msgid "biomechanical risk"
+msgstr "riesgo biomecánico"
+
+#: apps/reports/models.py:578
+msgid "internal damage level"
+msgstr "nivel de afectación interna"
+
+#: apps/reports/models.py:581
+msgid "diameter of the most damaged section (cm)"
+msgstr "diámetro de la sección más afectada (cm)"
+
+#: apps/reports/models.py:584
+msgid "height of the most damaged section (cm)"
+msgstr "altura de la sección más afectada (cm)"
+
+#: apps/reports/models.py:587
+msgid "sections scanned"
+msgstr "secciones medidas"
+
+#: apps/reports/models.py:590
+msgid "age class"
+msgstr "clase de edad"
+
+#: apps/reports/models.py:596
+msgid "crown light exposure (1-5)"
+msgstr "exposición de la copa a la luz (1-5)"
+
+#: apps/reports/models.py:599
+msgid "crown light exposure (%)"
+msgstr "exposición de la copa a la luz (%)"
+
+#: apps/reports/models.py:604
+msgid "assessment"
+msgstr "evaluación"
+
+#: apps/reports/models.py:605
+msgid "assessments"
+msgstr "evaluaciones"
+
+#: apps/reports/models.py:627
+msgid "preview"
+msgstr "vista previa"
+
+#: apps/reports/models.py:628
+msgid "applied"
+msgstr "aplicado"
+
+#: apps/reports/models.py:630
+msgid "file"
+msgstr "archivo"
+
+#: apps/reports/models.py:631
+msgid "file name"
+msgstr "nombre del archivo"
+
+#: apps/reports/models.py:632
+msgid "format"
+msgstr "formato"
+
+#: apps/reports/models.py:640
+msgid "user"
+msgstr "usuario"
+
+#: apps/reports/models.py:642
+msgid "summary"
+msgstr "resumen"
+
+#: apps/reports/models.py:643
+msgid "applied at"
+msgstr "aplicado el"
+
+#: apps/reports/models.py:646
+msgid "upload"
+msgstr "carga de archivo"
+
+#: apps/reports/models.py:647
+msgid "uploads"
+msgstr "cargas de archivos"
+
+#: apps/reports/models.py:670
+msgid "carbon stock (kg C)"
+msgstr "carbono almacenado (kg C)"
+
+#: apps/reports/models.py:672
+msgid "intercepted rain (m³/year)"
+msgstr "lluvia interceptada (m³/año)"
+
+#: apps/reports/models.py:675
+msgid "crown projection area (m²)"
+msgstr "área de proyección de copa (m²)"
+
+#: apps/reports/models.py:677
+msgid "leaf area index"
+msgstr "índice de área foliar"
+
+#: apps/reports/models.py:679
+msgid "imputed inputs"
+msgstr "datos imputados"
+
+#: apps/reports/models.py:682
+msgid "Inputs that were missing or impossible and were estimated."
+msgstr "Datos que faltaban o eran imposibles y se estimaron."
+
+#: apps/reports/models.py:684
+msgid "computed at"
+msgstr "calculado en"
+
+#: apps/reports/models.py:687
+msgid "ecosystem service estimate"
+msgstr "estimación de servicios ecosistémicos"
+
+#: apps/reports/models.py:688
+msgid "ecosystem service estimates"
+msgstr "estimaciones de servicios ecosistémicos"
+
+#: apps/reports/upload.py:161
+#, python-format
+msgid "Columns “%(a)s” and “%(b)s” are the same column."
+msgstr "Las columnas “%(a)s” y “%(b)s” son la misma columna."
+
+# Reports: file uploads (apps/reports/upload.py)
+#: apps/reports/upload.py:167
+msgid "The file has no “id” column (the tree code)."
+msgstr "El archivo no tiene la columna “id” (el código del árbol)."
+
+#: apps/reports/upload.py:172
+#, python-format
+msgid "The file has more than %(n)s rows; split it."
+msgstr "El archivo tiene más de %(n)s filas; divídalo."
+
+#: apps/reports/upload.py:179
+msgid "The file has no rows."
+msgstr "El archivo no tiene filas."
+
+#: apps/reports/upload.py:196
+msgid "The file is empty."
+msgstr "El archivo está vacío."
+
+#: apps/reports/upload.py:208
+msgid "The file could not be read."
+msgstr "No se pudo leer el archivo."
+
+#: apps/reports/upload.py:210
+msgid "The file has no data."
+msgstr "El archivo no tiene datos."
+
+#: apps/reports/upload.py:232
+msgid "The file is not a valid .zip."
+msgstr "El archivo no es un .zip válido."
+
+#: apps/reports/upload.py:235
+msgid "The .zip must hold one Shapefile (.shp with its .dbf, .shx and .prj)."
+msgstr "El .zip debe contener un Shapefile (.shp con su .dbf, .shx y .prj)."
+
+#: apps/reports/upload.py:285
+msgid "The file is not valid GeoJSON."
+msgstr "El archivo no es un GeoJSON válido."
+
+#: apps/reports/upload.py:294
+msgid "The GeoJSON must use longitude / latitude (WGS 84)."
+msgstr "El GeoJSON debe estar en longitud / latitud (WGS 84)."
+
+#: apps/reports/upload.py:339
+#, python-format
+msgid "At most %(n)s characters."
+msgstr "Máximo %(n)s caracteres."
+
+#: apps/reports/upload.py:345 apps/reports/upload.py:356
+#: apps/reports/upload.py:359
+#, python-format
+msgid "“%(v)s” is not a number."
+msgstr "“%(v)s” no es un número."
+
+#: apps/reports/upload.py:361
+msgid "It cannot be negative."
+msgstr "No puede ser negativo."
+
+#: apps/reports/upload.py:367
+msgid "The tree code is missing."
+msgstr "Falta el código del árbol."
+
+#: apps/reports/upload.py:373
+#, python-format
+msgid "“%(v)s” is not a valid tree code."
+msgstr "“%(v)s” no es un código de árbol válido."
+
+#: apps/reports/upload.py:389
+msgid "The date is in the future."
+msgstr "La fecha está en el futuro."
+
+#: apps/reports/upload.py:393
+#, python-format
+msgid "“%(v)s” is not a date (use YYYY-MM-DD or DD/MM/YYYY)."
+msgstr "“%(v)s” no es una fecha (use AAAA-MM-DD o DD/MM/AAAA)."
+
+#: apps/reports/upload.py:545
+#, python-format
+msgid "Tree %(id)s is also in row %(row)s."
+msgstr "El árbol %(id)s también está en la fila %(row)s."
+
+#: apps/reports/upload.py:614
+#, python-format
+msgid "Tree %(id)s is marked as removed; reactivate it in the admin first."
+msgstr ""
+"El árbol %(id)s está marcado como retirado; reactívelo primero en el admin."
+
+#: apps/reports/upload.py:630
+msgid "New measurements and observations need their date."
+msgstr ""
+"Las mediciones y observaciones nuevas necesitan su fecha (measurement_date)."
+
+#: apps/reports/upload.py:643
+#, python-format
+msgid "“%(v)s” is not in the species catalog."
+msgstr "“%(v)s” no está en el catálogo de especies."
+
+#: apps/reports/upload.py:658
+msgid "A new tree needs its scientific name."
+msgstr "Un árbol nuevo necesita su nombre científico."
+
+#: apps/reports/upload.py:673
+#, python-format
+msgid "“%(v)s” is not a known site."
+msgstr "“%(v)s” no es un sitio conocido."
+
+#: apps/reports/upload.py:690
+msgid "A new tree needs its latitude and longitude."
+msgstr "Un árbol nuevo necesita su latitud y longitud."
+
+#: apps/reports/upload.py:698
+#, python-format
+msgid ""
+"%(lat)s, %(lon)s is not in Ibagué (are latitude and longitude swapped?)."
+msgstr ""
+"%(lat)s, %(lon)s no está en Ibagué (¿están invertidas la latitud y la "
+"longitud?)."
+
+#: apps/reports/upload.py:773
+#, python-format
+msgid "“%(v)s” is not a valid value; use one of: %(values)s."
+msgstr "“%(v)s” no es un valor válido; use uno de: %(values)s."
+
+#: apps/reports/upload.py:795
+#, python-format
+msgid "“%(v)s” is not a known barrio."
+msgstr "“%(v)s” no es un barrio conocido."
+
+#: apps/reports/upload.py:800
+#, python-format
+msgid "There are several barrios “%(v)s”; add the comuna column."
+msgstr "Hay varios barrios “%(v)s”; agregue la columna comuna."
+
+#: apps/reports/upload.py:810
+#, python-format
+msgid "The geometry is a %(type)s, not a point."
+msgstr "La geometría es un %(type)s, no un punto."
+
+#: apps/reports/upload.py:816
+msgid "Give both latitude and longitude."
+msgstr "Indique latitud y longitud."
+
+#: apps/reports/upload.py:822
+msgid "Latitude or longitude out of range."
+msgstr "Latitud o longitud fuera de rango."
+
+#: apps/reports/upload.py:854
+msgid "No barrio contains this location."
+msgstr "Ningún barrio contiene esta ubicación."
+
+#: apps/reports/views.py:189
+msgid "Choose a file."
+msgstr "Elija un archivo."
+
+#: apps/reports/views.py:194
+msgid "Use an Excel (.xlsx), CSV, zipped Shapefile (.zip) or GeoJSON file."
+msgstr ""
+"Use un archivo Excel (.xlsx), CSV, Shapefile comprimido (.zip) o GeoJSON."
+
+#: apps/reports/views.py:198
+msgid "The file is larger than 20 MB."
+msgstr "El archivo pesa más de 20 MB."
+
+#: apps/reports/views.py:216
+msgid "This file was already applied."
+msgstr "Este archivo ya fue aplicado."
+
+#: apps/taxonomy/models.py:30
 msgid "family name"
 msgstr "nombre de la familia"
 
-#: apps/taxonomy/models.py:32 apps/taxonomy/models.py:48
+#: apps/taxonomy/models.py:33 apps/taxonomy/models.py:49
 msgid "family"
 msgstr "familia"
 
-#: apps/taxonomy/models.py:33
+#: apps/taxonomy/models.py:34
 msgid "families"
 msgstr "familias"
 
-#: apps/taxonomy/models.py:43
+#: apps/taxonomy/models.py:44
 msgid "genus name"
 msgstr "nombre del género"
 
-#: apps/taxonomy/models.py:52 apps/taxonomy/models.py:221
+#: apps/taxonomy/models.py:53 apps/taxonomy/models.py:222
 msgid "genus"
 msgstr "género"
 
-#: apps/taxonomy/models.py:53
+#: apps/taxonomy/models.py:54
 msgid "genera"
 msgstr "genera"
 
-#: apps/taxonomy/models.py:64
+#: apps/taxonomy/models.py:65
 msgid "carbon sequestration (%)"
 msgstr "secuestro de carbono (%)"
 
-#: apps/taxonomy/models.py:65
+#: apps/taxonomy/models.py:66
 msgid "shade index"
 msgstr "índice de sombra"
 
-#: apps/taxonomy/models.py:66
+#: apps/taxonomy/models.py:67
 msgid "canopy diameter (m)"
 msgstr "diámetro del dosel arbóreo (m)"
 
-#: apps/taxonomy/models.py:67
+#: apps/taxonomy/models.py:68
 msgid "maximum height (m)"
 msgstr "altura máxima (m)"
 
-#: apps/taxonomy/models.py:70
+#: apps/taxonomy/models.py:71
 msgid "trait type"
 msgstr "tipo de rasgo"
 
-#: apps/taxonomy/models.py:90
+#: apps/taxonomy/models.py:91
 msgid "trait"
 msgstr "rasgo"
 
-#: apps/taxonomy/models.py:96 apps/taxonomy/models.py:151
-#: apps/taxonomy/models.py:230
+#: apps/taxonomy/models.py:97 apps/taxonomy/models.py:152
+#: apps/taxonomy/models.py:231
 msgid "functional group"
 msgstr "grupo funcional"
 
-#: apps/taxonomy/models.py:99
+#: apps/taxonomy/models.py:100
 msgid "minimum value"
 msgstr "valor mínimo"
 
-#: apps/taxonomy/models.py:103
+#: apps/taxonomy/models.py:104
 msgid "Minimum value for this trait in the functional group"
 msgstr "Valor mínimo para este rasgo en el grupo funcional"
 
-#: apps/taxonomy/models.py:106
+#: apps/taxonomy/models.py:107
 msgid "maximum value"
 msgstr "valor máximo"
 
-#: apps/taxonomy/models.py:110
+#: apps/taxonomy/models.py:111
 msgid "Maximum value for this trait in the functional group"
 msgstr "Valor máximo para este rasgo en el grupo funcional"
 
-#: apps/taxonomy/models.py:114
+#: apps/taxonomy/models.py:115
 msgid "trait value"
 msgstr "valor del rasgo"
 
-#: apps/taxonomy/models.py:115
+#: apps/taxonomy/models.py:116
 msgid "trait values"
 msgstr "valores del rasgo"
 
-#: apps/taxonomy/models.py:139
+#: apps/taxonomy/models.py:140
 msgid "group id"
 msgstr "id del grupo"
 
-#: apps/taxonomy/models.py:140
+#: apps/taxonomy/models.py:141
 msgid "Unique identifier for the functional group"
 msgstr "Identificador único para el grupo funcional"
 
-#: apps/taxonomy/models.py:147
+#: apps/taxonomy/models.py:148
 msgid "traits"
 msgstr "rasgos"
 
-#: apps/taxonomy/models.py:152
+#: apps/taxonomy/models.py:153
 msgid "functional groups"
 msgstr "grupos funcionales"
 
-#: apps/taxonomy/models.py:163
+#: apps/taxonomy/models.py:164
 msgid "native"
 msgstr "nativo"
 
-#: apps/taxonomy/models.py:164
+#: apps/taxonomy/models.py:165
 msgid "cultivated"
 msgstr "cultivado"
 
-#: apps/taxonomy/models.py:165
+#: apps/taxonomy/models.py:166
 msgid "native | cultivated"
 msgstr "nativo | cultivado"
 
-#: apps/taxonomy/models.py:166
+#: apps/taxonomy/models.py:167
 msgid "naturalized"
 msgstr "naturalizado"
 
-#: apps/taxonomy/models.py:167
+#: apps/taxonomy/models.py:168
 msgid "naturalized | cultivated"
 msgstr "naturalizado | cultivado"
 
-#: apps/taxonomy/models.py:168
+#: apps/taxonomy/models.py:169
 msgid "endemic"
 msgstr "endémico"
 
-#: apps/taxonomy/models.py:169 apps/taxonomy/models.py:202
-#: apps/taxonomy/models.py:215
+#: apps/taxonomy/models.py:170 apps/taxonomy/models.py:203
+#: apps/taxonomy/models.py:216
 msgid "not identified"
 msgstr "no identificado"
 
-#: apps/taxonomy/models.py:172
+#: apps/taxonomy/models.py:173
 msgid "data deficient"
 msgstr "dato deficiente"
 
-#: apps/taxonomy/models.py:173
+#: apps/taxonomy/models.py:174
 msgid "least concern"
 msgstr "menor importancia"
 
-#: apps/taxonomy/models.py:174
+#: apps/taxonomy/models.py:175
 msgid "lower risk / conservation dependent"
 msgstr "riesgo bajo / dependiente de la conservación"
 
-#: apps/taxonomy/models.py:175
+#: apps/taxonomy/models.py:176
 msgid "near threatened"
 msgstr "casi amenazado"
 
-#: apps/taxonomy/models.py:176
+#: apps/taxonomy/models.py:177
 msgid "vulnerable"
 msgstr "vulnerable"
 
-#: apps/taxonomy/models.py:177
+#: apps/taxonomy/models.py:178
 msgid "endangered"
 msgstr "en peligro"
 
-#: apps/taxonomy/models.py:178
+#: apps/taxonomy/models.py:179
 msgid "critically endangered"
 msgstr "en peligro crítico"
 
-#: apps/taxonomy/models.py:179
+#: apps/taxonomy/models.py:180
 msgid "extinct in the wild"
 msgstr "extinto en la naturaleza"
 
-#: apps/taxonomy/models.py:180
+#: apps/taxonomy/models.py:181
 msgid "extinct"
 msgstr "extinto"
 
-#: apps/taxonomy/models.py:181
+#: apps/taxonomy/models.py:182
 msgid "not evaluated"
 msgstr "no evaluado"
 
-#: apps/taxonomy/models.py:184
+#: apps/taxonomy/models.py:185
 msgid "tree"
 msgstr "árbol"
 
-#: apps/taxonomy/models.py:185
+#: apps/taxonomy/models.py:186
 msgid "palm tree"
 msgstr "árbol de palma"
 
-#: apps/taxonomy/models.py:186
+#: apps/taxonomy/models.py:187
 msgid "shrub"
 msgstr "arbusto"
 
-#: apps/taxonomy/models.py:187 apps/taxonomy/models.py:201
-#: apps/taxonomy/models.py:214
-msgid "other"
-msgstr "otro"
-
-#: apps/taxonomy/models.py:190
+#: apps/taxonomy/models.py:191
 msgid "broad"
 msgstr "ancho"
 
-#: apps/taxonomy/models.py:191
+#: apps/taxonomy/models.py:192
 msgid "caulirosula - fan"
 msgstr "abanico - caulirosula"
 
-#: apps/taxonomy/models.py:192
+#: apps/taxonomy/models.py:193
 msgid "caulirosula - feather"
 msgstr "pluma - caulirosula"
 
-#: apps/taxonomy/models.py:193
+#: apps/taxonomy/models.py:194
 msgid "caulirosula sespitoso"
 msgstr "caulirosula sespitoso"
 
-#: apps/taxonomy/models.py:194
+#: apps/taxonomy/models.py:195
 msgid "columnar"
 msgstr "columnar"
 
-#: apps/taxonomy/models.py:195
+#: apps/taxonomy/models.py:196
 msgid "globose"
 msgstr "globoso"
 
-#: apps/taxonomy/models.py:196
+#: apps/taxonomy/models.py:197
 msgid "irregular"
 msgstr "irregular"
 
-#: apps/taxonomy/models.py:197
+#: apps/taxonomy/models.py:198
 msgid "oval"
 msgstr "ovalado"
 
-#: apps/taxonomy/models.py:198
+#: apps/taxonomy/models.py:199
 msgid "pyramidal"
 msgstr "piramidal"
 
-#: apps/taxonomy/models.py:199
+#: apps/taxonomy/models.py:200
 msgid "semiglobose"
 msgstr "semigloboso"
 
-#: apps/taxonomy/models.py:200
+#: apps/taxonomy/models.py:201
 msgid "spreading"
 msgstr "esparcida"
 
-#: apps/taxonomy/models.py:205
+#: apps/taxonomy/models.py:206
 msgid "brown"
 msgstr "café"
 
-#: apps/taxonomy/models.py:206
+#: apps/taxonomy/models.py:207
 msgid "fuchsia"
 msgstr "fucsia"
 
-#: apps/taxonomy/models.py:207
+#: apps/taxonomy/models.py:208
 msgid "green"
 msgstr "verde"
 
-#: apps/taxonomy/models.py:208
+#: apps/taxonomy/models.py:209
 msgid "orange"
 msgstr "naranja"
 
-#: apps/taxonomy/models.py:209
+#: apps/taxonomy/models.py:210
 msgid "pink"
 msgstr "rosado"
 
-#: apps/taxonomy/models.py:210
+#: apps/taxonomy/models.py:211
 msgid "red"
 msgstr "rojo"
 
-#: apps/taxonomy/models.py:211
+#: apps/taxonomy/models.py:212
 msgid "violet"
 msgstr "violeta"
 
-#: apps/taxonomy/models.py:212
+#: apps/taxonomy/models.py:213
 msgid "white"
 msgstr "blanco"
 
-#: apps/taxonomy/models.py:213
+#: apps/taxonomy/models.py:214
 msgid "yellow"
 msgstr "amarillo"
 
-#: apps/taxonomy/models.py:224
+#: apps/taxonomy/models.py:225
 msgid "species name"
 msgstr "nombre de la especie"
 
-#: apps/taxonomy/models.py:224
+#: apps/taxonomy/models.py:225
 msgid "Species name without the genus"
 msgstr "Nombre de la especie sin el género"
 
-#: apps/taxonomy/models.py:234
+#: apps/taxonomy/models.py:235
 msgid "accepted scientific name"
 msgstr "nombre científico aceptado"
 
-#: apps/taxonomy/models.py:237
+#: apps/taxonomy/models.py:238
 msgid ""
 "Scientific genus and species name with optional reference to whom named it"
 msgstr ""
 "Nombre científico del género y especie con referencia opcional a quien lo "
 "nombró"
 
-#: apps/taxonomy/models.py:242
+#: apps/taxonomy/models.py:243
 msgid "origin"
 msgstr "origen"
 
-#: apps/taxonomy/models.py:248
+#: apps/taxonomy/models.py:249
 msgid "IUCN status"
 msgstr "estado IUCN"
 
-#: apps/taxonomy/models.py:254
+#: apps/taxonomy/models.py:255
 msgid "life form"
 msgstr "forma de vida"
 
-#: apps/taxonomy/models.py:260
+#: apps/taxonomy/models.py:261
 msgid "canopy shape"
 msgstr "forma del dosel arbóreo"
 
-#: apps/taxonomy/models.py:266
+#: apps/taxonomy/models.py:267
 msgid "flower color"
 msgstr "color de la flor"
 
-#: apps/taxonomy/models.py:272
+#: apps/taxonomy/models.py:273
 msgid "GBIF ID"
 msgstr "GBIF ID"
 
-#: apps/taxonomy/models.py:272
+#: apps/taxonomy/models.py:273
 msgid "GBIF species identifier"
 msgstr "identificador de especie GBIF"
 
-#: apps/taxonomy/models.py:275
+#: apps/taxonomy/models.py:276
 msgid "identified by"
 msgstr "identificado por"
 
-#: apps/taxonomy/models.py:277
+#: apps/taxonomy/models.py:278
 msgid "identified date"
 msgstr "fecha de identificación"
 
-#: apps/taxonomy/models.py:280
+#: apps/taxonomy/models.py:283
+msgid "recommended planting sites"
+msgstr "emplazamientos recomendados"
+
+#: apps/taxonomy/models.py:285
+msgid ""
+"Planting sites (park, sidewalk, road median...) that the Tolima arborization "
+"manual recommends for the species, with or without conditions. Empty when "
+"the manual says nothing."
+msgstr ""
+"Emplazamientos (parque, andén, separador vial...) que el Manual de "
+"arborización del Tolima recomienda para la especie, con o sin condiciones. "
+"Vacío si el manual no dice nada."
+
+#: apps/taxonomy/models.py:292
 msgctxt "singular"
 msgid "species"
 msgstr "especie"
@@ -902,56 +1609,10 @@ msgstr "perfil de usuario"
 msgid "user profiles"
 msgstr "perfiles de usuarios"
 
-#: config/settings/base.py:167
+#: config/settings/base.py:175
 msgid "Spanish"
 msgstr "Español"
 
-#: config/settings/base.py:168
+#: config/settings/base.py:176
 msgid "English"
 msgstr "Inglés"
-
-# Tree status (apps/biodiversity)
-
-msgid "active"
-msgstr "vigente"
-
-msgid "removed"
-msgstr "retirado"
-
-msgid "felled"
-msgstr "talado"
-
-msgid "fallen"
-msgstr "caído"
-
-msgid "dead standing"
-msgstr "muerto en pie"
-
-msgid "transplanted"
-msgstr "trasladado"
-
-msgid "status"
-msgstr "estado"
-
-msgid "removal date"
-msgstr "fecha de retiro"
-
-msgid "removal reason"
-msgstr "motivo del retiro"
-
-msgid "removal note"
-msgstr "nota del retiro"
-
-msgid "Mark selected trees as removed (felled, today)"
-msgstr "Marcar los árboles seleccionados como retirados (talados, hoy)"
-
-#, python-format
-msgid "%(n)d trees marked as removed. Edit them to adjust the date, reason or note."
-msgstr "%(n)d árboles marcados como retirados. Edítalos para ajustar la fecha, el motivo o la nota."
-
-msgid "Mark selected trees as active again"
-msgstr "Marcar los árboles seleccionados como vigentes de nuevo"
-
-#, python-format
-msgid "%(n)d trees marked as active."
-msgstr "%(n)d árboles marcados como vigentes."

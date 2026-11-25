@@ -4,7 +4,7 @@ use leptos::prelude::*;
 
 use super::Ctx;
 use crate::i18n::I18n;
-use super::model::{self, CANOPIES, Catalog, Category, Filters, GROUP_MAX, GROUP_MIN, IUCN, LIFE_FORMS, ORIGINS};
+use super::model::{self, CANOPIES, Catalog, Category, Filters, GROUP_MAX, GROUP_MIN, IUCN, LIFE_FORMS, ORIGINS, PLANTING_SITES};
 
 const INPUT: &str = "w-full border border-gray-300 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
 
@@ -18,12 +18,14 @@ fn options(cat: Category) -> Vec<Opt> {
         Category::Iucn => IUCN.iter().map(|c| (c.code, c.es, c.en, None)).collect(),
         Category::Origin => ORIGINS.iter().map(|(c, es, en)| (*c, *es, *en, None)).collect(),
         Category::Canopy => CANOPIES.iter().map(|(c, es, en)| (*c, *es, *en, None)).collect(),
+        Category::PlantingSite => PLANTING_SITES.iter().map(|(c, es, en)| (*c, *es, *en, None)).collect(),
     }
 }
 
 /// (category, Spanish title, English title, open by default)
-const SECTIONS: [(Category, &str, &str, bool); 5] = [
+const SECTIONS: [(Category, &str, &str, bool); 6] = [
     (Category::LifeForm, "Hábito", "Habit", true),
+    (Category::PlantingSite, "Emplazamiento recomendado", "Recommended planting site", true),
     (Category::Iucn, "Estado de conservación (UICN)", "Conservation status (IUCN)", true),
     (Category::Origin, "Origen", "Origin", true),
     (Category::FlowerColor, "Color de la flor", "Flower color", false),
@@ -65,7 +67,7 @@ pub(super) fn FilterSidebar(catalog: Catalog, ctx: Ctx) -> impl IntoView {
             let items = options(cat)
                 .into_iter()
                 .map(|(code, es, en, swatch)| {
-                    let count = catalog.iter().filter(|s| cat.value(s) == code).count();
+                    let count = catalog.iter().filter(|s| cat.has(s, code)).count();
                     view! {
                         <label class="flex items-center gap-2 py-0.5 text-sm text-gray-700 cursor-pointer hover:text-primary-700">
                             <input
@@ -87,6 +89,14 @@ pub(super) fn FilterSidebar(catalog: Catalog, ctx: Ctx) -> impl IntoView {
                         {move || i.t(title_es, title_en)}
                     </summary>
                     <div class="mt-1">{items}</div>
+                    {(cat == Category::PlantingSite).then(|| view! {
+                        <p class="mt-1 text-xs text-gray-400">
+                            {move || i.t(
+                                "Según el Manual de arborización del Tolima (2017), con o sin condiciones (ancho mínimo, contenedor...).",
+                                "As the Tolima arborization manual (2017) recommends, with or without conditions (minimum width, container...).",
+                            )}
+                        </p>
+                    })}
                 </details>
             }
         })

@@ -1,5 +1,7 @@
 //! Full record of one tree (overlay): species, location, every measurement with its date
-//! (latest per metric first, older ones as history) and every census observation field.
+//! (only the latest value of each metric), the latest study assessment (risk,
+//! tomography), indicators computed from the measurements and every census observation
+//! field.
 //! Closes on backdrop click, the X button or Escape.
 
 use leptos::prelude::*;
@@ -42,12 +44,36 @@ struct Tree {
     neighborhood: String,
     locality: String,
     site: Option<String>,
+    #[serde(default)]
+    planting_site: Option<String>,
     latitude: Option<f64>,
     longitude: Option<f64>,
     elevation_m: Option<f64>,
     date: Option<String>,
     measurements: Vec<Measurement>,
     observations: Vec<Observation>,
+    #[serde(default)]
+    assessments: Vec<Assessment>,
+    #[serde(default)]
+    metrics: Vec<Metric>,
+}
+
+#[derive(Clone, Deserialize)]
+struct Assessment {
+    date: String,
+    study: String,
+    citation: String,
+    fields: Vec<ObsField>,
+}
+
+#[derive(Clone, Deserialize)]
+struct Metric {
+    label: String,
+    value: f64,
+    unit: String,
+    formula: String,
+    flag: Option<bool>,
+    note: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -69,6 +95,8 @@ struct Measurement {
     unit: String,
     method: String,
     date: Option<String>,
+    #[serde(default)]
+    source: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -249,7 +277,8 @@ fn tree_view(l: Lang, t: Tree) -> impl IntoView {
                     <dl class="grid grid-cols-2 gap-x-4 gap-y-2">
                         {fact(tr("Barrio", "Neighborhood"), t.neighborhood.clone())}
                         {fact("Comuna", t.locality.clone())}
-                        {fact(tr("Sitio", "Site"), dash(t.site.clone()))}
+                        {fact(tr("Sector", "Sector"), dash(t.site.clone()))}
+                        {fact(tr("Emplazamiento", "Planting site"), dash(t.planting_site.clone().map(|s| capitalize(&s))))}
                         {fact(tr("Elevación", "Elevation"), t.elevation_m.map(|e| format!("{} m", fmt_num(e))).unwrap_or_else(|| "—".into()))}
                         {fact(tr("Coordenadas (lat, lon)", "Coordinates (lat, lon)"), coords)}
                         {fact(tr("Registrado", "Recorded"), dash(t.date.clone()))}
@@ -270,8 +299,12 @@ fn tree_view(l: Lang, t: Tree) -> impl IntoView {
                 {measurements_table(l, &t.measurements)}
             </section>
 
+            {t.assessments.first().cloned().map(|a| assessment_view(l, a))}
+
+            {(!t.metrics.is_empty()).then(|| metrics_view(l, t.metrics.clone()))}
+
             {match latest_obs {
-                Some(o) => observation_view(l, o, t.observations.len(), t.date.clone()).into_any(),
+                Some(o) => observation_view(l, o, t.date.clone()).into_any(),
                 None => view! {
                     <section>
                         <h3 class=SECTION>{tr("Estado", "Condition")}</h3>
@@ -288,22 +321,20 @@ fn measurements_table(l: Lang, rows: &[Measurement]) -> AnyView {
     if rows.is_empty() {
         return view! { <p class="text-sm text-gray-500">{tr("No hay mediciones registradas.", "No measurements recorded.")}</p> }.into_any();
     }
-    // Rows come grouped by metric, newest first: the first of each metric is current.
+    // Rows come grouped by metric, newest first: only the current value of each is shown.
     let mut seen = std::collections::HashSet::new();
     let body = rows
         .iter()
+        .filter(|m| seen.insert(m.attribute.clone()))
         .map(|m| {
-            let latest = seen.insert(m.attribute.clone());
-            let cls = if latest { "text-gray-900" } else { "text-gray-400" };
             view! {
-                <tr class=cls>
-                    <td class=TD>
-                        {if latest { capitalize(&m.label) } else { tr("↳ anterior", "↳ earlier").to_string() }}
-                    </td>
+                <tr class="text-gray-900">
+                    <td class=TD>{capitalize(&m.label)}</td>
                     <td class=format!("{TD} text-right font-medium")>{fmt_num(m.value)}</td>
                     <td class=TD>{m.unit.clone()}</td>
                     <td class=TD>{capitalize(&m.method)}</td>
                     <td class=TD>{dash(m.date.clone())}</td>
+                    <td class=TD>{m.source.clone().unwrap_or_else(|| tr("Censo", "Census").into())}</td>
                 </tr>
             }
         })
@@ -318,6 +349,7 @@ fn measurements_table(l: Lang, rows: &[Measurement]) -> AnyView {
                         <th class=TH>{tr("Unidad", "Unit")}</th>
                         <th class=TH>{tr("Método", "Method")}</th>
                         <th class=TH>{tr("Medido el", "Measured on")}</th>
+                        <th class=TH>{tr("Fuente", "Source")}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">{body}</tbody>
@@ -327,7 +359,80 @@ fn measurements_table(l: Lang, rows: &[Measurement]) -> AnyView {
     .into_any()
 }
 
-fn observation_view(l: Lang, o: Observation, total: usize, record_date: Option<String>) -> impl IntoView {
+fn assessment_view(l: Lang, a: Assessment) -> impl IntoView {
+    let tr = move |es: &'static str, en: &'static str| pick(l, es, en);
+    let (notes, fields): (Vec<_>, Vec<_>) = a.fields.into_iter().partition(|f| f.field == "notes");
+    let items = fields
+        .into_iter()
+        .map(|f| {
+            view! {
+                <div>
+                    <dt class=DT>{capitalize(&f.label)}</dt>
+                    <dd class=DD>{f.text()}</dd>
+                </div>
+            }
+        })
+        .collect_view();
+    view! {
+        <section>
+            <h3 class=SECTION>{tr("Evaluación de riesgo y estructura", "Risk & structural assessment")}</h3>
+            <p class="text-xs text-gray-500 mb-2" title=a.citation>{format!("{} · {}", a.study, a.date)}</p>
+            <dl class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">{items}</dl>
+            {notes.into_iter().next().map(|n| view! {
+                <p class="mt-2 text-sm text-gray-700 whitespace-pre-line">{n.text()}</p>
+            })}
+        </section>
+    }
+}
+
+fn metrics_view(l: Lang, rows: Vec<Metric>) -> impl IntoView {
+    let tr = move |es: &'static str, en: &'static str| pick(l, es, en);
+    let body = rows
+        .into_iter()
+        .map(|m| {
+            let flagged = m.flag == Some(true);
+            view! {
+                <tr class=if flagged { "bg-amber-50" } else { "" }>
+                    <td class=TD>
+                        {capitalize(&m.label)}
+                        {flagged.then(|| view! {
+                            <span class="ml-2 px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-900">{tr("Atención", "Attention")}</span>
+                        })}
+                    </td>
+                    <td class=format!("{TD} text-right font-medium")>{format!("{} {}", fmt_num(m.value), m.unit)}</td>
+                    <td class=format!("{TD} font-mono text-xs text-gray-600")>{m.formula}</td>
+                    <td class="px-2 py-1.5 text-xs text-gray-500">{m.note.unwrap_or_default()}</td>
+                </tr>
+            }
+        })
+        .collect_view();
+    view! {
+        <section>
+            <h3 class=SECTION>{tr("Indicadores calculados", "Computed indicators")}</h3>
+            <p class="text-xs text-gray-500 mb-2">
+                {tr(
+                    "Estimaciones a partir de la última medición de cada variable. D = DAP, H = altura total, Hc = altura de fuste, Dc = diámetro de copa (Dns, Deo: norte-sur, este-oeste), a = fracción del área afectada, ρ = densidad básica.",
+                    "Estimates from the latest value of each measurement. D = DBH, H = total height, Hc = trunk height, Dc = crown diameter (Dns, Deo: north-south, east-west), a = damaged fraction of the cross-section, ρ = basic wood density.",
+                )}
+            </p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class=TH>{tr("Indicador", "Indicator")}</th>
+                            <th class=format!("{TH} text-right")>{tr("Valor", "Value")}</th>
+                            <th class=TH>{tr("Fórmula", "Formula")}</th>
+                            <th class=TH>{tr("Nota", "Note")}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">{body}</tbody>
+                </table>
+            </div>
+        </section>
+    }
+}
+
+fn observation_view(l: Lang, o: Observation, record_date: Option<String>) -> impl IntoView {
     let tr = move |es: &'static str, en: &'static str| pick(l, es, en);
     let take = |names: &[&str]| {
         names
@@ -354,7 +459,6 @@ fn observation_view(l: Lang, o: Observation, total: usize, record_date: Option<S
         (None, Some(d)) => pick(l, format!("Sin fecha de observación; árbol registrado el {d}"), format!("No observation date; tree recorded on {d}")),
         (None, None) => tr("Sin fecha de observación", "No observation date").into(),
     };
-    let older = (total > 1).then(|| pick(l, format!(" · la más reciente de {total} observaciones"), format!(" · latest of {total} observations")));
 
     let grid = |fields: Vec<ObsField>, upper: bool| {
         fields
@@ -374,7 +478,7 @@ fn observation_view(l: Lang, o: Observation, total: usize, record_date: Option<S
     view! {
         <section>
             <h3 class=SECTION>{tr("Estado", "Condition")}</h3>
-            <p class="text-xs text-gray-500 mb-2">{observed}{older}</p>
+            <p class="text-xs text-gray-500 mb-2">{observed}</p>
             <dl class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">{grid(condition, false)}</dl>
         </section>
         <section>

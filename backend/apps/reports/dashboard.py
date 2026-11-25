@@ -41,7 +41,11 @@ def _trees_per_capita(total_trees):
 
 
 def _health():
-    rows = Observation.objects.values("phytosanitary_status").annotate(n=Count("id"))
+    rows = (
+        Observation.objects.filter(is_latest=True)
+        .values("phytosanitary_status")
+        .annotate(n=Count("id"))
+    )
     return {row["phytosanitary_status"]: row["n"] for row in rows}
 
 
@@ -86,7 +90,7 @@ def _records_by_year():
 
 def _height_distribution():
     heights = Measurement.objects.filter(
-        attribute=Measurement.MeasuredAttribute.TOTAL_HEIGHT
+        attribute=Measurement.MeasuredAttribute.TOTAL_HEIGHT, is_latest=True
     )
     aggregates = {}
     for low, high in HEIGHT_BINS:
@@ -167,12 +171,13 @@ def _recent_records():
         Measurement.objects.filter(
             biodiversity_record_id__in=ids,
             attribute=Measurement.MeasuredAttribute.TOTAL_HEIGHT,
+            is_latest=True,
         ).values_list("biodiversity_record_id", "value")
     )
     health = dict(
-        Observation.objects.filter(biodiversity_record_id__in=ids).values_list(
-            "biodiversity_record_id", "phytosanitary_status"
-        )
+        Observation.objects.filter(
+            biodiversity_record_id__in=ids, is_latest=True
+        ).values_list("biodiversity_record_id", "phytosanitary_status")
     )
     return [
         {

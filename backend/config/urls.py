@@ -14,6 +14,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from apps.taxonomy.views import TreeOfLifeView
+from apps.users.views import MeView
 
 # Admin site configuration
 admin.site.site_header = "Urban Tree Observatory"
@@ -51,6 +52,7 @@ urlpatterns = [
                                 TokenRefreshView.as_view(),
                                 name="token_refresh",
                             ),
+                            path("me/", MeView.as_view(), name="me"),
                         ]
                     ),
                 ),

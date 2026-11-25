@@ -31,13 +31,15 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from apps.reports.models import Measurement, Observation
+from apps.reports.metrics import tree_metrics
+from apps.reports.models import Assessment, Measurement, Observation
 
 from . import query
 from .models import BiodiversityRecord
 
-# Measured attributes in display / CSV order.
-ATTRIBUTES = [
+# Measured attributes in CSV order: the census variables, which the Reports upload
+# also reads back.
+CSV_ATTRIBUTES = [
     Measurement.MeasuredAttribute.TOTAL_HEIGHT,
     Measurement.MeasuredAttribute.DIAMETER_BH,
     Measurement.MeasuredAttribute.TRUNK_HEIGHT,
@@ -46,8 +48,43 @@ ATTRIBUTES = [
     Measurement.MeasuredAttribute.WOOD_DENSITY,
 ]
 
+# Display order on the tree page: the census variables, then the study ones.
+ATTRIBUTES = [
+    *CSV_ATTRIBUTES,
+    Measurement.MeasuredAttribute.CROWN_DIAMETER_NS,
+    Measurement.MeasuredAttribute.CROWN_DIAMETER_EW,
+    Measurement.MeasuredAttribute.INTERNAL_DAMAGE,
+    Measurement.MeasuredAttribute.ACOUSTIC_VELOCITY,
+    Measurement.MeasuredAttribute.GREEN_DENSITY,
+    Measurement.MeasuredAttribute.DYNAMIC_MOE,
+]
+
+# Assessment fields shown on the tree page, in order.
+ASSESSMENT_FIELDS = [
+    "visual_risk",
+    "visual_risk_part",
+    "biomechanical_risk",
+    "tomography_level",
+    "damage_section_diameter_cm",
+    "damage_section_height_cm",
+    "tomography_sections",
+    "age_class",
+    "planting_site",
+    "crown_exposure_class",
+    "crown_exposure_percent",
+    "study_code",
+    "notes",
+]
+
 # Observation fields that are bookkeeping, not census data.
-OBSERVATION_SKIP = {"id", "uuid", "created_at", "updated_at", "biodiversity_record"}
+OBSERVATION_SKIP = {
+    "id",
+    "uuid",
+    "created_at",
+    "updated_at",
+    "biodiversity_record",
+    "is_latest",
+}
 
 EXPORT_CHUNK = 2000
 MAX_SELECTED = 10000
@@ -65,10 +102,8 @@ def request_language(request):
 def _latest_measurement(attribute):
     return Subquery(
         Measurement.objects.filter(
-            biodiversity_record=OuterRef("pk"), attribute=attribute
-        )
-        .order_by("-date", "-created_at")
-        .values("value")[:1]
+            biodiversity_record=OuterRef("pk"), attribute=attribute, is_latest=True
+        ).values("value")[:1]
     )
 
 
@@ -87,9 +122,9 @@ def inventory_queryset():
             height_m=_latest_measurement(Measurement.MeasuredAttribute.TOTAL_HEIGHT),
             dbh_cm=_latest_measurement(Measurement.MeasuredAttribute.DIAMETER_BH),
             phytosanitary_status=Subquery(
-                Observation.objects.filter(biodiversity_record=OuterRef("pk"))
-                .order_by("-date", "-created_at")
-                .values("phytosanitary_status")[:1]
+                Observation.objects.filter(
+                    biodiversity_record=OuterRef("pk"), is_latest=True
+                ).values("phytosanitary_status")[:1]
             ),
         )
         .order_by("id")
@@ -178,6 +213,8 @@ def tree_detail(record):
     obs_fields = [
         f for f in Observation._meta.concrete_fields if f.name not in OBSERVATION_SKIP
     ]
+    assessments = sorted(record.assessments.all(), key=lambda a: a.date, reverse=True)
+    assessment_fields = [Assessment._meta.get_field(n) for n in ASSESSMENT_FIELDS]
     species = record.species
     return {
         "id": record.id,
@@ -196,6 +233,7 @@ def tree_detail(record):
         "neighborhood": record.neighborhood.name,
         "locality": record.neighborhood.locality.name,
         "site": record.site.name if record.site else None,
+        "planting_site": str(record.get_planting_site_display()) or None,
         "latitude": record.latitude,
         "longitude": record.longitude,
         "elevation_m": record.elevation_m,
@@ -209,9 +247,26 @@ def tree_detail(record):
                 "unit": m.unit,
                 "method": m.get_method_display(),
                 "date": m.date,
+                "source": str(m.study) if m.study else None,
             }
             for m in measurements
         ],
+        "assessments": [
+            {
+                "date": a.date,
+                "study": str(a.study),
+                "citation": a.study.citation,
+                "fields": [
+                    _choice_field(a, f)
+                    for f in assessment_fields
+                    if getattr(a, f.attname) not in ("", None)
+                ],
+            }
+            for a in assessments
+        ],
+        "metrics": tree_metrics(
+            record, measurements, assessments[0] if assessments else None
+        ),
         "observations": [
             {
                 "date": o.date,
@@ -304,19 +359,16 @@ def _csv_rows_in_language(queryset):
                 "date",
             )
         )
-        # Rows are ordered oldest first, so the newest one per key wins.
         measures = {}
-        for rid, attribute, value, date in (
-            Measurement.objects.filter(biodiversity_record_id__in=chunk)
-            .order_by("date", "created_at")
-            .values_list("biodiversity_record_id", "attribute", "value", "date")
-        ):
+        for rid, attribute, value, date in Measurement.objects.filter(
+            biodiversity_record_id__in=chunk, is_latest=True
+        ).values_list("biodiversity_record_id", "attribute", "value", "date"):
             measures.setdefault(rid, {})[attribute] = (value, date)
         observations = {
             row[0]: row[1:]
-            for row in Observation.objects.filter(biodiversity_record_id__in=chunk)
-            .order_by("date", "created_at")
-            .values_list("biodiversity_record_id", *OBS_COLUMNS, "photo_url")
+            for row in Observation.objects.filter(
+                biodiversity_record_id__in=chunk, is_latest=True
+            ).values_list("biodiversity_record_id", *OBS_COLUMNS, "photo_url")
         }
         for (
             rid,
@@ -344,7 +396,7 @@ def _csv_rows_in_language(queryset):
                 loc.y if loc else "",
                 loc.x if loc else "",
                 date or "",
-                *(m[a][0] if a in m else "" for a in ATTRIBUTES),
+                *(m[a][0] if a in m else "" for a in CSV_ATTRIBUTES),
                 max(dates) if dates else "",
                 *(
                     (
@@ -394,7 +446,9 @@ class InventoryViewSet(viewsets.ReadOnlyModelViewSet):
             BiodiversityRecord.objects.select_related(
                 "species__genus__family", "neighborhood__locality", "site"
             )
-            .prefetch_related("measurements", "observations")
+            .prefetch_related(
+                "measurements__study", "observations", "assessments__study"
+            )
             .filter(pk=kwargs["pk"])
             .first()
         )

@@ -1,8 +1,9 @@
 //! Dashboard page: census, taxonomy and climate figures from `GET /api/v1/reports/dashboard/`
 //! (one request, aggregated in the database).
 //!
-//! Blocks without a data source are labeled as such instead of showing sample numbers:
-//! CO₂ absorption and oxygen production (no model yet). The former "monthly growth" and
+//! Ecosystem services (stored carbon and intercepted rain, city and per comuna) are the
+//! sums of each tree's estimate (`compute_ecosystem_services` in the backend). The
+//! former "monthly growth" and
 //! "recent activity" blocks were replaced by the height distribution and the census
 //! campaigns, because the census has one measurement per tree and no activity log.
 //!
@@ -46,6 +47,12 @@ struct Overall {
     total_trees: i64,
     species_count: i64,
     avg_height_m: Option<f64>,
+    #[serde(default)]
+    carbon_t: f64,
+    #[serde(default)]
+    carbon_co2e_t: f64,
+    #[serde(default)]
+    rain_interception_m3: f64,
 }
 
 #[derive(Clone, Deserialize)]
@@ -84,6 +91,10 @@ struct HeightBin {
 struct LocalityStats {
     name: String,
     total_trees: i64,
+    #[serde(default)]
+    carbon_t: f64,
+    #[serde(default)]
+    rain_interception_m3: f64,
 }
 
 #[derive(Clone, Deserialize)]
@@ -332,6 +343,19 @@ fn health_and_campaigns(s: &Summary, l: Lang) -> impl IntoView + use<> {
 }
 
 fn impact_and_species(s: &Summary, l: Lang) -> impl IntoView + use<> {
+    let localities = s
+        .localities
+        .iter()
+        .map(|c| {
+            view! {
+                <tr class="border-t border-gray-100">
+                    <td class="py-1">{c.name.clone()}</td>
+                    <td class="py-1 text-right tabular-nums">{fmt_thousands(c.carbon_t.round() as i64)}</td>
+                    <td class="py-1 text-right tabular-nums">{fmt_thousands(c.rain_interception_m3.round() as i64)}</td>
+                </tr>
+            }
+        })
+        .collect_view();
     let top = s.top_species.first().map(|t| t.count).unwrap_or(1).max(1);
     let species = s
         .top_species
@@ -354,23 +378,35 @@ fn impact_and_species(s: &Summary, l: Lang) -> impl IntoView + use<> {
 
     view! {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            // Environmental Impact: no data source yet
+            // Ecosystem services: sums of the per-tree estimates
             <div class=CARD>
-                <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Impacto ambiental", "Environmental Impact")}</h3>
+                <h3 class="text-lg font-medium text-gray-700 mb-3">{pick(l, "Servicios ecosistémicos", "Ecosystem Services")}</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-                        <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Absorción de CO₂", "CO₂ Absorption")}</h4>
-                        <p class="text-2xl font-bold text-gray-400">"N/A"</p>
-                        <p class="text-green-600 text-xs mt-1">{pick(l, "Toneladas", "Tons")}</p>
+                        <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Carbono almacenado", "Stored carbon")}</h4>
+                        <p class="text-2xl font-bold text-green-700">{format!("{} t C", fmt_thousands(s.overall.carbon_t.round() as i64))}</p>
+                        <p class="text-green-600 text-xs mt-1">{format!("{} t CO₂e", fmt_thousands(s.overall.carbon_co2e_t.round() as i64))}</p>
                     </div>
                     <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                        <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Producción de oxígeno", "Oxygen Production")}</h4>
-                        <p class="text-2xl font-bold text-gray-400">"N/A"</p>
-                        <p class="text-blue-600 text-xs mt-1">{pick(l, "Toneladas/año", "Tons/year")}</p>
+                        <h4 class="text-xs font-medium text-gray-500 uppercase">{pick(l, "Lluvia interceptada", "Intercepted rain")}</h4>
+                        <p class="text-2xl font-bold text-blue-700">{format!("{} m³", fmt_thousands(s.overall.rain_interception_m3.round() as i64))}</p>
+                        <p class="text-blue-600 text-xs mt-1">{pick(l, "por año (cota inferior)", "per year (lower bound)")}</p>
                     </div>
                 </div>
+                <table class="mt-4 w-full text-xs">
+                    <thead class="text-gray-500">
+                        <tr>
+                            <th class="text-left font-medium py-1">{pick(l, "Comuna", "Comuna")}</th>
+                            <th class="text-right font-medium py-1">{pick(l, "Carbono (t C)", "Carbon (t C)")}</th>
+                            <th class="text-right font-medium py-1">{pick(l, "Lluvia (m³/año)", "Rain (m³/year)")}</th>
+                        </tr>
+                    </thead>
+                    <tbody>{localities}</tbody>
+                </table>
                 <p class="mt-3 text-xs text-gray-400">
-                    {pick(l, "Aún no se calcula: la base de datos no tiene un modelo de carbono ni de oxígeno para los árboles del censo.", "Not computed yet: the database has no carbon or oxygen model for the census trees.")}
+                    {pick(l,
+                        "Estimación árbol por árbol con el censo. Carbono: stock acumulado en la vida de los árboles (Chave et al. 2005, misma ecuación de Acuña et al. 2021 para Ibagué). Lluvia: lo que retienen las copas cada día de lluvia (2022, 2023 y 2025), sin la evaporación durante el aguacero; las mediciones en árboles aislados dan más. No incluye los árboles sin barrio asignado en la tabla por comuna.",
+                        "Tree-by-tree estimate from the census. Carbon: stock accumulated over the trees' lives (Chave et al. 2005, the same equation as Acuña et al. 2021 for Ibagué). Rain: what the crowns hold each rainy day (2022, 2023 and 2025), without evaporation during the storm; measurements on isolated trees give more. Trees without a barrio are not in the per-comuna table.")}
                 </p>
             </div>
 

@@ -67,6 +67,7 @@ class BiodiversityRecordViewSet(viewsets.ReadOnlyModelViewSet):
         "neighborhood",
         "neighborhood__locality",
         "neighborhood__locality__municipality",
+        "ecosystem_service",
     )
     serializer_class = BiodiversityRecordSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]

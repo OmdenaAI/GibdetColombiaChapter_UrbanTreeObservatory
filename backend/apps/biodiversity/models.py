@@ -31,6 +31,17 @@ class BiodiversityRecord(BaseModel):
         ACTIVE = "AC", _("active")
         REMOVED = "RE", _("removed")
 
+    class PlantingSite(models.TextChoices):
+        """Where the tree grows, as the census form records it (``emplazamiento``)."""
+
+        PARK = "PA", _("park")
+        SIDEWALK = "SW", _("sidewalk")
+        MEDIAN = "ME", _("road median")
+        GREEN_STRIP = "GS", _("green strip")
+        TREE_PIT = "TP", _("tree pit")
+        FRONT_GARDEN = "FG", _("front garden")
+        ROUNDABOUT = "RB", _("roundabout")
+
     class RemovalReason(models.TextChoices):
         FELLED = "FE", _("felled")
         FALLEN = "FA", _("fallen")
@@ -67,6 +78,14 @@ class BiodiversityRecord(BaseModel):
         _("recorded by"), max_length=50, default="Cortolima", blank=True
     )
     date = models.DateField(_("recorded date"), null=True, blank=True)
+    planting_site = models.CharField(
+        _("planting site"),
+        max_length=2,
+        choices=PlantingSite,
+        blank=True,
+        db_index=True,
+        help_text=_("Park, sidewalk, road median... Empty when unknown."),
+    )
     system_comment = models.TextField(
         _("system comment"), null=True, blank=True, editable=False
     )

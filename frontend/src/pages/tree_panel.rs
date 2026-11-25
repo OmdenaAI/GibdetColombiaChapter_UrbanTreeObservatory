@@ -2,8 +2,9 @@
 //! scientific name, illustration, IUCN status, a data table and GBIF / Tropical Plants links.
 //!
 //! The point itself (from `/biodiversity/records/bbox/`) carries the record, species and
-//! place names; the panel then loads the species detail (family, IUCN, links, illustration)
-//! and the tree's measurements (DBH, total height) in parallel.
+//! place names; the panel then loads the species detail (family, IUCN, links, illustration),
+//! the tree's measurements (DBH, total height) and its ecosystem services (stored carbon,
+//! intercepted rain; from the record detail) in parallel.
 
 use std::sync::Arc;
 
@@ -39,6 +40,14 @@ enum Load<T> {
 struct Measures {
     dbh_cm: Option<f64>,
     height_m: Option<f64>,
+}
+
+/// Ecosystem services of the tree (`/biodiversity/records/<id>/`); `None` when the backend
+/// has not computed them or an input was missing.
+#[derive(Clone, Default, Deserialize)]
+struct Services {
+    carbon_kg: Option<f64>,
+    rain_interception_m3: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -87,6 +96,22 @@ fn fetch_species(id: i64, out: RwSignal<Load<Arc<Species>>>) {
     });
 }
 
+fn fetch_services(record_id: i64, out: RwSignal<Load<Services>>) {
+    spawn_local(async move {
+        let url = format!("{API_BASE}/api/v1/biodiversity/records/{record_id}/");
+        let res = get_json(&url)
+            .await
+            .and_then(|v| serde_json::from_value::<Services>(v).map_err(|e| e.to_string()));
+        match res {
+            Ok(s) => out.try_set(Load::Ready(s)),
+            Err(e) => {
+                console_error("Error loading ecosystem services:", &e);
+                out.try_set(Load::Failed)
+            }
+        };
+    });
+}
+
 fn fetch_measures(record_id: i64, out: RwSignal<Load<Measures>>) {
     spawn_local(async move {
         // `page=1` is required: without it the endpoint filters only within the latest
@@ -112,11 +137,13 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
     let i = I18n::use_ctx();
     let species = RwSignal::new(Load::<Arc<Species>>::Loading);
     let measures = RwSignal::new(Load::<Measures>::Loading);
+    let services = RwSignal::new(Load::<Services>::Loading);
     match tree.species_id {
         Some(id) => fetch_species(id, species),
         None => species.set(Load::Failed),
     }
     fetch_measures(tree.id, measures);
+    fetch_services(tree.id, services);
 
     // Text for a value that depends on a request: "…" while loading, "—" when missing.
     let from_species = move |f: fn(&Species) -> String| {
@@ -130,6 +157,14 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
         move || measures.with(|m| match m {
             Load::Loading => "…".to_string(),
             Load::Ready(m) => f(m).map(fmt_num).unwrap_or_else(|| "—".into()),
+            Load::Failed => "—".to_string(),
+        })
+    };
+
+    let from_services = move |f: fn(&Services) -> Option<f64>| {
+        move || services.with(|s| match s {
+            Load::Loading => "…".to_string(),
+            Load::Ready(s) => f(s).map(fmt_num).unwrap_or_else(|| "—".into()),
             Load::Failed => "—".to_string(),
         })
     };
@@ -254,6 +289,8 @@ pub fn TreePanel(tree: TreeRecord, on_close: Callback<()>) -> impl IntoView {
                     })}
                     {row("Diámetro (cm)", "Diameter (cm)", from_measures(|m| m.dbh_cm).into_any())}
                     {row("Altura total (m)", "Total height (m)", from_measures(|m| m.height_m).into_any())}
+                    {row("Carbono almacenado (kg C)", "Stored carbon (kg C)", from_services(|s| s.carbon_kg).into_any())}
+                    {row("Lluvia interceptada (m³/año)", "Intercepted rain (m³/year)", from_services(|s| s.rain_interception_m3).into_any())}
                     {row("Barrio", "Neighborhood", place(tree.neighborhood.clone()).into_any())}
                     {row("Sitio", "Site", place(tree.site.clone()).into_any())}
                 </tbody>

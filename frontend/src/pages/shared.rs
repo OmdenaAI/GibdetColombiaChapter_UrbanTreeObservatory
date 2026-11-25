@@ -4,7 +4,6 @@ use leptos::prelude::*;
 
 use crate::i18n::{Lang, pick};
 
-pub const TH: &str = "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider";
 /// Phytosanitary status: (code, Spanish label, English label, legend dot, chart color),
 /// in display order.
 pub const HEALTH: [(&str, &str, &str, &str, &str); 5] = [

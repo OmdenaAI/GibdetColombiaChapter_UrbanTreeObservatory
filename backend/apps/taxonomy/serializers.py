@@ -93,6 +93,10 @@ class SpeciesSerializer(serializers.ModelSerializer):
     common_name = serializers.CharField(read_only=True, allow_null=True)
     # Annotated by SpeciesViewSet: whether ``species/{id}/manual/`` has a sheet.
     has_manual_entry = serializers.BooleanField(read_only=True, default=False)
+    # Set from the versioned suitability matrix (load_planting_site_suitability).
+    recommended_planting_sites = serializers.ListField(
+        child=serializers.CharField(), read_only=True
+    )
     gbif_url = serializers.URLField(read_only=True)
     tropical_plants_url = serializers.URLField(read_only=True)
 
@@ -122,6 +126,7 @@ class SpeciesSerializer(serializers.ModelSerializer):
             "accepted_scientific_name",
             "common_name",
             "has_manual_entry",
+            "recommended_planting_sites",
             "functional_group",
             "origin",
             "origin_display",

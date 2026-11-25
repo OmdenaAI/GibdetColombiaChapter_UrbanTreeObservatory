@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.biodiversity.models import BiodiversityRecord
 from apps.biodiversity.serializers import BiodiversityRecordLightSerializer
 
-from .models import Measurement, Observation
+from .models import Measurement, Observation, Upload
 
 
 class MeasurementSerializer(serializers.ModelSerializer):
@@ -151,3 +151,35 @@ class ObservationSerializer(serializers.ModelSerializer):
             "r_cr",
             "r_ce",
         ]
+
+
+class UploadSerializer(serializers.ModelSerializer):
+    """A file sent to update the database. The list leaves out the changes and errors
+    of each file (only its counts)."""
+
+    user = serializers.CharField(source="user.get_username", read_only=True)
+
+    class Meta:
+        model = Upload
+        fields = [
+            "id",
+            "name",
+            "format",
+            "status",
+            "user",
+            "created_at",
+            "applied_at",
+            "summary",
+        ]
+        read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        view = self.context.get("view")
+        if view is not None and view.action == "list":
+            data["summary"] = {
+                k: v
+                for k, v in data["summary"].items()
+                if k not in {"changes", "errors"}
+            }
+        return data

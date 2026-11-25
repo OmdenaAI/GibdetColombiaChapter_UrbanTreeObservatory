@@ -28,6 +28,10 @@ pub struct Species {
     /// Whether the species has a sheet in the Tolima arborization manual (`manual/` endpoint).
     #[serde(default)]
     pub has_manual_entry: bool,
+    /// Planting sites the Tolima manual recommends (with or without conditions), as
+    /// `BiodiversityRecord.PlantingSite` codes; empty when the manual says nothing.
+    #[serde(default)]
+    pub recommended_planting_sites: Vec<String>,
     pub genus: Genus,
     #[serde(default)]
     pub functional_group: Option<FunctionalGroup>,
@@ -319,6 +323,17 @@ pub const IUCN: [IucnCategory; 9] = [
         "Not yet assessed against the IUCN Red List criteria."),
 ];
 
+/// Planting sites, as the tree census records them (`BiodiversityRecord.PlantingSite`).
+pub const PLANTING_SITES: [Label; 7] = [
+    ("PA", "Parque", "Park"),
+    ("GS", "Zona blanda", "Green strip"),
+    ("SW", "Andén", "Sidewalk"),
+    ("ME", "Separador vial", "Road median"),
+    ("TP", "Alcorque", "Tree pit"),
+    ("FG", "Antejardín", "Front garden"),
+    ("RB", "Glorieta", "Roundabout"),
+];
+
 pub const ORIGINS: [Label; 7] = [
     ("NT", "Nativa", "Native"),
     ("CU", "Cultivada", "Cultivated"),
@@ -419,6 +434,13 @@ pub enum Category {
     Iucn,
     Origin,
     Canopy,
+    /// Recommended planting site: a species can have several.
+    PlantingSite,
+}
+
+impl Category {
+    pub const ALL: [Category; 6] =
+        [Category::FlowerColor, Category::LifeForm, Category::Iucn, Category::Origin, Category::Canopy, Category::PlantingSite];
 }
 
 impl Category {
@@ -429,16 +451,19 @@ impl Category {
             Category::Iucn => pick(l, "UICN", "IUCN"),
             Category::Origin => pick(l, "Origen", "Origin"),
             Category::Canopy => pick(l, "Copa", "Canopy"),
+            Category::PlantingSite => pick(l, "Emplazamiento", "Planting site"),
         }
     }
 
-    pub fn value(self, s: &Species) -> &str {
+    /// Whether the species has this code (for planting sites: whether it is recommended).
+    pub fn has(self, s: &Species, code: &str) -> bool {
         match self {
-            Category::FlowerColor => &s.flower_color,
-            Category::LifeForm => &s.life_form,
-            Category::Iucn => &s.iucn_status,
-            Category::Origin => &s.origin,
-            Category::Canopy => &s.canopy_shape,
+            Category::FlowerColor => s.flower_color == code,
+            Category::LifeForm => s.life_form == code,
+            Category::Iucn => s.iucn_status == code,
+            Category::Origin => s.origin == code,
+            Category::Canopy => s.canopy_shape == code,
+            Category::PlantingSite => s.recommended_planting_sites.iter().any(|c| c == code),
         }
     }
 
@@ -449,6 +474,7 @@ impl Category {
             Category::Iucn => iucn_info(l, code).0,
             Category::Origin => origin_label(l, code),
             Category::Canopy => canopy_label(l, code),
+            Category::PlantingSite => lookup(&PLANTING_SITES, l, code),
         }
     }
 }
@@ -520,9 +546,9 @@ impl Filters {
             return false;
         }
 
-        for cat in [Category::FlowerColor, Category::LifeForm, Category::Iucn, Category::Origin, Category::Canopy] {
+        for cat in Category::ALL {
             let mut chosen = self.selected.iter().filter(|(c, _)| *c == cat).peekable();
-            if chosen.peek().is_some() && !chosen.any(|(_, code)| *code == cat.value(s)) {
+            if chosen.peek().is_some() && !chosen.any(|(_, code)| cat.has(s, code)) {
                 return false;
             }
         }
@@ -583,6 +609,22 @@ mod tests {
         assert!(f.matches(&palm, &saved) && f.matches(&tree, &saved));
         f.saved_only = true;
         assert!(!f.matches(&palm, &saved) && f.matches(&tree, &saved));
+    }
+
+    #[test]
+    fn planting_site_matches_any_recommended_site() {
+        let ficus = species(serde_json::json!({"recommended_planting_sites": ["PA", "GS"]}));
+        let unknown = species(serde_json::json!({"id": 2}));
+        let none = HashSet::new();
+        let mut f = Filters::default();
+        f.toggle(Category::PlantingSite, "GS");
+        assert!(f.matches(&ficus, &none) && !f.matches(&unknown, &none));
+        f.toggle(Category::PlantingSite, "GS");
+        f.toggle(Category::PlantingSite, "SW");
+        assert!(!f.matches(&ficus, &none));
+        f.toggle(Category::PlantingSite, "PA");
+        assert!(f.matches(&ficus, &none));
+        assert_eq!(Category::PlantingSite.label(Lang::En, "ME"), "Road median");
     }
 
     #[test]
